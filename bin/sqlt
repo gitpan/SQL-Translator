@@ -2,10 +2,9 @@
 # vim: set ft=perl:
 
 # -------------------------------------------------------------------
-# $Id: sqlt,v 1.10 2003/10/19 17:01:25 grommit Exp $
+# $Id: sqlt,v 1.12 2004/02/06 17:48:16 kycl4rk Exp $
 # -------------------------------------------------------------------
-# Copyright (C) 2002 Ken Y. Clark <kclar@cpan.org>,
-#                    darren chamberlain <darren@cpan.org>
+# Copyright (C) 2002-4 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -113,7 +112,7 @@ use Pod::Usage;
 use SQL::Translator;
 
 use vars qw( $VERSION );
-$VERSION = sprintf "%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.12 $ =~ /(\d+)\.(\d+)/;
 
 my $from;             # the original database
 my $to;               # the destination database 
@@ -170,7 +169,7 @@ GetOptions(
 
 my @files = @ARGV; # source files
 unless ( @files ) {
-    if ( $from eq 'DBI' ) {
+    if ( defined($from) && $from eq 'DBI' ) {
         @files = ('!');
     }
     else {

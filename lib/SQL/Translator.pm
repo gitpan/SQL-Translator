@@ -1,11 +1,9 @@
 package SQL::Translator;
 
 # ----------------------------------------------------------------------
-# $Id: Translator.pm,v 1.48 2003/11/07 16:57:25 kycl4rk Exp $
+# $Id: Translator.pm,v 1.53 2004/02/11 21:37:11 kycl4rk Exp $
 # ----------------------------------------------------------------------
-# Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
-#                    darren chamberlain <darren@cpan.org>,
-#                    Chris Mungall <cjm@fruitfly.org>
+# Copyright (C) 2002-4 The SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -28,8 +26,8 @@ use base 'Class::Base';
 
 require 5.004;
 
-$VERSION  = '0.04';
-$REVISION = sprintf "%d.%02d", q$Revision: 1.48 $ =~ /(\d+)\.(\d+)/;
+$VERSION  = '0.05';
+$REVISION = sprintf "%d.%02d", q$Revision: 1.53 $ =~ /(\d+)\.(\d+)/;
 $DEBUG    = 0 unless defined $DEBUG;
 $ERROR    = "";
 
@@ -683,7 +681,7 @@ sub _list {
                 my $mod      =  $_;
                    $mod      =~ s/\.pm$//;
                 my $cur_dir  = $File::Find::dir;
-                my $base_dir = catfile 'SQL', 'Translator', $uctype;
+                my $base_dir = quotemeta catfile 'SQL', 'Translator', $uctype;
 
                 #
                 # See if the current directory is below the base directory.
@@ -777,6 +775,16 @@ sub isa($$) {
 }
 
 # ----------------------------------------------------------------------
+# version
+#
+# Returns the $VERSION of the main SQL::Translator package.
+# ----------------------------------------------------------------------
+sub version {
+    my $self = shift;
+    return $VERSION;
+}
+
+# ----------------------------------------------------------------------
 sub validate {
     my ( $self, $arg ) = @_;
     if ( defined $arg ) {
@@ -848,6 +856,10 @@ plug in custom parsers or producers, or to manipulate the parsed data
 via the built-in object model.  Presently only the definition parts of
 SQL are handled (CREATE, ALTER), not the manipulation of data (INSERT,
 UPDATE, DELETE).
+
+This documentation covers the API for SQL::Translator.  For a more general
+discussion of how to use the modules and scripts, please see
+L<SQL::Translator::Manual>.
 
 =head1 CONSTRUCTOR
 
@@ -1101,6 +1113,10 @@ Turns on/off the tracing option of Parse::RecDescent.
 Whether or not to validate the schema object after parsing and before
 producing.
 
+=head2 version
+
+Returns the version of the SQL::Translator release.
+
 =head1 AUTHORS
 
 The following people have contributed to the SQLFairy project:
@@ -1110,6 +1126,8 @@ The following people have contributed to the SQLFairy project:
 =item * Mark Addison <grommit@users.sourceforge.net>
 
 =item * Sam Angiuoli <angiuoli@users.sourceforge.net>
+
+=item * Dave Cash <dave@gnofn.org>
 
 =item * Darren Chamberlain <dlc@users.sourceforge.net>
 

@@ -1,10 +1,9 @@
 package SQL::Translator::Producer::ClassDBI;
 
 # -------------------------------------------------------------------
-# $Id: ClassDBI.pm,v 1.38 2003/10/15 19:56:13 allenday Exp $
+# $Id: ClassDBI.pm,v 1.40 2004/02/09 23:02:11 kycl4rk Exp $
 # -------------------------------------------------------------------
-# Copyright (C) 2003 Allen Day <allenday@ucla.edu>,
-#                    Ying Zhang <zyolive@yahoo.com>
+# Copyright (C) 2002-4 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -23,7 +22,7 @@ package SQL::Translator::Producer::ClassDBI;
 
 use strict;
 use vars qw[ $VERSION $DEBUG ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.38 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.40 $ =~ /(\d+)\.(\d+)/;
 $DEBUG = 1 unless defined $DEBUG;
 
 use SQL::Translator::Schema::Constants;
@@ -315,7 +314,8 @@ sub produce {
         sort { $packages{ $a }{'order'} <=> $packages{ $b }{'order'} }
         keys %packages
     ) {
-        my $pkg = $packages{$pkg_name};
+        my $pkg = $packages{$pkg_name} or next;
+        next unless $pkg->{'pkg_name'};
 
         $create .= join ( "\n",
             $sep,

@@ -1,12 +1,9 @@
 package SQL::Translator::Parser::PostgreSQL;
 
 # -------------------------------------------------------------------
-# $Id: PostgreSQL.pm,v 1.31 2003/08/21 18:08:04 kycl4rk Exp $
+# $Id: PostgreSQL.pm,v 1.37 2004/02/09 22:23:40 kycl4rk Exp $
 # -------------------------------------------------------------------
-# Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
-#                    Allen Day <allenday@users.sourceforge.net>,
-#                    darren chamberlain <darren@cpan.org>,
-#                    Chris Mungall <cjm@fruitfly.org>
+# Copyright (C) 2002-4 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -111,7 +108,7 @@ View table:
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.31 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.37 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -131,7 +128,7 @@ my $parser; # should we do this?  There's no programmic way to
 
 $GRAMMAR = q!
 
-{ my ( %tables, $table_order ) }
+{ my ( %tables, $table_order, $field_order, @table_comments) }
 
 #
 # The "eofile" rule makes the parser fail if any "statement" rule
@@ -144,6 +141,8 @@ startrule : statement(s) eofile { \%tables }
 eofile : /^\Z/
 
 statement : create
+  | comment_on_table
+  | comment_on_column
   | comment
   | alter
   | grant
@@ -194,14 +193,17 @@ create : create_table table_name '(' create_definition(s /,/) ')' table_option(s
         $tables{ $table_name }{'order'}      = ++$table_order;
         $tables{ $table_name }{'table_name'} = $table_name;
 
-        my $i = 1;
+        if ( @table_comments ) {
+            $tables{ $table_name }{'comments'} = [ @table_comments ];
+            @table_comments = ();
+        }
+
         my @constraints;
         for my $definition ( @{ $item[4] } ) {
             if ( $definition->{'supertype'} eq 'field' ) {
                 my $field_name = $definition->{'name'};
                 $tables{ $table_name }{'fields'}{ $field_name } = 
-                    { %$definition, order => $i };
-                $i++;
+                    { %$definition, order => $field_order++ };
 				
                 for my $constraint ( @{ $definition->{'constraints'} || [] } ) {
                     $constraint->{'fields'} = [ $field_name ];
@@ -225,7 +227,7 @@ create : create_table table_name '(' create_definition(s /,/) ')' table_option(s
         1;
     }
 
-create : /create/i unique(?) /(index|key)/i index_name /on/i table_name using_method(?) '(' field_name(s /,/) ')' where_predicate(?) ';'
+create : CREATE unique(?) /(index|key)/i index_name /on/i table_name using_method(?) '(' field_name(s /,/) ')' where_predicate(?) ';'
     {
         push @{ $tables{ $item{'table_name'} }{'indices'} },
             {
@@ -236,12 +238,14 @@ create : /create/i unique(?) /(index|key)/i index_name /on/i table_name using_me
                 method    => $item{'using_method'}[0],
             }
         ;
+
     }
 
 #
-# Create anything else (e.g., domain, function, etc.)
+# Create anything else (e.g., domain, etc.)
 #
-create : /create/i WORD /[^;]+/ ';'
+create : CREATE WORD /[^;]+/ ';'
+    { @table_comments = (); }
 
 using_method : /using/i WORD { $item[2] }
 
@@ -251,20 +255,49 @@ create_definition : field
     | table_constraint
     | <error>
 
+table_comment : comment
+    {
+        my $comment = $item[1];
+        $return     = $comment;
+        push @table_comments, $comment;
+    }
+
 comment : /^\s*(?:#|-{2}).*\n/
+
+comment_on_table : /comment/i /on/i /table/i table_name /is/i comment_phrase ';'
+    {
+        push @{ $tables{ $item{'table_name'} }{'comments'} }, $item{'comment_phrase'};
+    }
+
+comment_on_column : /comment/i /on/i /column/i column_name /is/i comment_phrase ';'
+    {
+        my $table_name = $item[4]->{'table'};
+        my $field_name = $item[4]->{'field'};
+        push @{ $tables{ $table_name }{'fields'}{ $field_name }{'comments'} }, 
+            $item{'comment_phrase'};
+    }
+
+column_name : NAME '.' NAME
+    { $return = { table => $item[1], field => $item[3] } }
+
+comment_phrase : /'.*?'|NULL/ 
+    { 
+        my $val = $item[1] || '';
+        $val =~ s/^'|'$//g;
+        $return = $val;
+    }
 
 field : comment(s?) field_name data_type field_meta(s?) comment(s?)
     {
         my ( $default, @constraints, $is_pk );
-        my $null = 1;
+        my $is_nullable = 1;
         for my $meta ( @{ $item[4] } ) {
             if ( $meta->{'type'} eq 'default' ) {
                 $default = $meta;
                 next;
             }
             elsif ( $meta->{'type'} eq 'not_null' ) {
-                $null = 0;
-#                next;
+                $is_nullable = 0;
             }
             elsif ( $meta->{'type'} eq 'primary_key' ) {
                 $is_pk = 1;
@@ -280,7 +313,7 @@ field : comment(s?) field_name data_type field_meta(s?) comment(s?)
             name              => $item{'field_name'}, 
             data_type         => $item{'data_type'}{'type'},
             size              => $item{'data_type'}{'size'},
-            null              => $null,
+            is_nullable       => $is_nullable,
             default           => $default->{'value'},
             constraints       => [ @constraints ],
             comments          => [ @comments ],
@@ -572,7 +605,7 @@ key_action : key_delete
 
 key_delete : /on delete/i key_mutation
     { 
-        $return => { 
+        $return = { 
             type   => 'delete',
             action => $item[2],
         };
@@ -580,7 +613,7 @@ key_delete : /on delete/i key_mutation
 
 key_update : /on update/i key_mutation
     { 
-        $return => { 
+        $return = { 
             type   => 'update',
             action => $item[2],
         };
@@ -596,22 +629,140 @@ key_mutation : /no action/i { $return = 'no_action' }
     |
     /set default/i { $return = 'set default' }
 
-alter : alter_table table_name /add/i table_constraint ';' 
+alter : alter_table table_name add_column field ';' 
+    { 
+        my $field_def = $item[4];
+        $tables{ $item[2] }{'fields'}{ $field_def->{'name'} } = {
+            %$field_def, order => $field_order++
+        };
+        1;
+    }
+
+alter : alter_table table_name ADD table_constraint ';' 
     { 
         my $table_name = $item[2];
         my $constraint = $item[4];
         push @{ $tables{ $table_name }{'constraints'} }, $constraint;
+        1;
     }
 
-alter_table : /alter/i /table/i only(?)
+alter : alter_table table_name drop_column NAME restrict_or_cascade(?) ';' 
+    {
+        $tables{ $item[2] }{'fields'}{ $item[4] }{'drop'} = 1;
+        1;
+    }
 
-only : /only/i
+alter : alter_table table_name alter_column NAME alter_default_val ';' 
+    {
+        $tables{ $item[2] }{'fields'}{ $item[4] }{'default'} = 
+            $item[5]->{'value'};
+        1;
+    }
 
-create_table : /create/i TABLE
+#
+# These will just parse for now but won't affect the structure. - ky
+#
+alter : alter_table table_name /rename/i /to/i NAME ';'
+    { 1 }
 
-create_index : /create/i /index/i
+alter : alter_table table_name alter_column NAME SET /statistics/i INTEGER ';' 
+    { 1 }
 
-default_val  : /default/i /(\d+|'[^']*'|\w+\(.*?\))|\w+/
+alter : alter_table table_name alter_column NAME SET /storage/i storage_type ';'
+    { 1 }
+
+alter : alter_table table_name rename_column NAME /to/i NAME ';'
+    { 1 }
+
+alter : alter_table table_name DROP /constraint/i NAME restrict_or_cascade ';'
+    { 1 }
+
+alter : alter_table table_name /owner/i /to/i NAME ';'
+    { 1 }
+
+storage_type : /(plain|external|extended|main)/i
+
+alter_default_val : SET default_val 
+    { 
+        $return = { value => $item[2]->{'value'} } 
+    }
+    | DROP DEFAULT 
+    { 
+        $return = { value => undef } 
+    } 
+
+#
+# This is a little tricky to get right, at least WRT to making the 
+# tests pass.  The problem is that the constraints are stored just as
+# a list (no name access), and the tests expect the constraints in a
+# particular order.  I'm going to leave the rule but disable the code 
+# for now. - ky
+#
+alter : alter_table table_name alter_column NAME alter_nullable ';'
+    {
+#        my $table_name  = $item[2];
+#        my $field_name  = $item[4];
+#        my $is_nullable = $item[5]->{'is_nullable'};
+#
+#        $tables{ $table_name }{'fields'}{ $field_name }{'is_nullable'} = 
+#            $is_nullable;
+#
+#        if ( $is_nullable ) {
+#            1;
+#            push @{ $tables{ $table_name }{'constraints'} }, {
+#                type   => 'not_null',
+#                fields => [ $field_name ],
+#            };
+#        }
+#        else {
+#            for my $i ( 
+#                0 .. $#{ $tables{ $table_name }{'constraints'} || [] } 
+#            ) {
+#                my $c = $tables{ $table_name }{'constraints'}[ $i ] or next;
+#                my $fields = join( '', @{ $c->{'fields'} || [] } ) or next;
+#                if ( $c->{'type'} eq 'not_null' && $fields eq $field_name ) {
+#                    delete $tables{ $table_name }{'constraints'}[ $i ];
+#                    last;
+#                }
+#            }
+#        }
+
+        1;
+    }
+
+alter_nullable : SET not_null 
+    { 
+        $return = { is_nullable => 0 } 
+    }
+    | DROP not_null
+    { 
+        $return = { is_nullable => 1 } 
+    }
+
+not_null : /not/i /null/i
+
+add_column : ADD COLUMN(?)
+
+alter_table : ALTER TABLE ONLY(?)
+
+drop_column : DROP COLUMN(?)
+
+alter_column : ALTER COLUMN(?)
+
+rename_column : /rename/i COLUMN(?)
+
+restrict_or_cascade : /restrict/i | 
+    /cascade/i
+
+#
+# End basically useless stuff. - ky
+#
+
+create_table : CREATE TABLE
+
+create_index : CREATE /index/i
+
+default_val  : DEFAULT /(\d+|'[^']*'|\w+\(.*?\))|\w+/
     { 
         my $val =  defined $item[2] ? $item[2] : '';
         $val    =~ s/^'|'$//g; 
@@ -647,15 +798,33 @@ table_option : /inherits/i '(' name_with_opt_quotes(s /,/) ')'
         $return = { type => $item[1] =~ /out/i ? 'without_oids' : 'with_oids' }
     }
 
+ADD : /add/i
+
+ALTER : /alter/i
+
+CREATE : /create/i
+
+ONLY : /only/i
+
+DEFAULT : /default/i
+
+DROP : /drop/i
+
+COLUMN : /column/i
+
 TABLE : /table/i
 
 SEMICOLON : /\s*;\n?/
+
+INTEGER : /\d+/
 
 WORD : /\w+/
 
 DIGITS : /\d+/
 
 COMMA : ','
+
+SET : /set/i
 
 NAME    : "`" /\w+/ "`"
     { $item[2] }
@@ -709,13 +878,14 @@ sub parse {
 
         for my $fname ( @fields ) {
             my $fdata = $tdata->{'fields'}{ $fname };
+            next if $fdata->{'drop'};
             my $field = $table->add_field(
                 name              => $fdata->{'name'},
                 data_type         => $fdata->{'data_type'},
                 size              => $fdata->{'size'},
                 default_value     => $fdata->{'default'},
                 is_auto_increment => $fdata->{'is_auto_increment'},
-                is_nullable       => $fdata->{'null'},
+                is_nullable       => $fdata->{'is_nullable'},
             ) or die $table->error;
 
             $table->primary_key( $field->name ) if $fdata->{'is_primary_key'};

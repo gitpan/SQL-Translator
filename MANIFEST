@@ -9,6 +9,7 @@ README
 TODO
 bin/sqlt
 bin/sqlt-diagram
+bin/sqlt-diff
 bin/sqlt-dumper
 bin/sqlt-graph
 bin/sqlt.cgi
@@ -94,3 +95,4 @@ t/data/template/basic.tt
 t/data/xml/schema-basic.xml
 t/data/xml/schema-basic-attribs.xml
 META.yml                                Module meta-data (added by MakeMaker)
+SIGNATURE                                Public-key signature (added by MakeMaker)

@@ -1,11 +1,9 @@
 package SQL::Translator::Producer::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm,v 1.28 2003/10/15 18:55:11 kycl4rk Exp $
+# $Id: MySQL.pm,v 1.31 2004/02/09 23:02:15 kycl4rk Exp $
 # -------------------------------------------------------------------
-# Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
-#                    darren chamberlain <darren@cpan.org>,
-#                    Chris Mungall <cjm@fruitfly.org>
+# Copyright (C) 2002-4 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -46,20 +44,23 @@ for fields, etc.).
 
 use strict;
 use vars qw[ $VERSION $DEBUG ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.28 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.31 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug header_comment);
 
+#
+# Use only lowercase for the keys (e.g. "long" and not "LONG")
+#
 my %translate  = (
     #
     # Oracle types
     #
     varchar2   => 'varchar',
     long       => 'text',
-    CLOB       => 'longtext',
+    clob       => 'longtext',
 
     #
     # Sybase types
@@ -131,11 +132,11 @@ sub produce {
                     $data_type = 'int';
                 }
             }
-            elsif ( exists $translate{ $data_type } ) {
-                $data_type = $translate{ $data_type };
+            elsif ( exists $translate{ lc $data_type } ) {
+                $data_type = $translate{ lc $data_type };
             }
 
-            @size = () if $data_type eq 'text';
+            @size = () if $data_type =~ /(text|blob)/i;
 
             $field_def .= " $data_type";
             

@@ -1,9 +1,9 @@
 package SQL::Translator::Schema::Constants;
 
 # ----------------------------------------------------------------------
-# $Id: Constants.pm,v 1.41 2003/11/07 16:53:31 kycl4rk Exp $
+# $Id: Constants.pm,v 1.43 2004/02/09 22:15:15 kycl4rk Exp $
 # ----------------------------------------------------------------------
-# Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>
+# Copyright (C) 2002-4 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -35,7 +35,27 @@ SQL::Translator::Schema::Constants - constants module
 
 =head1 DESCRIPTION
 
-This module exports a several constants to like "primary key," etc. 
+This module exports the following constants for Schema features;
+
+=over 4
+
+=item CHECK_C
+
+=item FOREIGN_KEY
+
+=item FULL_TEXT
+
+=item NOT_NULL
+
+=item NORMAL
+
+=item NULL
+
+=item PRIMARY_KEY
+
+=item UNIQUE
+
+=back
 
 =cut
 
@@ -43,7 +63,7 @@ use strict;
 use base qw( Exporter );
 use vars qw( @EXPORT $VERSION );
 require Exporter;
-$VERSION = sprintf "%d.%02d", q$Revision: 1.41 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.43 $ =~ /(\d+)\.(\d+)/;
 
 @EXPORT = qw[ 
     CHECK_C
@@ -77,17 +97,12 @@ use constant UNIQUE => 'UNIQUE';
 
 1;
 
+# ----------------------------------------------------------------------
+
 =pod
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>
-
-=head1 COPYRIGHT
-
-Copyright (c) 2003
-
-This library is free software;  you can redistribute it and/or modify 
-it under the same terms as Perl itself.
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 
 =cut
