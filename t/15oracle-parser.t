@@ -5,17 +5,10 @@ use strict;
 use Test::More;
 use SQL::Translator;
 use SQL::Translator::Schema::Constants;
+use Test::SQL::Translator qw(maybe_plan);
 
-eval {
-    require SQL::Translator::Parser::Oracle;
-    SQL::Translator::Parser::Oracle->import('parse');
-};
-if ($@) {
-    plan skip_all => "$@";
-}
-else {
-    plan tests => 76;
-}
+maybe_plan(76, 'SQL::Translator::Parser::Oracle');
+SQL::Translator::Parser::Oracle->import('parse');
 
 my $t   = SQL::Translator->new( trace => 0 );
 my $sql = q[
@@ -26,7 +19,8 @@ my $sql = q[
         trait_category              VARCHAR2(100)   NOT NULL,
         UNIQUE ( trait_category )
     );
-    comment on table qtl_trait_category is 'hey, hey, hey, hey';
+    COMMENT ON TABLE qtl_trait_category IS 
+    'hey, hey, hey, hey';
     comment on column qtl_trait_category.qtl_trait_category_id 
         is 'the primary key!';
 
@@ -56,9 +50,10 @@ my $sql = q[
         start_position      NUMBER(11,2)    NOT NULL,
         stop_position       NUMBER(11,2)    NOT NULL,
         comments            long,
-        UNIQUE ( qtl_accession_id ),
         FOREIGN KEY ( qtl_trait_id ) REFERENCES qtl_trait
     );
+
+    CREATE UNIQUE INDEX qtl_accession ON qtl ( qtl_accession_id );
 
     CREATE TABLE qtl_trait_synonym
     (

@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::YAML;
 
 # -------------------------------------------------------------------
-# $Id: YAML.pm,v 1.8 2004/02/09 23:02:17 kycl4rk Exp $
+# $Id: YAML.pm,v 1.10 2004/03/29 10:20:03 grommit Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -41,7 +41,7 @@ takes a long time.
 
 use strict;
 use vars qw($VERSION);
-$VERSION = sprintf "%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/;
 
 use YAML qw(Dump);
 
@@ -68,6 +68,18 @@ sub produce {
                 map { ($_->name => view_procedure($_)) } 
                     $schema->get_procedures,
             },
+        },
+        translator => {
+            add_drop_table => $translator->add_drop_table,
+            filename       => $translator->filename,
+            no_comments    => $translator->no_comments,
+            parser_args    => $translator->parser_args,
+            producer_args  => $translator->producer_args,
+            parser_type    => $translator->parser_type,
+            producer_type  => $translator->producer_type,
+            show_warnings  => $translator->show_warnings,
+            trace          => $translator->trace,
+            version        => $translator->version,
         }
     });
 }
@@ -101,7 +113,7 @@ sub view_constraint {
     return {
         'deferrable'       => scalar $constraint->deferrable,
         'expression'       => scalar $constraint->expression,
-        'fields'           => scalar $constraint->fields,
+        'fields'           => scalar $constraint->field_names,
         'match_type'       => scalar $constraint->match_type,
         'name'             => scalar $constraint->name,
         'options'          => scalar $constraint->options,

@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::PostgreSQL;
 
 # -------------------------------------------------------------------
-# $Id: PostgreSQL.pm,v 1.37 2004/02/09 22:23:40 kycl4rk Exp $
+# $Id: PostgreSQL.pm,v 1.40 2004/08/30 18:54:58 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -108,7 +108,7 @@ View table:
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.37 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.40 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -255,14 +255,14 @@ create_definition : field
     | table_constraint
     | <error>
 
-table_comment : comment
-    {
-        my $comment = $item[1];
+comment : /^\s*(?:#|-{2})(.*)\n/ 
+    { 
+        my $comment =  $item[1];
+        $comment    =~ s/^\s*(#|-*)\s*//;
+        $comment    =~ s/\s*$//;
         $return     = $comment;
         push @table_comments, $comment;
     }
-
-comment : /^\s*(?:#|-{2}).*\n/
 
 comment_on_table : /comment/i /on/i /table/i table_name /is/i comment_phrase ';'
     {
@@ -287,7 +287,7 @@ comment_phrase : /'.*?'|NULL/
         $return = $val;
     }
 
-field : comment(s?) field_name data_type field_meta(s?) comment(s?)
+field : field_comment(s?) field_name data_type field_meta(s?) field_comment(s?)
     {
         my ( $default, @constraints, $is_pk );
         my $is_nullable = 1;
@@ -322,6 +322,14 @@ field : comment(s?) field_name data_type field_meta(s?) comment(s?)
         } 
     }
     | <error>
+
+field_comment : /^\s*(?:#|-{2})(.*)\n/ 
+    { 
+        my $comment =  $item[1];
+        $comment    =~ s/^\s*(#|-*)\s*//;
+        $comment    =~ s/\s*$//;
+        $return     = $comment;
+    }
 
 field_meta : default_val
     | column_constraint
@@ -399,7 +407,9 @@ data_type : pg_data_type parens_value_list(?)
         #
         # We can deduce some sizes from the data type's name.
         #
-        $data_type->{'size'} ||= $item[2][0];
+        if ( my $size = $item[2][0] ) {
+            $data_type->{'size'} = $size;
+        }
 
         $return  = $data_type;
     }
@@ -488,7 +498,7 @@ pg_data_type :
             $return = { type => 'bytea' };
         }
     |
-    /(timestamptz|timestamp)/i
+    /(timestamptz|timestamp)( without time zone)?/i
         { 
             $return = { type => 'timestamp' };
         }
@@ -861,7 +871,7 @@ sub parse {
 
     my $schema = $translator->schema;
     my @tables = sort { 
-        $result->{ $a }->{'order'} <=> $result->{ $b }->{'order'}
+        ( $result->{ $a }{'order'} || 0 ) <=> ( $result->{ $b }{'order'} || 0 )
     } keys %{ $result };
 
     for my $table_name ( @tables ) {
@@ -870,10 +880,12 @@ sub parse {
             name  => $tdata->{'table_name'},
         ) or die "Couldn't create table '$table_name': " . $schema->error;
 
+        $table->comments( $tdata->{'comments'} );
+
         my @fields = sort { 
-            $tdata->{'fields'}->{ $a }->{'order'} 
+            $tdata->{'fields'}{ $a }{'order'} 
             <=>
-            $tdata->{'fields'}->{ $b }->{'order'}
+            $tdata->{'fields'}{ $b }{'order'}
         } keys %{ $tdata->{'fields'} };
 
         for my $fname ( @fields ) {
@@ -886,6 +898,7 @@ sub parse {
                 default_value     => $fdata->{'default'},
                 is_auto_increment => $fdata->{'is_auto_increment'},
                 is_nullable       => $fdata->{'is_nullable'},
+                comments          => $fdata->{'comments'},
             ) or die $table->error;
 
             $table->primary_key( $field->name ) if $fdata->{'is_primary_key'};

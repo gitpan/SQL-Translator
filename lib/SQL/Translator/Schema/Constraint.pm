@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Constraint;
 
 # ----------------------------------------------------------------------
-# $Id: Constraint.pm,v 1.10 2004/02/09 22:15:15 kycl4rk Exp $
+# $Id: Constraint.pm,v 1.13 2004/03/29 11:18:12 grommit Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -51,7 +51,7 @@ use SQL::Translator::Utils 'parse_list_arg';
 use base 'Class::Base';
 use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/;
 
 my %VALID_CONSTRAINT_TYPE = (
     PRIMARY_KEY, 1,
@@ -78,8 +78,8 @@ Object constructor.
       reference_fields => 'phone_id',    # referenced field
       reference_table  => 'phone',       # referenced table
       match_type       => 'full',        # how to match
-      on_delete_do     => 'cascade',     # what to do on deletes
-      on_update_do     => '',            # what to do on updates
+      on_delete        => 'cascade',     # what to do on deletes
+      on_update        => '',            # what to do on updates
   );
 
 =cut
@@ -106,7 +106,7 @@ sub deferrable {
 
 =head2 deferrable
 
-Get or set the whether the constraint is deferrable.  If not defined,
+Get or set whether the constraint is deferrable.  If not defined,
 then returns "1."  The argument is evaluated by Perl for True or
 False, so the following are eqivalent:
 
@@ -222,6 +222,12 @@ Gets and set the fields the constraint is on.  Accepts a string, list or
 arrayref; returns an array or array reference.  Will unique the field
 names and keep them in order by the first occurrence of a field name.
 
+The fields are returned as Field objects if they exist or as plain
+names if not. (If you just want the names and want to avoid the Field's overload
+magic use L<field_names>).
+
+Returns undef or an empty list if the constraint has no fields set.
+
   $constraint->fields('id');
   $constraint->fields('id', 'name');
   $constraint->fields( 'id, name' );
@@ -247,11 +253,32 @@ names and keep them in order by the first occurrence of a field name.
     }
 
     if ( @{ $self->{'fields'} || [] } ) {
-        return wantarray ? @{ $self->{'fields'} } : $self->{'fields'};
+        # We have to return fields that don't exist on the table as names in
+        # case those fields havn't been created yet.
+        my @ret = map {
+            $self->table->get_field($_) || $_ } @{ $self->{'fields'} };
+        return wantarray ? @ret : \@ret;
     }
     else {
         return wantarray ? () : undef;
     }
+}
+
+# ----------------------------------------------------------------------
+sub field_names {
+
+=head2 field_names
+
+Read-only method to return a list or array ref of the field names. Returns undef
+or an empty list if the constraint has no fields set. Usefull if you want to
+avoid the overload magic of the Field objects returned by the fields method.
+
+  my @names = $constraint->field_names;
+
+=cut
+
+    my $self = shift;
+    return wantarray ? @{ $self->{'fields'} } : $self->{'fields'};
 }
 
 # ----------------------------------------------------------------------
@@ -400,28 +427,31 @@ arrayref; returns an array or array reference.
         $self->{'reference_fields'} = $fields;
     }
 
+    # Nothing set so try and derive it from the other constraint data
     unless ( ref $self->{'reference_fields'} ) {
-        my $table          = $self->table or return $self->error('No table');
-        my $schema         = $table->schema or return $self->error('No schema');
-        my $ref_table_name = $self->reference_table or 
-            return $self->error('No table');
-        my $ref_table      = $schema->get_table( $ref_table_name ) or
-            return $self->error("Can't find table '$ref_table_name'");
+        my $table   = $self->table   or return $self->error('No table');
+        my $schema  = $table->schema or return $self->error('No schema');
+        if ( my $ref_table_name = $self->reference_table ) { 
+            my $ref_table  = $schema->get_table( $ref_table_name ) or
+                return $self->error("Can't find table '$ref_table_name'");
 
-        if ( my $constraint = $ref_table->primary_key ) { 
-            $self->{'reference_fields'} = [ $constraint->fields ];
+            if ( my $constraint = $ref_table->primary_key ) { 
+                $self->{'reference_fields'} = [ $constraint->fields ];
+            }
+            else {
+                $self->error(
+                 'No reference fields defined and cannot find primary key in ',
+                 "reference table '$ref_table_name'"
+                );
+            }
         }
-        else {
-            $self->error(
-                'No reference fields defined and cannot find primary key in ',
-                "reference table '$ref_table_name'"
-            );
-        }
+        # No ref table so we are not that sort of constraint, hence no ref
+        # fields. So we let the return below return an empty list.
     }
 
     if ( ref $self->{'reference_fields'} ) {
         return wantarray 
-            ?  @{ $self->{'reference_fields'} || [] } 
+            ?  @{ $self->{'reference_fields'} } 
             :     $self->{'reference_fields'};
     }
     else {
@@ -454,7 +484,7 @@ sub table {
 
 =head2 table
 
-Get or set the field's table object.
+Get or set the constraint's table object.
 
   my $table = $field->table;
 

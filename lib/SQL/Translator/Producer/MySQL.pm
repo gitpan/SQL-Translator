@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm,v 1.31 2004/02/09 23:02:15 kycl4rk Exp $
+# $Id: MySQL.pm,v 1.37 2004/08/11 21:55:34 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -44,7 +44,7 @@ for fields, etc.).
 
 use strict;
 use vars qw[ $VERSION $DEBUG ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.31 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.37 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -70,6 +70,13 @@ my %translate  = (
     real       => 'double',
     comment    => 'text',
     bit        => 'tinyint',
+
+    #
+    # Access types
+    #
+    'long integer' => 'integer',
+    'text'         => 'text',
+    'datetime'     => 'datetime',
 );
 
 sub produce {
@@ -132,11 +139,29 @@ sub produce {
                     $data_type = 'int';
                 }
             }
+            #
+            # Convert a large Oracle varchar to "text"
+            #
+            elsif ( $data_type =~ /char/i && $size[0] > 255 ) {
+                $data_type = 'text';
+                @size      = ();
+            }
+            elsif ( $data_type =~ /char/i && ! $size[0] ) {
+                @size = (255);
+            }
+            elsif ( $data_type =~ /boolean/i ) {
+                $data_type = 'enum';
+                $commalist = "'0','1'";
+            }
             elsif ( exists $translate{ lc $data_type } ) {
                 $data_type = $translate{ lc $data_type };
             }
 
             @size = () if $data_type =~ /(text|blob)/i;
+
+            if ( $data_type =~ /(double|float)/ && scalar @size == 1 ) {
+                push @size, '0';
+            }
 
             $field_def .= " $data_type";
             
@@ -175,18 +200,21 @@ sub produce {
         # Indices
         #
         my @index_defs;
+        my %indexed_fields;
         for my $index ( $table->get_indices ) {
             push @index_defs, join( ' ', 
                 lc $index->type eq 'normal' ? 'INDEX' : $index->type,
                 $index->name,
                 '(' . join( ', ', $index->fields ) . ')'
             );
+            $indexed_fields{ $_ } = 1 for $index->fields;
         }
 
         #
         # Constraints -- need to handle more than just FK. -ky
         #
         my @constraint_defs;
+        my $has_fk;
         for my $c ( $table->get_constraints ) {
             my @fields = $c->fields or next;
 
@@ -199,6 +227,15 @@ sub produce {
                     'UNIQUE (' . join(', ', @fields). ')';
             }
             elsif ( $c->type eq FOREIGN_KEY ) {
+                $has_fk = 1;
+                
+                #
+                # Make sure FK field is indexed or MySQL complains.
+                #
+                unless ( $indexed_fields{ $fields[0] } ) {
+                    push @index_defs, "INDEX ($fields[0])";
+                }
+
                 my $def = join(' ', 
                     map { $_ || () } 'FOREIGN KEY', $c->name 
                 );
@@ -236,11 +273,9 @@ sub produce {
         # Footer
         #
         $create .= "\n)";
-#        while ( 
-#            my ( $key, $val ) = each %{ $table->options }
-#        ) {
-#            $create .= " $key=$val" 
-#        }
+        if ( $has_fk ) {
+            $create .= " Type=InnoDB";
+        }
         $create .= ";\n\n";
     }
 

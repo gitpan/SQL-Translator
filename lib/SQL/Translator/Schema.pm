@@ -1,7 +1,7 @@
 package SQL::Translator::Schema;
 
 # ----------------------------------------------------------------------
-# $Id: Schema.pm,v 1.13 2004/02/09 23:04:26 kycl4rk Exp $
+# $Id: Schema.pm,v 1.15 2004/07/26 13:55:51 kycl4rk Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -54,7 +54,7 @@ use SQL::Translator::Utils 'parse_list_arg';
 use base 'Class::Base';
 use vars qw[ $VERSION $TABLE_ORDER $VIEW_ORDER $TRIGGER_ORDER $PROC_ORDER ];
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.15 $ =~ /(\d+)\.(\d+)/;
 
 # ----------------------------------------------------------------------
 sub init {
@@ -65,7 +65,7 @@ sub init {
 
 Object constructor.
 
-  my $schema   =  SQL::Translator->new(
+  my $schema   =  SQL::Translator::Schema->new(
       name     => 'Foo',
       database => 'MySQL',
   );
@@ -111,7 +111,8 @@ not be created.
     }
 
     $table->order( ++$TABLE_ORDER );
-    my $table_name = $table->name or return $self->error('No table name');
+    # We know we have a name as the Table->new above errors if none given.
+    my $table_name = $table->name;
 
     if ( defined $self->{'tables'}{ $table_name } ) {
         return $self->error(qq[Can't create table: "$table_name" exists]);

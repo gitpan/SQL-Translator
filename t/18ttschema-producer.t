@@ -7,29 +7,23 @@
 use strict;
 use Test::More;
 use Test::Exception;
+use Test::SQL::Translator qw(maybe_plan);
 
 use Data::Dumper;
 use vars '%opt';
 BEGIN { map { $opt{$_}=1 if s/^-// } @ARGV; }
 use constant DEBUG => (exists $opt{d} ? 1 : 0);
-local $SIG{__WARN__} = sub { diag "[warn] ", @_; };
 
 use FindBin qw/$Bin/;
 
 # Testing 1,2,3,4...
 #=============================================================================
 
-eval { require Template; };
-if ($@ && $@ =~ m!locate Template.pm in!) {
-    plan skip_all => "You need Template Toolkit to run this test.";
-}
-eval { require Test::Differences; };
-if ($@ && $@ =~ m!locate Test/Differences.pm in!) {
-    plan skip_all => "You need Test::Differences for this test.";
+BEGIN {
+    maybe_plan(3, 'Template', 'Test::Differences')
 }
 use Test::Differences;
-plan tests => 3;
-    
+
 use SQL::Translator;
 use SQL::Translator::Producer::TTSchema;
 
@@ -40,7 +34,7 @@ $obj = SQL::Translator->new(
     show_warnings  => 1,
     add_drop_table => 1,
     from           => "XML-SQLFairy",
-    filename       => "$Bin/data/xml/schema-basic.xml",
+    filename       => "$Bin/data/xml/schema.xml",
     to             => "TTSchema",
      producer_args  => {
         ttfile => "$Bin/data/template/basic.tt",
@@ -51,8 +45,6 @@ lives_ok { $out = $obj->translate; }  "Translate ran";
 ok $out ne ""                        ,"Produced something!";
 local $/ = undef; # slurp
 eq_or_diff $out, <DATA>              ,"Output looks right";
-# I'm not sure if this diff is the best test, it is probaly too sensitive. But 
-# it at least it will blow up if anything changes!
 
 print $out if DEBUG;
 #print "Debug:", Dumper($obj) if DEBUG;
@@ -77,7 +69,6 @@ Fields
         foreign_key_reference: 
         is_valid:              1
         order:                 1
-        extra:                 
         table:                 Basic
     
     title
@@ -92,7 +83,6 @@ Fields
         foreign_key_reference: 
         is_valid:              1
         order:                 2
-        extra:                 
         table:                 Basic
     
     description
@@ -107,7 +97,6 @@ Fields
         foreign_key_reference: 
         is_valid:              1
         order:                 3
-        extra:                 
         table:                 Basic
     
     email
@@ -122,7 +111,6 @@ Fields
         foreign_key_reference: 
         is_valid:              1
         order:                 4
-        extra:                 
         table:                 Basic
     
     explicitnulldef
@@ -137,7 +125,6 @@ Fields
         foreign_key_reference: 
         is_valid:              1
         order:                 5
-        extra:                 
         table:                 Basic
     
     explicitemptystring
@@ -152,7 +139,6 @@ Fields
         foreign_key_reference: 
         is_valid:              1
         order:                 6
-        extra:                 
         table:                 Basic
     
     emptytagdef
@@ -167,7 +153,6 @@ Fields
         foreign_key_reference: 
         is_valid:              1
         order:                 7
-        extra:                 
         table:                 Basic
     
 

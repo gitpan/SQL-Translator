@@ -2,12 +2,20 @@
 # vim: set ft=perl:
 
 use strict;
-use Test::More tests => 2;
+use Test::More;
 use Test::Differences;
+use Test::SQL::Translator qw(maybe_plan);
 use SQL::Translator;
 use FindBin '$Bin';
 
-my $yaml = q/--- #YAML:1.0
+BEGIN {
+    maybe_plan(2,
+        'SQL::Translator::Parser::SQLite',
+        'SQL::Translator::Producer::YAML');
+}
+
+my $yaml = <<'YAML';
+--- #YAML:1.0
 schema:
   procedures: {}
   tables:
@@ -23,7 +31,7 @@ schema:
           on_delete: ''
           on_update: ''
           options: []
-          reference_fields: ~
+          reference_fields: []
           reference_table: ''
           type: PRIMARY KEY
         - deferrable: 1
@@ -35,7 +43,7 @@ schema:
           on_delete: ''
           on_update: ''
           options: []
-          reference_fields: ~
+          reference_fields: []
           reference_table: ''
           type: UNIQUE
       fields:
@@ -121,7 +129,7 @@ schema:
           on_delete: ''
           on_update: ''
           options: []
-          reference_fields: ~
+          reference_fields: []
           reference_table: ''
           type: CHECK
         - deferrable: 1
@@ -134,7 +142,7 @@ schema:
           on_delete: ''
           on_update: ''
           options: []
-          reference_fields: ~
+          reference_fields: []
           reference_table: ''
           type: PRIMARY KEY
       fields:
@@ -208,12 +216,27 @@ schema:
         select pr.person_id, pr.name as person_name, pt.name as pet_name
           from   person pr, pet pt
           where  person.person_id=pet.pet_id
-/;
+translator:
+  add_drop_table: 0
+  filename: ~
+  no_comments: 0
+  parser_args: {}
+  parser_type: SQL::Translator::Parser::SQLite
+  producer_args: {}
+  producer_type: SQL::Translator::Producer::YAML
+  show_warnings: 0
+  trace: 0
+  version: 0.06
+YAML
 
-my $tr = SQL::Translator->new(
+my $file = "$Bin/data/sqlite/create.sql";
+open FH, "<$file" or die "Can't read '$file': $!\n";
+local $/;
+my $data = <FH>;
+my $tr   = SQL::Translator->new(
     parser   => 'SQLite',
     producer => 'YAML',
-    filename => "$Bin/data/sqlite/create.sql",
+    data     => $data,
 );
 
 my $out;

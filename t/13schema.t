@@ -4,7 +4,7 @@
 $| = 1;
 
 use strict;
-use Test::More tests => 186;
+use Test::More tests => 202;
 use SQL::Translator::Schema::Constants;
 
 require_ok( 'SQL::Translator::Schema' );
@@ -54,10 +54,21 @@ require_ok( 'SQL::Translator::Schema' );
     like( $schema->error, qr/can't use table name/i, 
         '... because "foo" exists' );
 
+    $redundant_table = $schema->add_table(name => '');
+    is( $redundant_table, undef, qq[Can't add an anonymouse table...] );
+    like( $schema->error, qr/No table name/i,
+        '... because if has no name ' );
+
+    $redundant_table = SQL::Translator::Schema::Table->new(name => '');
+    is( $redundant_table, undef, qq[Can't create an anonymouse table] );
+    like( SQL::Translator::Schema::Table->error, qr/No table name/i,
+        '... because if has no name ' );
+
     #
     # Table default new
     #
     is( $foo_table->name, 'foo', 'Table name is "foo"' );
+    is( "$foo_table", 'foo', 'Table stringifies to "foo"' );
     is( $foo_table->is_valid, undef, 'Table "foo" is not yet valid' );
 
     my $fields = $foo_table->get_fields;
@@ -87,12 +98,16 @@ require_ok( 'SQL::Translator::Schema' );
         warn $person_table->error;
     isa_ok( $f1, 'SQL::Translator::Schema::Field', 'Field' );
     is( $f1->name, 'foo', 'Field name is "foo"' );
+    is( $f1->full_name, 'person.foo', 'Field full_name is "person.foo"' );
+    is( "$f1", 'foo', 'Field stringifies to "foo"' );
     is( $f1->data_type, '', 'Field data type is blank' );
     is( $f1->size, 0, 'Field size is "0"' );
     is( $f1->is_primary_key, '0', 'Field is_primary_key is false' );
     is( $f1->is_nullable, 1, 'Field can be NULL' );
     is( $f1->default_value, undef, 'Field default is undefined' );
     is( $f1->comments, '', 'No comments' );
+    is( $f1->table, 'person', 'Field table is person' );
+    is( $f1->schema->database, 'PostgreSQL', 'Field schema shortcut works' );
 
     my $f2 = SQL::Translator::Schema::Field->new (
         name     => 'f2',
@@ -121,16 +136,28 @@ require_ok( 'SQL::Translator::Schema' );
     like( $person_table->error, qr/can't use field/i, 
         '... because it exists' );
 
+    $redundant_field = $person_table->add_field(name => '');
+    is( $redundant_field, undef, qq[Didn't add a "" field...] );
+    like( $person_table->error, qr/No field name/i,
+        '... because it has no name' );
+
+    $redundant_field = SQL::Translator::Schema::Field->new(name => '');
+    is( $redundant_field, undef, qq[Didn't create a "" field...] );
+    like( SQL::Translator::Schema::Field->error, qr/No field name/i,
+        '... because it has no name' );
+
     my @fields = $person_table->get_fields;
     is( scalar @fields, 2, 'Table "foo" has 2 fields' );
 
     is( $fields[0]->name, 'foo', 'First field is "foo"' );
     is( $fields[1]->name, 'f2', 'Second field is "f2"' );
+    is( join(",",$person_table->field_names), 'foo,f2',
+        'field_names is "foo,f2"' );
 
     #
     # Field methods
     #
-    is( $f1->name('person_name'), 'person_name', 
+    is( $f1->name('person_name'), 'person_name',
         'Field name is "person_name"' );
     is( $f1->data_type('varchar'), 'varchar', 'Field data type is "varchar"' );
     is( $f1->size('30'), '30', 'Field size is "30"' );
@@ -208,26 +235,33 @@ require_ok( 'SQL::Translator::Schema' );
     isa_ok( $constraint1, 'SQL::Translator::Schema::Constraint', 'Constraint' );
     is( $constraint1->name, 'foo', 'Constraint name is "foo"' );
 
-    $fields = join(',', $constraint1->fields('id') );
-    is( $fields, 'id', 'Constraint field = "id"' );
+    $fields = join(',', $constraint1->fields('age') );
+    is( $fields, 'age', 'Constraint field = "age"' );
 
-    $fields = join(',', $constraint1->fields('id,id') );
-    is( $fields, 'id', 'Constraint field = "id"' );
+    $fields = $constraint1->fields;
+    ok( ref $fields[0] && $fields[0]->isa("SQL::Translator::Schema::Field"),
+        'Constraint fields returns a SQL::Translator::Schema::Field' );
 
-    $fields = join(',', $constraint1->fields('id', 'name') );
-    is( $fields, 'id,name', 'Constraint field = "id,name"' );
+    $fields = join(',', $constraint1->fields('age,age') );
+    is( $fields, 'age', 'Constraint field = "age"' );
 
-    $fields = join(',', $constraint1->fields( 'id,name,id' ) );
-    is( $fields, 'id,name', 'Constraint field = "id,name"' );
+    $fields = join(',', $constraint1->fields('age', 'name') );
+    is( $fields, 'age,name', 'Constraint field = "age,name"' );
 
-    $fields = join(',', $constraint1->fields( 'id, name' ) );
-    is( $fields, 'id,name', 'Constraint field = "id,name"' );
+    $fields = join(',', $constraint1->fields( 'age,name,age' ) );
+    is( $fields, 'age,name', 'Constraint field = "age,name"' );
 
-    $fields = join(',', $constraint1->fields( [ 'id', 'name' ] ) );
-    is( $fields, 'id,name', 'Constraint field = "id,name"' );
+    $fields = join(',', $constraint1->fields( 'age, name' ) );
+    is( $fields, 'age,name', 'Constraint field = "age,name"' );
 
-    $fields = join(',', $constraint1->fields( qw[ id name ] ) );
-    is( $fields, 'id,name', 'Constraint field = "id,name"' );
+    $fields = join(',', $constraint1->fields( [ 'age', 'name' ] ) );
+    is( $fields, 'age,name', 'Constraint field = "age,name"' );
+
+    $fields = join(',', $constraint1->fields( qw[ age name ] ) );
+    is( $fields, 'age,name', 'Constraint field = "age,name"' );
+
+    $fields = join(',', $constraint1->field_names );
+    is( $fields, 'age,name', 'Constraint field_names = "age,name"' );
 
     is( $constraint1->match_type, '', 'Constraint match type is empty' );
     is( $constraint1->match_type('foo'), undef, 

@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w 
+#!/usr/bin/perl -w
 # vim:filetype=perl
 
 # Before `make install' is performed this script should be runnable with
@@ -9,6 +9,7 @@ local $^W = 0;
 use strict;
 use Test::More;
 use Test::Exception;
+use Test::SQL::Translator qw(maybe_plan);
 
 use Data::Dumper;
 my %opt;
@@ -28,281 +29,58 @@ local $SIG{__WARN__} = sub {
 # Testing 1,2,3,4...
 #=============================================================================
 
-eval { require XML::Writer; };
-if ($@ && $@ =~ m!locate XML::Writer.pm in!) {
-    plan skip_all => "You need XML::Writer to use XML::SQLFairy.";
+BEGIN {
+    maybe_plan(14,
+        'XML::Writer',
+        'Test::Differences',
+        'SQL::Translator::Producer::XML::SQLFairy');
 }
-eval { require Test::Differences; };
-if ($@ && $@ =~ m!locate Test/Differences.pm in!) {
-    plan skip_all => "You need Test::Differences for this test.";
-}
-use Test::Differences;
-plan tests => 18;
 
+use Test::Differences;
 use SQL::Translator;
 use SQL::Translator::Producer::XML::SQLFairy;
 
 #
-# emit_empty_tags => 0
+# basic stuff
 #
 {
 my ($obj,$ans,$xml);
 
 $ans = <<EOXML;
-<sqlt:schema xmlns:sqlt="http://sqlfairy.sourceforge.net/sqlfairy.xml">
-  <sqlt:name></sqlt:name>
-  <sqlt:database></sqlt:database>
-  <sqlt:table>
-    <sqlt:name>Basic</sqlt:name>
-    <sqlt:order>1</sqlt:order>
-    <sqlt:fields>
-      <sqlt:field>
-        <sqlt:name>id</sqlt:name>
-        <sqlt:data_type>integer</sqlt:data_type>
-        <sqlt:size>10</sqlt:size>
-        <sqlt:is_nullable>0</sqlt:is_nullable>
-        <sqlt:is_auto_increment>1</sqlt:is_auto_increment>
-        <sqlt:is_primary_key>1</sqlt:is_primary_key>
-        <sqlt:is_foreign_key>0</sqlt:is_foreign_key>
-        <sqlt:comments>comment on id field</sqlt:comments>
-        <sqlt:order>1</sqlt:order>
-      </sqlt:field>
-      <sqlt:field>
-        <sqlt:name>title</sqlt:name>
-        <sqlt:data_type>varchar</sqlt:data_type>
-        <sqlt:size>100</sqlt:size>
-        <sqlt:is_nullable>0</sqlt:is_nullable>
-        <sqlt:default_value>hello</sqlt:default_value>
-        <sqlt:is_auto_increment>0</sqlt:is_auto_increment>
-        <sqlt:is_primary_key>0</sqlt:is_primary_key>
-        <sqlt:is_foreign_key>0</sqlt:is_foreign_key>
-        <sqlt:comments></sqlt:comments>
-        <sqlt:order>2</sqlt:order>
-      </sqlt:field>
-      <sqlt:field>
-        <sqlt:name>description</sqlt:name>
-        <sqlt:data_type>text</sqlt:data_type>
-        <sqlt:size>65535</sqlt:size>
-        <sqlt:is_nullable>1</sqlt:is_nullable>
-        <sqlt:default_value></sqlt:default_value>
-        <sqlt:is_auto_increment>0</sqlt:is_auto_increment>
-        <sqlt:is_primary_key>0</sqlt:is_primary_key>
-        <sqlt:is_foreign_key>0</sqlt:is_foreign_key>
-        <sqlt:comments></sqlt:comments>
-        <sqlt:order>3</sqlt:order>
-      </sqlt:field>
-      <sqlt:field>
-        <sqlt:name>email</sqlt:name>
-        <sqlt:data_type>varchar</sqlt:data_type>
-        <sqlt:size>255</sqlt:size>
-        <sqlt:is_nullable>1</sqlt:is_nullable>
-        <sqlt:is_auto_increment>0</sqlt:is_auto_increment>
-        <sqlt:is_primary_key>0</sqlt:is_primary_key>
-        <sqlt:is_foreign_key>0</sqlt:is_foreign_key>
-        <sqlt:comments></sqlt:comments>
-        <sqlt:order>4</sqlt:order>
-      </sqlt:field>
-    </sqlt:fields>
-    <sqlt:indices>
-      <sqlt:index>
-        <sqlt:name>titleindex</sqlt:name>
-        <sqlt:type>NORMAL</sqlt:type>
-        <sqlt:fields>title</sqlt:fields>
-        <sqlt:options></sqlt:options>
-      </sqlt:index>
-    </sqlt:indices>
-    <sqlt:constraints>
-      <sqlt:constraint>
-        <sqlt:name></sqlt:name>
-        <sqlt:type>PRIMARY KEY</sqlt:type>
-        <sqlt:fields>id</sqlt:fields>
-        <sqlt:reference_table></sqlt:reference_table>
-        <sqlt:on_delete></sqlt:on_delete>
-        <sqlt:on_update></sqlt:on_update>
-        <sqlt:match_type></sqlt:match_type>
-        <sqlt:expression></sqlt:expression>
-        <sqlt:options></sqlt:options>
-        <sqlt:deferrable>1</sqlt:deferrable>
-      </sqlt:constraint>
-      <sqlt:constraint>
-        <sqlt:name></sqlt:name>
-        <sqlt:type>UNIQUE</sqlt:type>
-        <sqlt:fields>email</sqlt:fields>
-        <sqlt:reference_table></sqlt:reference_table>
-        <sqlt:on_delete></sqlt:on_delete>
-        <sqlt:on_update></sqlt:on_update>
-        <sqlt:match_type></sqlt:match_type>
-        <sqlt:expression></sqlt:expression>
-        <sqlt:options></sqlt:options>
-        <sqlt:deferrable>1</sqlt:deferrable>
-      </sqlt:constraint>
-    </sqlt:constraints>
-  </sqlt:table>
-</sqlt:schema>
-EOXML
-
-$obj = SQL::Translator->new(
-    debug          => DEBUG,
-    trace          => TRACE,
-    show_warnings  => 1,
-    add_drop_table => 1,
-    from           => 'MySQL',
-    to             => 'XML-SQLFairy',
-);
-lives_ok {$xml = $obj->translate($file);} "Translate (emit_empty_tags=>0) ran";
-ok("$xml" ne ""                             ,"Produced something!");
-print "XML:\n$xml" if DEBUG;
-# Strip sqlf header with its variable date so we diff safely
-$xml =~ s/^([^\n]*\n){7}//m; 
-eq_or_diff $xml, $ans                       ,"XML looks right";
-
-} # end emit_empty_tags=>0
-
-#
-# emit_empty_tags => 1
-#
-{
-my ($obj,$ans,$xml);
-
-$ans = <<EOXML;
-<sqlt:schema xmlns:sqlt="http://sqlfairy.sourceforge.net/sqlfairy.xml">
-  <sqlt:name></sqlt:name>
-  <sqlt:database></sqlt:database>
-  <sqlt:table>
-    <sqlt:name>Basic</sqlt:name>
-    <sqlt:order>2</sqlt:order>
-    <sqlt:fields>
-      <sqlt:field>
-        <sqlt:name>id</sqlt:name>
-        <sqlt:data_type>integer</sqlt:data_type>
-        <sqlt:size>10</sqlt:size>
-        <sqlt:is_nullable>0</sqlt:is_nullable>
-        <sqlt:default_value></sqlt:default_value>
-        <sqlt:is_auto_increment>1</sqlt:is_auto_increment>
-        <sqlt:is_primary_key>1</sqlt:is_primary_key>
-        <sqlt:is_foreign_key>0</sqlt:is_foreign_key>
-        <sqlt:comments>comment on id field</sqlt:comments>
-        <sqlt:order>5</sqlt:order>
-      </sqlt:field>
-      <sqlt:field>
-        <sqlt:name>title</sqlt:name>
-        <sqlt:data_type>varchar</sqlt:data_type>
-        <sqlt:size>100</sqlt:size>
-        <sqlt:is_nullable>0</sqlt:is_nullable>
-        <sqlt:default_value>hello</sqlt:default_value>
-        <sqlt:is_auto_increment>0</sqlt:is_auto_increment>
-        <sqlt:is_primary_key>0</sqlt:is_primary_key>
-        <sqlt:is_foreign_key>0</sqlt:is_foreign_key>
-        <sqlt:comments></sqlt:comments>
-        <sqlt:order>6</sqlt:order>
-      </sqlt:field>
-      <sqlt:field>
-        <sqlt:name>description</sqlt:name>
-        <sqlt:data_type>text</sqlt:data_type>
-        <sqlt:size>65535</sqlt:size>
-        <sqlt:is_nullable>1</sqlt:is_nullable>
-        <sqlt:default_value></sqlt:default_value>
-        <sqlt:is_auto_increment>0</sqlt:is_auto_increment>
-        <sqlt:is_primary_key>0</sqlt:is_primary_key>
-        <sqlt:is_foreign_key>0</sqlt:is_foreign_key>
-        <sqlt:comments></sqlt:comments>
-        <sqlt:order>7</sqlt:order>
-      </sqlt:field>
-      <sqlt:field>
-        <sqlt:name>email</sqlt:name>
-        <sqlt:data_type>varchar</sqlt:data_type>
-        <sqlt:size>255</sqlt:size>
-        <sqlt:is_nullable>1</sqlt:is_nullable>
-        <sqlt:default_value></sqlt:default_value>
-        <sqlt:is_auto_increment>0</sqlt:is_auto_increment>
-        <sqlt:is_primary_key>0</sqlt:is_primary_key>
-        <sqlt:is_foreign_key>0</sqlt:is_foreign_key>
-        <sqlt:comments></sqlt:comments>
-        <sqlt:order>8</sqlt:order>
-      </sqlt:field>
-    </sqlt:fields>
-    <sqlt:indices>
-      <sqlt:index>
-        <sqlt:name>titleindex</sqlt:name>
-        <sqlt:type>NORMAL</sqlt:type>
-        <sqlt:fields>title</sqlt:fields>
-        <sqlt:options></sqlt:options>
-      </sqlt:index>
-    </sqlt:indices>
-    <sqlt:constraints>
-      <sqlt:constraint>
-        <sqlt:name></sqlt:name>
-        <sqlt:type>PRIMARY KEY</sqlt:type>
-        <sqlt:fields>id</sqlt:fields>
-        <sqlt:reference_table></sqlt:reference_table>
-        <sqlt:reference_fields></sqlt:reference_fields>
-        <sqlt:on_delete></sqlt:on_delete>
-        <sqlt:on_update></sqlt:on_update>
-        <sqlt:match_type></sqlt:match_type>
-        <sqlt:expression></sqlt:expression>
-        <sqlt:options></sqlt:options>
-        <sqlt:deferrable>1</sqlt:deferrable>
-      </sqlt:constraint>
-      <sqlt:constraint>
-        <sqlt:name></sqlt:name>
-        <sqlt:type>UNIQUE</sqlt:type>
-        <sqlt:fields>email</sqlt:fields>
-        <sqlt:reference_table></sqlt:reference_table>
-        <sqlt:reference_fields></sqlt:reference_fields>
-        <sqlt:on_delete></sqlt:on_delete>
-        <sqlt:on_update></sqlt:on_update>
-        <sqlt:match_type></sqlt:match_type>
-        <sqlt:expression></sqlt:expression>
-        <sqlt:options></sqlt:options>
-        <sqlt:deferrable>1</sqlt:deferrable>
-      </sqlt:constraint>
-    </sqlt:constraints>
-  </sqlt:table>
-</sqlt:schema>
-EOXML
-
-$obj = SQL::Translator->new(
-    debug          => DEBUG,
-    trace          => TRACE,
-    show_warnings  => 1,
-    add_drop_table => 1,
-    from           => 'MySQL',
-    to             => 'XML-SQLFairy',
-    producer_args  => { emit_empty_tags => 1 },
-);
-lives_ok { $xml=$obj->translate($file); } "Translate (emit_empty_tags=>1) ran";
-ok("$xml" ne ""                             ,"Produced something!");
-print "XML emit_empty_tags=>1:\n$xml" if DEBUG;
-# Strip sqlf header with its variable date so we diff safely
-$xml =~ s/^([^\n]*\n){7}//m; 
-eq_or_diff $xml, $ans                       ,"XML looks right";
-
-} # end emit_empty_tags => 1
-
-#
-# attrib_values => 1
-#
-{
-my ($obj,$ans,$xml);
-
-$ans = <<EOXML;
-<sqlt:schema name="" database="" xmlns:sqlt="http://sqlfairy.sourceforge.net/sqlfairy.xml">
-  <sqlt:table name="Basic" order="3">
-    <sqlt:fields>
-      <sqlt:field name="id" data_type="integer" size="10" is_nullable="0" is_auto_increment="1" is_primary_key="1" is_foreign_key="0" comments="comment on id field" order="9" />
-      <sqlt:field name="title" data_type="varchar" size="100" is_nullable="0" default_value="hello" is_auto_increment="0" is_primary_key="0" is_foreign_key="0" comments="" order="10" />
-      <sqlt:field name="description" data_type="text" size="65535" is_nullable="1" default_value="" is_auto_increment="0" is_primary_key="0" is_foreign_key="0" comments="" order="11" />
-      <sqlt:field name="email" data_type="varchar" size="255" is_nullable="1" is_auto_increment="0" is_primary_key="0" is_foreign_key="0" comments="" order="12" />
-    </sqlt:fields>
-    <sqlt:indices>
-      <sqlt:index name="titleindex" type="NORMAL" fields="title" options="" />
-    </sqlt:indices>
-    <sqlt:constraints>
-      <sqlt:constraint name="" type="PRIMARY KEY" fields="id" reference_table="" on_delete="" on_update="" match_type="" expression="" options="" deferrable="1" />
-      <sqlt:constraint name="" type="UNIQUE" fields="email" reference_table="" on_delete="" on_update="" match_type="" expression="" options="" deferrable="1" />
-    </sqlt:constraints>
-  </sqlt:table>
-</sqlt:schema>
+<schema name="" database="" xmlns="http://sqlfairy.sourceforge.net/sqlfairy.xml">
+  <tables>
+    <table name="Basic" order="1">
+      <fields>
+        <field name="id" data_type="integer" size="10" is_nullable="0" is_auto_increment="1" is_primary_key="1" is_foreign_key="0" order="1">
+          <extra />
+          <comments>comment on id field</comments>
+        </field>
+        <field name="title" data_type="varchar" size="100" is_nullable="0" default_value="hello" is_auto_increment="0" is_primary_key="0" is_foreign_key="0" order="2">
+          <extra />
+          <comments></comments>
+        </field>
+        <field name="description" data_type="text" size="65535" is_nullable="1" default_value="" is_auto_increment="0" is_primary_key="0" is_foreign_key="0" order="3">
+          <extra />
+          <comments></comments>
+        </field>
+        <field name="email" data_type="varchar" size="255" is_nullable="1" is_auto_increment="0" is_primary_key="0" is_foreign_key="0" order="4">
+          <extra />
+          <comments></comments>
+        </field>
+      </fields>
+      <indices>
+        <index name="titleindex" type="NORMAL" fields="title" options="" />
+      </indices>
+      <constraints>
+        <constraint name="" type="PRIMARY KEY" fields="id" reference_table="" reference_fields="" on_delete="" on_update="" match_type="" expression="" options="" deferrable="1" />
+        <constraint name="" type="UNIQUE" fields="email" reference_table="" reference_fields="" on_delete="" on_update="" match_type="" expression="" options="" deferrable="1" />
+      </constraints>
+    </table>
+  </tables>
+  <views></views>
+  <triggers></triggers>
+  <procedures></procedures>
+</schema>
 EOXML
 
 $obj = SQL::Translator->new(
@@ -312,16 +90,15 @@ $obj = SQL::Translator->new(
     add_drop_table => 1,
     from           => "MySQL",
     to             => "XML-SQLFairy",
-    producer_args  => { attrib_values => 1 },
 );
-lives_ok {$xml = $obj->translate($file);} "Translate (attrib_values=>1) ran";
+$xml = $obj->translate($file) or die $obj->error;
 ok("$xml" ne ""                             ,"Produced something!");
-print "XML attrib_values=>1:\n$xml" if DEBUG;
+print "XML:\n$xml" if DEBUG;
 # Strip sqlf header with its variable date so we diff safely
-$xml =~ s/^([^\n]*\n){7}//m; 
-eq_or_diff $xml, $ans                       ,"XML looks right";
+$xml =~ s/^([^\n]*\n){7}//m;
+eq_or_diff $xml, $ans, "XML looks right";
 
-} # end attrib_values => 1
+} # end basic stuff
 
 #
 # View
@@ -331,16 +108,16 @@ eq_or_diff $xml, $ans                       ,"XML looks right";
 my ($obj,$ans,$xml);
 
 $ans = <<EOXML;
-<sqlt:schema xmlns:sqlt="http://sqlfairy.sourceforge.net/sqlfairy.xml">
-  <sqlt:name></sqlt:name>
-  <sqlt:database></sqlt:database>
-  <sqlt:view>
-    <sqlt:name>foo_view</sqlt:name>
-    <sqlt:sql>select name, age from person</sqlt:sql>
-    <sqlt:fields>name,age</sqlt:fields>
-    <sqlt:order>1</sqlt:order>
-  </sqlt:view>
-</sqlt:schema>
+<schema name="" database="" xmlns="http://sqlfairy.sourceforge.net/sqlfairy.xml">
+  <tables></tables>
+  <views>
+    <view name="foo_view" fields="name,age" order="1">
+      <sql>select name, age from person</sql>
+    </view>
+  </views>
+  <triggers></triggers>
+  <procedures></procedures>
+</schema>
 EOXML
 
     $obj = SQL::Translator->new(
@@ -361,7 +138,7 @@ EOXML
         fields => $fields,
         schema => $s,
     ) or die $s->error;
-    
+
     # As we have created a Schema we give translate a dummy string so that
     # it will run the produce.
     lives_ok {$xml =$obj->translate("FOO");} "Translate (View) ran";
@@ -380,18 +157,16 @@ EOXML
 my ($obj,$ans,$xml);
 
 $ans = <<EOXML;
-<sqlt:schema xmlns:sqlt="http://sqlfairy.sourceforge.net/sqlfairy.xml">
-  <sqlt:name></sqlt:name>
-  <sqlt:database></sqlt:database>
-  <sqlt:trigger>
-    <sqlt:name>foo_trigger</sqlt:name>
-    <sqlt:database_event>insert</sqlt:database_event>
-    <sqlt:action>update modified=timestamp();</sqlt:action>
-    <sqlt:on_table>foo</sqlt:on_table>
-    <sqlt:perform_action_when>after</sqlt:perform_action_when>
-    <sqlt:order>1</sqlt:order>
-  </sqlt:trigger>
-</sqlt:schema>
+<schema name="" database="" xmlns="http://sqlfairy.sourceforge.net/sqlfairy.xml">
+  <tables></tables>
+  <views></views>
+  <triggers>
+    <trigger name="foo_trigger" database_event="insert" on_table="foo" perform_action_when="after" order="1">
+      <action>update modified=timestamp();</action>
+    </trigger>
+  </triggers>
+  <procedures></procedures>
+</schema>
 EOXML
 
     $obj = SQL::Translator->new(
@@ -415,7 +190,7 @@ EOXML
         on_table            => $on_table,
         action              => $action,
     ) or die $s->error;
-    
+
     # As we have created a Schema we give translate a dummy string so that
     # it will run the produce.
     lives_ok {$xml =$obj->translate("FOO");} "Translate (Trigger) ran";
@@ -434,18 +209,17 @@ EOXML
 my ($obj,$ans,$xml);
 
 $ans = <<EOXML;
-<sqlt:schema xmlns:sqlt="http://sqlfairy.sourceforge.net/sqlfairy.xml">
-  <sqlt:name></sqlt:name>
-  <sqlt:database></sqlt:database>
-  <sqlt:procedure>
-    <sqlt:name>foo_proc</sqlt:name>
-    <sqlt:sql>select foo from bar</sqlt:sql>
-    <sqlt:parameters>foo,bar</sqlt:parameters>
-    <sqlt:owner>Nomar</sqlt:owner>
-    <sqlt:comments>Go Sox!</sqlt:comments>
-    <sqlt:order>1</sqlt:order>
-  </sqlt:procedure>
-</sqlt:schema>
+<schema name="" database="" xmlns="http://sqlfairy.sourceforge.net/sqlfairy.xml">
+  <tables></tables>
+  <views></views>
+  <triggers></triggers>
+  <procedures>
+    <procedure name="foo_proc" parameters="foo,bar" owner="Nomar" order="1">
+      <sql>select foo from bar</sql>
+      <comments>Go Sox!</comments>
+    </procedure>
+  </procedures>
+</schema>
 EOXML
 
     $obj = SQL::Translator->new(
@@ -479,3 +253,56 @@ EOXML
     $xml =~ s/^([^\n]*\n){7}//m; 
     eq_or_diff $xml, $ans                       ,"XML looks right";
 } # end Procedure
+
+#
+# Field.extra
+#
+{
+my ($obj,$ans,$xml);
+
+$ans = <<EOXML;
+<schema name="" database="" xmlns="http://sqlfairy.sourceforge.net/sqlfairy.xml">
+  <tables>
+    <table name="Basic" order="2">
+      <fields>
+        <field name="foo" data_type="integer" size="10" is_nullable="1" is_auto_increment="0" is_primary_key="0" is_foreign_key="0" order="5">
+          <extra ZEROFILL="1" />
+          <comments></comments>
+        </field>
+      </fields>
+      <indices></indices>
+      <constraints></constraints>
+    </table>
+  </tables>
+  <views></views>
+  <triggers></triggers>
+  <procedures></procedures>
+</schema>
+EOXML
+
+    $obj = SQL::Translator->new(
+        debug          => DEBUG,
+        trace          => TRACE,
+        show_warnings  => 1,
+        add_drop_table => 1,
+        from           => "MySQL",
+        to             => "XML-SQLFairy",
+    );
+    my $s = $obj->schema;
+    my $t = $s->add_table( name => "Basic" ) or die $s->error;
+    my $f = $t->add_field(
+        name      => "foo",
+        data_type => "integer",
+        size      => "10",
+    ) or die $t->error;
+    $f->extra(ZEROFILL => "1");
+
+    # As we have created a Schema we give translate a dummy string so that
+    # it will run the produce.
+    lives_ok {$xml =$obj->translate("FOO");} "Translate (Field.extra) ran";
+    ok("$xml" ne ""                             ,"Produced something!");
+    print "XML:\n$xml" if DEBUG;
+    # Strip sqlf header with its variable date so we diff safely
+    $xml =~ s/^([^\n]*\n){7}//m;
+    eq_or_diff $xml, $ans                       ,"XML looks right";
+} # end extra

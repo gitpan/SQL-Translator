@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Field;
 
 # ----------------------------------------------------------------------
-# $Id: Field.pm,v 1.13 2004/02/09 22:15:15 kycl4rk Exp $
+# $Id: Field.pm,v 1.19 2004/07/09 00:46:28 grommit Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -30,8 +30,8 @@ SQL::Translator::Schema::Field - SQL::Translator field object
 
   use SQL::Translator::Schema::Field;
   my $field = SQL::Translator::Schema::Field->new(
-      name => 'foo',
-      sql  => 'select * from foo',
+      name  => 'foo',
+      table => $table,
   );
 
 =head1 DESCRIPTION
@@ -50,7 +50,16 @@ use SQL::Translator::Utils 'parse_list_arg';
 use base 'Class::Base';
 use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.19 $ =~ /(\d+)\.(\d+)/;
+
+# Stringify to our name, being careful not to pass any args through so we don't
+# accidentally set it to undef. We also have to tweak bool so the object is
+# still true when it doesn't have a name (which shouldn't happen!).
+use overload
+    '""'     => sub { shift->name },
+    'bool'   => sub { $_[0]->name || $_[0] },
+    fallback => 1,
+;
 
 # ----------------------------------------------------------------------
 sub init {
@@ -61,17 +70,20 @@ sub init {
 
 Object constructor.
 
-  my $schema = SQL::Translator::Schema::Field->new;
+  my $field = SQL::Translator::Schema::Field->new(
+      name  => 'foo',
+      table => $table,
+  );
 
 =cut
 
     my ( $self, $config ) = @_;
 
-    for my $arg ( 
-        qw[ 
+    for my $arg (
+        qw[
             table name data_type size is_primary_key is_nullable
-            is_auto_increment default_value comments
-        ] 
+            is_auto_increment default_value comments extra
+        ]
     ) {
         next unless defined $config->{ $arg };
         defined $self->$arg( $config->{ $arg } ) or return;
@@ -222,7 +234,7 @@ sub is_auto_increment {
 
 Get or set the field's C<is_auto_increment> attribute.
 
-  my $is_pk = $field->is_auto_increment(1);
+  my $is_auto = $field->is_auto_increment(1);
 
 =cut
 
@@ -288,7 +300,7 @@ sub is_nullable {
 
 =head2 is_nullable
 
-Get or set the whether the field can be null.  If not defined, then 
+Get or set whether the field can be null.  If not defined, then 
 returns "1" (assumes the field can be null).  The argument is evaluated
 by Perl for True or False, so the following are eqivalent:
 
@@ -416,15 +428,22 @@ sub name {
 
 Get or set the field's name.
 
-  my $name = $field->name('foo');
+ my $name = $field->name('foo');
+
+The field object will also stringify to its name.
+
+ my $setter_name = "set_$field";
+
+Errors ("No field name") if you try to set a blank name.
 
 =cut
 
     my $self = shift;
 
-    if ( my $arg = shift ) {
+    if ( @_ ) {
+        my $arg = shift || return $self->error( "No field name" );
         if ( my $table = $self->table ) {
-            return $self->error( qq[Can't use field name "$arg": table exists] )
+            return $self->error( qq[Can't use field name "$arg": field exists] )
                 if $table->get_field( $arg );
         }
 
@@ -432,6 +451,19 @@ Get or set the field's name.
     }
 
     return $self->{'name'} || '';
+}
+
+sub full_name {
+
+=head2 full_name
+
+Read only method to return the fields name with its table name pre-pended.
+e.g. "person.foo".
+
+=cut
+
+    my $self = shift;
+    return $self->table.".".$self->name;
 }
 
 # ----------------------------------------------------------------------
@@ -454,6 +486,23 @@ Get or set the field's order.
     }
 
     return $self->{'order'} || 0;
+}
+
+# ----------------------------------------------------------------------
+sub schema {
+
+=head2 schema 
+
+Shortcut to get the fields schema ($field->table->schema) or undef if it
+doesn't have one.
+
+  my $schema = $field->schema;
+
+=cut
+
+    my $self = shift;
+    if ( my $table = $self->table ) { return $table->schema || undef; }
+    return undef;
 }
 
 # ----------------------------------------------------------------------
@@ -502,9 +551,11 @@ sub table {
 
 =head2 table
 
-Get or set the field's table object.
+Get or set the field's table object. As the table object stringifies this can
+also be used to get the table name.
 
   my $table = $field->table;
+  print "Table name: $table";
 
 =cut
 

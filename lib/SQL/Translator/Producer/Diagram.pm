@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::Diagram;
 
 # -------------------------------------------------------------------
-# $Id: Diagram.pm,v 1.10 2004/02/11 21:30:19 kycl4rk Exp $
+# $Id: Diagram.pm,v 1.12 2004/08/30 19:04:59 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -30,17 +30,8 @@ Use via SQL::Translator:
 
   use SQL::Translator;
 
-  my $t = SQL::Translator->new( parser => 'MySQL', '...' );
+  my $t = SQL::Translator->new( producer => 'Diagram', '...' );
   $t->translate;
-
-Or use more directly:
-
-  use SQL::Translator;
-  use SQL::Translator::MySQL 'parse';
-
-  my $t = SQL::Translator->new( filename => '...' );;
-  parse( $t, 
-
 
 =cut
 
@@ -51,7 +42,7 @@ use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug);
 
 use vars qw[ $VERSION $DEBUG ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.12 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use constant VALID_FONT_SIZE => {
@@ -80,6 +71,7 @@ sub produce {
     my $font_size    = $args->{'font_size'}    || 'medium';
     my $imap_file    = $args->{'imap_file'}    || '';
     my $imap_url     = $args->{'imap_url'}     || '';
+    my $gutter       = $args->{'gutter'}       || 30; # distance b/w columns
     my $no_columns   = $args->{'no_columns'};
     my $no_lines     = $args->{'no_lines'};
     my $add_color    = $args->{'add_color'};
@@ -120,7 +112,6 @@ sub produce {
     my $cur_col     = 1;            # the current column
     my $no_this_col = 0;            # number of tables in current column
     my $this_col_x  = $x;           # current column's x
-    my $gutter      = 30;           # distance b/w columns
     my %nj_registry;                # for locations of fields for natural joins
     my @fk_registry;                # for locations of fields for foreign keys
     my %table_x;                    # for max x of each table
