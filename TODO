@@ -1,0 +1,15 @@
+Define structure of the data returned by parsers:
+  o Producers need to know what to expect
+  o For testing purposes, we need to know if parsers are returning
+    something reasonable
+
+Modules to be written/finished
+    SQL::Translator::Validator
+    SQL::Translator::Parser::xSV
+    SQL::Translator::Producer::MySQL
+
+Should the parsers return an instance instead of a data structure?  It
+would make traversing the data structure easier.
+
+
+# vim: set sw=2 ts=2 tw=70 fo=trcqo:
