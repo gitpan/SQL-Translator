@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::XML;
 
 # -------------------------------------------------------------------
-# $Id: XML.pm,v 1.5 2003/01/27 17:04:48 dlc Exp $
+# $Id: XML.pm,v 1.10 2003/06/11 04:00:44 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
@@ -22,6 +22,126 @@ package SQL::Translator::Producer::XML;
 # 02111-1307  USA
 # -------------------------------------------------------------------
 
+use strict;
+use vars qw[ $VERSION ];
+$VERSION = sprintf "%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/;
+
+use IO::Scalar;
+use SQL::Translator::Utils qw(header_comment);
+use XML::Writer;
+
+my $sqlf_ns = 'http://sqlfairy.sourceforge.net/sqlfairy.xml';
+
+# -------------------------------------------------------------------
+sub produce {
+    my $translator = shift;
+    my $schema     = $translator->schema;
+    my $args       = $translator->producer_args;
+
+    my $io          = IO::Scalar->new;
+    my $xml         =  XML::Writer->new(
+        OUTPUT      => $io,
+        NAMESPACES  => 1,
+        PREFIX_MAP  => { $sqlf_ns => 'sqlf' },
+        DATA_MODE   => 1,
+        DATA_INDENT => 2,
+    );
+
+    $xml->xmlDecl('UTF-8');
+    $xml->comment(header_comment('', ''));
+    $xml->startTag([ $sqlf_ns => 'schema' ]);
+
+    for my $table ( $schema->get_tables ) {
+        my $table_name = $table->name or next;
+        $xml->startTag   ( [ $sqlf_ns => 'table' ] );
+        $xml->dataElement( [ $sqlf_ns => 'name'  ], $table_name );
+        $xml->dataElement( [ $sqlf_ns => 'order' ], $table->order );
+
+        #
+        # Fields
+        #
+        $xml->startTag( [ $sqlf_ns => 'fields' ] );
+        for my $field ( $table->get_fields ) {
+            $xml->startTag( [ $sqlf_ns => 'field' ] );
+
+            for my $method ( 
+                qw[ 
+                    name data_type default_value is_auto_increment 
+                    is_primary_key is_nullable is_foreign_key order size
+                ]
+            ) {
+                my $val = $field->$method || '';
+                $xml->dataElement( [ $sqlf_ns => $method ], $val )
+                    if ( defined $val || 
+                        ( !defined $val && $args->{'emit_empty_tags'} ) );
+            }
+
+            $xml->endTag( [ $sqlf_ns => 'field' ] );
+        }
+
+        $xml->endTag( [ $sqlf_ns => 'fields' ] );
+
+        #
+        # Indices
+        #
+        $xml->startTag( [ $sqlf_ns => 'indices' ] );
+        for my $index ( $table->get_indices ) {
+            $xml->startTag( [ $sqlf_ns => 'index' ] );
+
+            for my $method ( qw[ fields name options type ] ) {
+                my $val = $index->$method || '';
+                   $val = ref $val eq 'ARRAY' ? join(',', @$val) : $val;
+                $xml->dataElement( [ $sqlf_ns => $method ], $val )
+                    if ( defined $val || 
+                        ( !defined $val && $args->{'emit_empty_tags'} ) );
+            }
+
+            $xml->endTag( [ $sqlf_ns => 'index' ] );
+        }
+        $xml->endTag( [ $sqlf_ns => 'indices' ] );
+
+        #
+        # Constraints
+        #
+        $xml->startTag( [ $sqlf_ns => 'constraints' ] );
+        for my $index ( $table->get_constraints ) {
+            $xml->startTag( [ $sqlf_ns => 'constraint' ] );
+
+            for my $method ( 
+                qw[ 
+                    deferrable expression fields match_type name 
+                    options on_delete on_update reference_fields
+                    reference_table type 
+                ] 
+            ) {
+                my $val = $index->$method || '';
+                   $val = ref $val eq 'ARRAY' ? join(',', @$val) : $val;
+                $xml->dataElement( [ $sqlf_ns => $method ], $val )
+                    if ( defined $val || 
+                        ( !defined $val && $args->{'emit_empty_tags'} ) );
+            }
+
+            $xml->endTag( [ $sqlf_ns => 'constraint' ] );
+        }
+        $xml->endTag( [ $sqlf_ns => 'constraints' ] );
+
+        $xml->endTag( [ $sqlf_ns => 'table' ] );
+    }
+
+    $xml->endTag([ $sqlf_ns => 'schema' ]);
+    $xml->end;
+
+    return $io;
+}
+
+1;
+
+# -------------------------------------------------------------------
+# The eyes of fire, the nostrils of air,
+# The mouth of water, the beard of earth.
+# William Blake
+# -------------------------------------------------------------------
+
 =head1 NAME
 
 SQL::Translator::Producer::XML - XML output
@@ -34,97 +154,61 @@ SQL::Translator::Producer::XML - XML output
 
 Meant to create some sort of usable XML output.
 
-=cut
+=head1 ARGS
 
-use strict;
-use vars qw[ $VERSION $XML ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/;
+Takes the following optional C<producer_args>:
 
-# -------------------------------------------------------------------
-sub produce {
-    my ( $translator, $data ) = @_;
-    my $indent = 0;
-    aggregate( '<schema>', $indent );
-    
-    $indent++;
-    for my $table ( 
-        map  { $_->[1] }
-        sort { $a->[0] <=> $b->[0] }
-        map  { [ $_->{'order'}, $_ ] }
-        values %$data
-    ) { 
-        aggregate( '<table>', $indent );
-        $indent++;
+=over 4
 
-        aggregate( "<name>$table->{'table_name'}</name>", $indent );
-        aggregate( "<order>$table->{'order'}</order>", $indent );
+=item emit_empty_tags
 
-        #
-        # Fields
-        #
-        aggregate( '<fields>', $indent );
-        for my $field ( 
-            map  { $_->[1] }
-            sort { $a->[0] <=> $b->[0] }
-            map  { [ $_->{'order'}, $_ ] }
-            values %{ $table->{'fields'} }
-        ) {
-            aggregate( '<field>', ++$indent );
-            $indent++;
+If this is set to a true value, then tags corresponding to value-less
+elements will be emitted.  For example, take this schema:
 
-            for my $key ( keys %$field ) {
-                my $val = defined $field->{ $key } ? $field->{ $key } : '';
-                   $val = ref $val eq 'ARRAY' ? join(',', @$val) : $val;
-                aggregate( "<$key>$val</$key>", $indent );
-            }
+  CREATE TABLE random (
+    id int auto_increment PRIMARY KEY,
+    foo varchar(255) not null default '',
+    updated timestamp
+  );
 
-            $indent--;
-            aggregate( "</field>", $indent-- );
-        }
-        aggregate( "</fields>", $indent );
+With C<emit_empty_tags> = 1, this will be dumped with XML similar to:
 
-        #
-        # Indices
-        #
-        aggregate( '<indices>', $indent );
-        for my $index ( @{ $table->{'indices'} } ) {
-            aggregate( '<index>', ++$indent );
-            $indent++;
+  <table>
+    <name>random</name>
+    <order>1</order>
+    <fields>
+      <field>
+        <is_auto_inc>1</is_auto_inc>
+        <list></list>
+        <is_primary_key>1</is_primary_key>
+        <data_type>int</data_type>
+        <name>id</name>
+        <constraints></constraints>
+        <null>1</null>
+        <order>1</order>
+        <size></size>
+        <type>field</type>
+      </field>
 
-            for my $key ( keys %$index ) {
-                my $val = defined $index->{ $key } ? $index->{ $key } : '';
-                   $val = ref $val eq 'ARRAY' ? join(',', @$val) : $val;
-                aggregate( "<$key>$val</$key>", $indent );
-            }
+With C<emit_empty_tags> = 0, you'd get:
 
-            $indent--;
-            aggregate( "</index>", $indent-- );
-        }
-        aggregate( "</indices>", $indent );
+  <table>
+    <name>random</name>
+    <order>1</order>
+    <fields>
+      <field>
+        <is_auto_inc>1</is_auto_inc>
+        <is_primary_key>1</is_primary_key>
+        <data_type>int</data_type>
+        <name>id</name>
+        <null>1</null>
+        <order>1</order>
+        <type>field</type>
+      </field>
 
-        $indent--;
-        aggregate( "</table>", $indent );
-    }
+This can lead to dramatic size savings.
 
-    $indent--;
-    aggregate( '</schema>', $indent );
-
-    return $XML;
-}
-
-# -------------------------------------------------------------------
-sub aggregate {
-    my ( $text, $indent ) = @_;
-    $XML .= ('  ' x $indent) . "$text\n";
-}
-
-1;
-
-# -------------------------------------------------------------------
-# The eyes of fire, the nostrils of air,
-# The mouth of water, the beard of earth.
-# William Blake
-# -------------------------------------------------------------------
+=back
 
 =pod
 

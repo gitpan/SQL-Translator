@@ -1,64 +1,69 @@
 #!/usr/bin/perl
 # vim: set ft=perl:
-#
-#
 
+#
+# Tests for xSV parser
+#
 use strict;
 use SQL::Translator;
+use SQL::Translator::Schema;
+use SQL::Translator::Schema::Constants;
 use SQL::Translator::Parser::xSV qw(parse);
-
-$SQL::Translator::DEBUG = 0;
+use Test::More tests => 25;
 
 my $tr = SQL::Translator->new;
-my $data = q|One, Two, Three, Four, Five
-I, Am, Some, Data, Yo
-And, So, am, I, "you crazy, crazy bastard"
-);|;
+my $s  = SQL::Translator::Schema->new;
+my $data = q|One, Two, Three, Four, Five, Six, Seven
+I, Am, Some, Data, Yo, -10, .04
+And, So, am, I, "you crazy, crazy bastard", 500982, 1.1
+|;
 
-BEGIN { print "1..10\n"; }
+$tr->parser_args( trim_fields => 1, scan_fields => 1 );
+my $val = parse($tr, $data, $s);
 
-my $val = parse($tr, $data);
+my $schema = $tr->schema;
+my @tables = $schema->get_tables;
+is( scalar @tables, 1, 'Correct number of tables (1)' );
 
-# $val holds the processed data structure.
+my $table = shift @tables;
+is( $table->name, 'table1', 'Table is named "table1"' );
 
-# The data structure should have one key:
-print "not " if (scalar keys %{$val} != 1);
-print "ok 1\n";
+my @fields = $table->get_fields;
+is( scalar @fields, 7, 'Correct number of fields (7)' );
 
-# The data structure should have a single key, named sessions
-print "not " unless (defined $val->{'table1'});
-print qq(ok 2 # has a key named "table1"\n);
+my $f1 = $fields[0];
+is( $f1->name, 'One', 'First field name is "One"' );
+is( $f1->data_type, 'char', 'Data type is "char"' );
+is( $f1->size, '3', 'Size is "3"' );
+is( $f1->is_primary_key, 1, 'Field is PK' );
 
-# $val->{'table1'} should have a single index (since we haven't
-# defined an index, but have defined a primary key)
-my $indices = $val->{'table1'}->{'indices'};
-print "not " unless (scalar @{$indices} == 1);
-print "ok 3 # correct index number\n";
+my $f2 = $fields[1];
+is( $f2->name, 'Two', 'First field name is "Two"' );
+is( $f2->data_type, 'char', 'Data type is "char"' );
+is( $f2->size, '2', 'Size is "2"' );
+is( $f2->is_primary_key, 0, 'Field is not PK' );
 
-print "not " unless ($indices->[0]->{'type'} eq 'primary_key');
-print "ok 4 # correct index type\n";
-print "not " unless ($indices->[0]->{'fields'}->[0] eq 'One');
-print "ok 5 # correct index name\n";
+my $f5 = $fields[4];
+is( $f5->name, 'Five', 'Fifth field name is "Five"' );
+is( $f5->data_type, 'char', 'Data type is "char"' );
+is( $f5->size, '26', 'Size is "26"' );
+is( $f5->is_primary_key, 0, 'Field is not PK' );
 
-# $val->{'table1'} should have two fields, id and a_sessionn
-my $fields = $val->{'table1'}->{'fields'};
-print "not " unless (scalar keys %{$fields} == 5);
-print "ok 6 # correct number of fields (5)\n";
+my $f6 = $fields[5];
+is( $f6->name, 'Six', 'Sixth field name is "Six"' );
+is( $f6->data_type, 'integer', 'Data type is "integer"' );
+is( $f6->size, '6', 'Size is "6"' );
 
-print "not " unless ($fields->{'One'}->{'data_type'} eq 'char');
-print "ok 7 # correct field type: One (char)\n";
+my $f7 = $fields[6];
+is( $f7->name, 'Seven', 'Seventh field name is "Seven"' );
+is( $f7->data_type, 'float', 'Data type is "float"' );
+is( $f7->size, '1,2', 'Size is "1,2"' );
 
-print "not " unless ($fields->{'One'}->{'is_primary_key'} == 1);
-print "ok 8 # correct key identification (One == key)\n";
+my @indices = $table->get_indices;
+is( scalar @indices, 0, 'Correct number of indices (0)' );
 
-print "not " if (defined $fields->{'Two'}->{'is_primary_key'});
-print "ok 9 # correct key identification (Two != key)\n";
-
-# Test that the order is being maintained by the internal order
-# data element
-my @order = sort { $fields->{$a}->{'order'}
-                             <=>
-                   $fields->{$b}->{'order'}
-                 } keys %{$fields};
-print "not " unless ($order[0] eq 'One' && $order[4] eq 'Five');
-print "ok 10 # ordering of fields\n";
+my @constraints = $table->get_constraints;
+is( scalar @constraints, 1, 'Correct number of constraints (1)' );
+my $c = shift @constraints;
+is( $c->type, PRIMARY_KEY, 'Constraint is a PK' );
+is( join(',', $c->fields), 'One', 'On field "One"' );

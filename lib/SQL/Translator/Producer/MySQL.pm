@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm,v 1.7 2003/02/26 05:17:49 kycl4rk Exp $
+# $Id: MySQL.pm,v 1.22 2003/06/11 04:00:43 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
@@ -24,175 +24,193 @@ package SQL::Translator::Producer::MySQL;
 
 use strict;
 use vars qw[ $VERSION $DEBUG ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/;
-$DEBUG   = 1 unless defined $DEBUG;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.22 $ =~ /(\d+)\.(\d+)/;
+$DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
+use SQL::Translator::Schema::Constants;
+use SQL::Translator::Utils qw(debug header_comment);
 
-sub import {
-    warn "loading " . __PACKAGE__ . "...\n";
-}
+my %translate  = (
+    #
+    # Oracle types
+    #
+    varchar2   => 'varchar',
+    long       => 'text',
+    CLOB       => 'longtext',
+
+    #
+    # Sybase types
+    #
+    int        => 'integer',
+    money      => 'float',
+    real       => 'double',
+    comment    => 'text',
+    bit        => 'tinyint',
+);
 
 sub produce {
-    my ($translator, $data) = @_;
-    $DEBUG                  = $translator->debug;
-    my $no_comments         = $translator->no_comments;
+    my $translator     = shift;
+    local $DEBUG       = $translator->debug;
+    my $no_comments    = $translator->no_comments;
+    my $add_drop_table = $translator->add_drop_table;
+    my $schema         = $translator->schema;
 
-    debug("Beginning production\n");
+    debug("PKG: Beginning production\n");
 
     my $create; 
-    unless ( $no_comments ) {
-        $create .= sprintf "--\n-- Created by %s\n-- Created on %s\n--\n\n",
-            __PACKAGE__, scalar localtime;
-    }
+    $create .= header_comment unless ($no_comments);
 
-    for my $table (keys %{$data}) {
-        debug("Looking at table '$table'\n");
-        my $table_data = $data->{$table};
-        my @fields = sort { 
-            $table_data->{'fields'}->{$a}->{'order'} 
-            <=>
-            $table_data->{'fields'}->{$b}->{'order'}
-        } keys %{$table_data->{'fields'}};
+    for my $table ( $schema->get_tables ) {
+        my $table_name = $table->name;
+        debug("PKG: Looking at table '$table_name'\n");
 
         #
         # Header.  Should this look like what mysqldump produces?
         #
-        $create .= "--\n-- Table: $table\n--\n" unless $no_comments;
-        $create .= "CREATE TABLE $table (";
+        $create .= "--\n-- Table: $table_name\n--\n" unless $no_comments;
+        $create .= qq[DROP TABLE IF EXISTS $table_name;\n] if $add_drop_table;
+        $create .= "CREATE TABLE $table_name (\n";
 
         #
         # Fields
         #
-        for (my $i = 0; $i <= $#fields; $i++) {
-            my $field = $fields[$i];
-            debug("Looking at field '$field'\n");
-            my $field_data = $table_data->{'fields'}->{$field};
-            my @fdata = ("", $field);
-            $create .= "\n";
+        my @field_defs;
+        for my $field ( $table->get_fields ) {
+            my $field_name = $field->name;
+            debug("PKG: Looking at field '$field_name'\n");
+            my $field_def = $field_name;
 
             # data type and size
-            my $attr = uc $field_data->{'data_type'} eq 'SET' ? 'list' : 'size';
-            my @values = @{ $field_data->{ $attr } || [] };
-            push @fdata, sprintf "%s%s", 
-                $field_data->{'data_type'},
-                ( @values )
-                    ? '('.join(', ', @values).')'
-                    : '';
+            my $data_type = $field->data_type;
+            my @size      = $field->size;
+
+            #
+            # Oracle "number" type -- figure best MySQL type
+            #
+            if ( lc $data_type eq 'number' ) {
+                # not an integer
+                if ( scalar @size > 1 ) {
+                    $data_type = 'double';
+                }
+                elsif ( $size[0] >= 12 ) {
+                    $data_type = 'bigint';
+                }
+                elsif ( $size[0] <= 1 ) {
+                    $data_type = 'tinyint';
+                }
+                else {
+                    $data_type = 'int';
+                }
+            }
+            elsif ( exists $translate{ $data_type } ) {
+                $data_type = $translate{ $data_type };
+            }
+
+            $field_def .= " $data_type";
+            if ( defined $size[0] && $size[0] > 0 ) {
+                $field_def .= '(' . join( ', ', @size ) . ')';
+            }
 
             # MySQL qualifiers
+            my %extra = $field->extra;
             for my $qual ( qw[ binary unsigned zerofill ] ) {
-                push @fdata, $qual 
-                    if $field_data->{ $qual } ||
-                       $field_data->{ uc $qual };
+                my $val = $extra{ $qual || uc $qual } or next;
+                $field_def .= " $val";
             }
 
             # Null?
-            push @fdata, "NOT NULL" unless $field_data->{'null'};
+            $field_def .= ' NOT NULL' unless $field->is_nullable;
 
             # Default?  XXX Need better quoting!
-            my $default = $field_data->{'default'};
+            my $default = $field->default_value;
             if ( defined $default ) {
                 if ( uc $default eq 'NULL') {
-                    push @fdata, "DEFAULT NULL";
+                    $field_def .= ' DEFAULT NULL';
                 } else {
-                    push @fdata, "DEFAULT '$default'";
+                    $field_def .= " DEFAULT '$default'";
                 }
             }
 
             # auto_increment?
-            push @fdata, "auto_increment" if $field_data->{'is_auto_inc'};
-
-            # primary key?
-            # This is taken care of in the indices, could be duplicated here
-            # push @fdata, "PRIMARY KEY" if $field_data->{'is_primary_key'};
-
-
-            $create .= (join " ", '', @fdata);
-            $create .= "," unless ($i == $#fields);
-        }
+            $field_def .= " auto_increment" if $field->is_auto_increment;
+            push @field_defs, $field_def;
+		}
 
         #
         # Indices
         #
-        my @index_creates;
-        my @indices = @{ $table_data->{'indices'} || [] };
-        for (my $i = 0; $i <= $#indices; $i++) {
-            my $key  = $indices[$i];
-            my ($name, $type, $fields) = @{ $key }{ qw[ name type fields ] };
-            $name ||= '';
-            my $index_type = 
-                $type eq 'primary_key' ? 'PRIMARY KEY' :
-                $type eq 'unique'      ? 'UNIQUE KEY'  : 'KEY';
-            push @index_creates, 
-                "  $index_type $name (" . join( ', ', @$fields ) . ')';
-        }
-
-        if ( @index_creates ) {
-            $create .= join(",\n", '', @index_creates);
+        my @index_defs;
+        for my $index ( $table->get_indices ) {
+            push @index_defs, join( ' ', 
+                $index->type,
+                $index->name,
+                '(' . join( ', ', $index->fields ) . ')'
+            );
         }
 
         #
         # Constraints -- need to handle more than just FK. -ky
         #
-        my @constraints;
-        for my $constraint ( @{ $table_data->{'constraints'} } ) {
-            my $name       = $constraint->{'name'} || '';
-            my $type       = $constraint->{'type'};
-            my $fields     = $constraint->{'fields'};
-            my $ref_table  = $constraint->{'reference_table'};
-            my $ref_fields = $constraint->{'reference_fields'};
-            my $match_type = $constraint->{'match_type'} || '';
-            my $on_delete  = $constraint->{'on_delete_do'};
-            my $on_update  = $constraint->{'on_update_do'};
+        my @constraint_defs;
+        for my $c ( $table->get_constraints ) {
+            my @fields = $c->fields or next;
 
-            if ( $type eq 'foreign_key' ) {
-                my $def = join(' ', map { $_ || () } '  FOREIGN KEY', $name );
-                if ( @$fields ) {
-                    $def .= ' (' . join( ', ', @$fields ) . ')';
+            if ( $c->type eq PRIMARY_KEY ) {
+                push @constraint_defs,
+                    'PRIMARY KEY (' . join(', ', @fields). ')';
+            }
+            elsif ( $c->type eq UNIQUE ) {
+                push @constraint_defs,
+                    'UNIQUE (' . join(', ', @fields). ')';
+            }
+            elsif ( $c->type eq FOREIGN_KEY ) {
+                my $def = join(' ', 
+                    map { $_ || () } 'FOREIGN KEY', $c->name 
+                );
+
+                $def .= ' (' . join( ', ', @fields ) . ')';
+
+                $def .= ' REFERENCES ' . $c->reference_table;
+
+                if ( my @rfields = $c->reference_fields ) {
+                    $def .= ' (' . join( ', ', @rfields ) . ')';
                 }
-                $def .= " REFERENCES $ref_table";
 
-                if ( @$ref_fields ) {
-                    $def .= ' (' . join( ', ', @$ref_fields ) . ')';
-                }
-
-                if ( $match_type ) {
+                if ( $c->match_type ) {
                     $def .= ' MATCH ' . 
-                        ( $match_type =~ /full/i ) ? 'FULL' : 'PARTIAL';
+                        ( $c->match_type =~ /full/i ) ? 'FULL' : 'PARTIAL';
                 }
 
-                if ( @{ $on_delete || [] } ) {
-                    $def .= ' ON DELETE '.join(' ', @$on_delete);
+                if ( $c->on_delete ) {
+                    $def .= ' ON DELETE '.join( ' ', $c->on_delete );
                 }
 
-                if ( @{ $on_update || [] } ) {
-                    $def .= ' ON UPDATE '.join(' ', @$on_update);
+                if ( $c->on_update ) {
+                    $def .= ' ON UPDATE '.join( ' ', $c->on_update );
                 }
 
-                push @constraints, $def;
+                push @constraint_defs, $def;
             }
         }
 
-        $create .= join(",\n", '', @constraints) if @constraints;
+        $create .= join(",\n", map { "  $_" } 
+            @field_defs, @index_defs, @constraint_defs
+        );
 
         #
         # Footer
         #
         $create .= "\n)";
-        while ( my ( $key, $val ) = each %{ $table_data->{'table_options'} } ) {
-            $create .= " $key=$val" 
-        }
+#        while ( 
+#            my ( $key, $val ) = each %{ $table->options }
+#        ) {
+#            $create .= " $key=$val" 
+#        }
         $create .= ";\n\n";
     }
 
     return $create;
-}
-
-sub debug {
-    if ($DEBUG) {
-        map { warn "[" . __PACKAGE__ . "] $_" } @_;
-    }
 }
 
 1;
@@ -200,8 +218,9 @@ __END__
 
 =head1 NAME
 
-SQL::Translator::Producer::MySQL - mysql-specific producer for SQL::Translator
+SQL::Translator::Producer::MySQL - MySQL-specific producer for SQL::Translator
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-darren chamberlain E<lt>darren@cpan.orgE<gt>
+darren chamberlain E<lt>darren@cpan.orgE<gt>,
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>

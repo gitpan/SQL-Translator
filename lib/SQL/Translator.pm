@@ -1,7 +1,7 @@
 package SQL::Translator;
 
 # ----------------------------------------------------------------------
-# $Id: Translator.pm,v 1.17 2003/02/26 13:08:59 dlc Exp $
+# $Id: Translator.pm,v 1.32 2003/06/18 17:15:38 kycl4rk Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
@@ -26,8 +26,8 @@ use strict;
 use vars qw( $VERSION $REVISION $DEFAULT_SUB $DEBUG $ERROR );
 use base 'Class::Base';
 
-$VERSION  = '0.01';
-$REVISION = sprintf "%d.%02d", q$Revision: 1.17 $ =~ /(\d+)\.(\d+)/;
+$VERSION  = '0.02';
+$REVISION = sprintf "%d.%02d", q$Revision: 1.32 $ =~ /(\d+)\.(\d+)/;
 $DEBUG    = 0 unless defined $DEBUG;
 $ERROR    = "";
 
@@ -36,6 +36,7 @@ use Carp qw(carp);
 use File::Spec::Functions qw(catfile);
 use File::Basename qw(dirname);
 use IO::Dir;
+use SQL::Translator::Schema;
 
 # ----------------------------------------------------------------------
 # The default behavior is to "pass through" values (note that the
@@ -70,6 +71,14 @@ sub init {
     $self->parser  ($config->{'parser'}   || $config->{'from'} || $DEFAULT_SUB);
     $self->producer($config->{'producer'} || $config->{'to'}   || $DEFAULT_SUB);
 
+	#
+	# Set up callbacks for formatting of pk,fk,table,package names in producer
+	#
+	$self->format_table_name($config->{'format_table_name'});
+	$self->format_package_name($config->{'format_package_name'});
+	$self->format_fk_name($config->{'format_fk_name'});
+	$self->format_pk_name($config->{'format_pk_name'});
+
     #
     # Set the parser_args and producer_args
     #
@@ -96,16 +105,15 @@ sub init {
     #
     $self->{'debug'} = defined $config->{'debug'} ? $config->{'debug'} : $DEBUG;
 
-
     $self->add_drop_table( $config->{'add_drop_table'} );
     
-    $self->custom_translate( $config->{'xlate'} );
-
     $self->no_comments( $config->{'no_comments'} );
 
     $self->show_warnings( $config->{'show_warnings'} );
 
     $self->trace( $config->{'trace'} );
+
+    $self->validate( $config->{'validate'} );
 
     return $self;
 }
@@ -119,16 +127,6 @@ sub add_drop_table {
         $self->{'add_drop_table'} = $arg ? 1 : 0;
     }
     return $self->{'add_drop_table'} || 0;
-}
-
-
-# ----------------------------------------------------------------------
-# custom_translate([$bool])
-# ----------------------------------------------------------------------
-sub custom_translate {
-    my $self = shift;
-    $self->{'custom_translate'} = shift if @_;
-    return $self->{'custom_translate'} || {};
 }
 
 # ----------------------------------------------------------------------
@@ -238,8 +236,6 @@ sub producer_args {
     return $self->_args("producer", @_);
 }
 
-
-
 # ----------------------------------------------------------------------
 # parser([$parser_spec])
 # ----------------------------------------------------------------------
@@ -332,6 +328,9 @@ sub filename {
         if (-d $filename) {
             my $msg = "Cannot use directory '$filename' as input source";
             return $self->error($msg);
+	} elsif (ref($filename) eq 'ARRAY') {
+	    $self->{'filename'} = $filename;
+	    $self->debug("Got array of files: ".join(', ',@$filename)."\n");
         } elsif (-f _ && -r _) {
             $self->{'filename'} = $filename;
             $self->debug("Got filename: '$self->{'filename'}'\n");
@@ -384,22 +383,41 @@ sub data {
         local $/;
         my $data;
 
-        unless (open FH, $filename) {
-            return $self->error("Can't read file '$filename': $!");
-        }
+	my @files = ref($filename) eq 'ARRAY' ? @$filename : ($filename);
 
-        $data = <FH>;
-        $self->{'data'} = \$data;
+	foreach my $file (@files) {
+	        unless (open FH, $file) {
+	            return $self->error("Can't read file '$file': $!");
+	        }
 
-        unless (close FH) {
-            return $self->error("Can't close file '$filename': $!");
-        }
+	        $data .= <FH>;
+
+	        unless (close FH) {
+	            return $self->error("Can't close file '$file': $!");
+	        }
+	}
+
+	$self->{'data'} = \$data;
     }
 
     return $self->{'data'};
 }
 
+# ----------------------------------------------------------------------
+sub schema {
+#
+# Returns the SQL::Translator::Schema object
+#
+    my $self = shift;
 
+    unless ( defined $self->{'schema'} ) {
+        $self->{'schema'} = SQL::Translator::Schema->new;
+    }
+
+    return $self->{'schema'};
+}
+
+# ----------------------------------------------------------------------
 sub trace {
     my $self = shift;
     my $arg  = shift;
@@ -485,7 +503,7 @@ sub translate {
         $self->filename($filename);
     }
 
-    if (my $data = ($self->{'data'} || $self->{'datasource'})) {
+    if (my $data = ($args->{'data'} || $args->{'datasource'})) {
         $self->data($data);
     }
 
@@ -493,7 +511,7 @@ sub translate {
     # Get the data.
     # ----------------------------------------------------------------
     my $data = $self->data;
-    unless (length $$data) {
+    unless (ref($data) eq 'SCALAR' and length $$data) {
         return $self->error("Empty data file!");
     }
 
@@ -529,7 +547,12 @@ sub translate {
         return $self->error($msg);
     }
 
-    eval { $producer_output = $producer->($self, $parser_output) };
+    if ( $self->validate ) {
+        my $schema = $self->schema;
+        return $self->error('Invalid schema') unless $schema->is_valid;
+    }
+
+    eval { $producer_output = $producer->($self) };
     if ($@ || ! $producer_output) {
         my $msg = sprintf "translate: Error with producer '%s': %s",
             $producer_type, ($@) ? $@ : " no results";
@@ -560,7 +583,7 @@ sub translate {
 #
 # ----------------------------------------------------------------------
 sub list_parsers {
-    return _list("parsers");
+    return shift->_list("parser");
 }
 
 # ----------------------------------------------------------------------
@@ -570,7 +593,7 @@ sub list_parsers {
 # list_producers as well.
 # ----------------------------------------------------------------------
 sub list_producers {
-    return _list("producers");
+    return shift->_list("producer");
 }
 
 
@@ -608,19 +631,30 @@ sub _args {
     $self->{$type};
 }
 
-
 # ----------------------------------------------------------------------
 # _list($type)
 # ----------------------------------------------------------------------
 sub _list {
-    my $type = ucfirst lc $_[0] || return ();
+    my $self = shift;
+    my $type = shift || return ();
+    my $uctype = ucfirst lc $type;
+    my %found;
 
-    load("SQL::Translator::$type");
-    my $path = catfile(dirname($INC{'SQL/Translator/$type.pm'}), $type);
-    my $dh = IO::Dir->new($path);
+    load("SQL::Translator::$uctype") or return ();
+    my $path = catfile "SQL", "Translator", $uctype;
+    for (@INC) {
+        my $dir = catfile $_, $path;
+        $self->debug("_list_${type}s searching $dir");
+        next unless -d $dir;
 
-    return map { join "::", "SQL::Translator::$type", $_ }
-                 grep /\.pm$/, $dh->read;
+        my $dh = IO::Dir->new($dir);
+        for (grep /\.pm$/, $dh->read) {
+            s/\.pm$//;
+            $found{ join "::", "SQL::Translator::$uctype", $_ } = 1;
+        }
+    }
+
+    return keys %found;
 }
 
 # ----------------------------------------------------------------------
@@ -631,11 +665,54 @@ sub _list {
 sub load {
     my $module = do { my $m = shift; $m =~ s[::][/]g; "$m.pm" };
     return 1 if $INC{$module};
-    
-    eval { require $module };
-    
-    return if ($@);
+
+    eval {
+        require $module;
+        $module->import(@_);
+    };
+
+    return __PACKAGE__->error($@) if ($@);
     return 1;
+}
+
+# ----------------------------------------------------------------------
+sub format_table_name {
+    my $self = shift;
+    my $sub  = shift;
+    $self->{'_format_table_name'} = $sub if ref $sub eq 'CODE';
+    return $self->{'_format_table_name'}->( $sub, @_ ) 
+        if defined $self->{'_format_table_name'};
+    return $sub;
+}
+
+# ----------------------------------------------------------------------
+sub format_package_name {
+    my $self = shift;
+    my $sub  = shift;
+    $self->{'_format_package_name'} = $sub if ref $sub eq 'CODE';
+    return $self->{'_format_package_name'}->( $sub, @_ ) 
+        if defined $self->{'_format_package_name'};
+    return $sub;
+}
+
+# ----------------------------------------------------------------------
+sub format_fk_name {
+    my $self = shift;
+    my $sub  = shift;
+    $self->{'_format_fk_name'} = $sub if ref $sub eq 'CODE';
+    return $self->{'_format_fk_name'}->( $sub, @_ ) 
+        if defined $self->{'_format_fk_name'};
+    return $sub;
+}
+
+# ----------------------------------------------------------------------
+sub format_pk_name {
+    my $self = shift;
+    my $sub  = shift;
+    $self->{'_format_pk_name'} = $sub if ref $sub eq 'CODE';
+    return $self->{'_format_pk_name'}->( $sub, @_ ) 
+        if defined $self->{'_format_pk_name'};
+    return $sub;
 }
 
 # ----------------------------------------------------------------------
@@ -649,51 +726,82 @@ sub isa($$) {
     return UNIVERSAL::isa($ref, $type);
 }
 
-1;
-#-----------------------------------------------------
-# Rescue the drowning and tie your shoestrings.
-# Henry David Thoreau 
-#-----------------------------------------------------
+# ----------------------------------------------------------------------
+sub validate {
+    my ( $self, $arg ) = @_;
+    if ( defined $arg ) {
+        $self->{'validate'} = $arg ? 1 : 0;
+    }
+    return $self->{'validate'} || 0;
+}
 
-__END__
+1;
+
+# ----------------------------------------------------------------------
+# Who killed the pork chops?
+# What price bananas?
+# Are you my Angel?
+# Allen Ginsberg
+# ----------------------------------------------------------------------
+
+=pod
 
 =head1 NAME
 
-SQL::Translator - convert schema from one database to another
+SQL::Translator - manipulate structured data definitions (SQL and more)
 
 =head1 SYNOPSIS
 
   use SQL::Translator;
 
-  my $translator     = SQL::Translator->new(
-      xlate          => $xlate || {},    # Overrides for field translation
-      debug          => $debug,          # Print debug info
-      trace          => $trace,          # Print Parse::RecDescent trace
-      no_comments    => $no_comments,    # Don't include comments in output
-      show_warnings  => $show_warnings,  # Print name mutations, conflicts
-      add_drop_table => $add_drop_table, # Add "drop table" statements
+  my $translator          = SQL::Translator->new(
+      # Print debug info
+      debug               => 1,
+      # Print Parse::RecDescent trace
+      trace               => 0, 
+      # Don't include comments in output
+      no_comments         => 0, 
+      # Print name mutations, conflicts
+      show_warnings       => 0, 
+      # Add "drop table" statements
+      add_drop_table      => 1, 
+      # Validate schema object
+      validate            => 1, 
+      # Make all table names CAPS in producers which support this option
+      format_table_name   => sub {my $tablename = shift; return uc($tablename)},
+      # Null-op formatting, only here for documentation's sake
+      format_package_name => sub {return shift},
+      format_fk_name      => sub {return shift},
+      format_pk_name      => sub {return shift},
   );
 
   my $output     = $translator->translate(
-      from       => "MySQL",
-      to         => "Oracle",
-      filename   => $file,
+      from       => 'MySQL',
+      to         => 'Oracle',
+      # Or an arrayref of filenames, i.e. [ $file1, $file2, $file3 ]
+      filename   => $file, 
   ) or die $translator->error;
 
   print $output;
 
 =head1 DESCRIPTION
 
-This module attempts to simplify the task of converting one database
-create syntax to another through the use of Parsers (which understand
-the source format) and Producers (which understand the destination
-format).  The idea is that any Parser can be used with any Producer in
-the conversion process.  So, if you wanted Postgres-to-Oracle, you
-would use the Postgres parser and the Oracle producer.
+SQL::Translator is a group of Perl modules that converts
+vendor-specific SQL table definitions into other formats, such as
+other vendor-specific SQL, ER diagrams, documentation (POD and HTML),
+XML, and Class::DBI classes.  The main focus of SQL::Translator is
+SQL, but parsers exist for other structured data formats, including
+Excel spreadsheets and arbitrarily delimited text files.  Through the
+separation of the code into parsers and producers with an object model
+in between, it's possible to combine any parser with any producer, to
+plug in custom parsers or producers, or to manipulate the parsed data
+via the built-in object model.  Presently only the definition parts of
+SQL are handled (CREATE, ALTER), not the manipulation of data (INSERT,
+UPDATE, DELETE).
 
 =head1 CONSTRUCTOR
 
-The constructor is called B<new>, and accepts a optional hash of options.
+The constructor is called C<new>, and accepts a optional hash of options.
 Valid options are:
 
 =over 4
@@ -726,6 +834,22 @@ data
 
 debug
 
+=item *
+
+add_drop_table
+
+=item *
+
+no_comments
+
+=item *
+
+trace
+
+=item *
+
+validate
+
 =back
 
 All options are, well, optional; these attributes can be set via
@@ -734,39 +858,31 @@ advantage is gained by passing options to the constructor.
 
 =head1 METHODS
 
-=head2 B<add_drop_table>
+=head2 add_drop_table
 
 Toggles whether or not to add "DROP TABLE" statements just before the 
 create definitions.
 
-=head2 B<custom_translate>
-
-Allows the user to override default translation of fields.  For example,
-if a MySQL "text" field would normally be converted to a "long" for Oracle,
-the user could specify to change it to a "CLOB."  Accepts a hashref where
-keys are the "from" value and values are the "to," returns the current
-value of the field.
-
-=head2 B<no_comments>
+=head2 no_comments
 
 Toggles whether to print comments in the output.  Accepts a true or false
 value, returns the current value.
 
-=head2 B<producer>
+=head2 producer
 
-The B<producer> method is an accessor/mutator, used to retrieve or
+The C<producer> method is an accessor/mutator, used to retrieve or
 define what subroutine is called to produce the output.  A subroutine
 defined as a producer will be invoked as a function (I<not a method>)
 and passed 2 parameters: its container C<SQL::Translator> instance and a
 data structure.  It is expected that the function transform the data
 structure to a string.  The C<SQL::Transformer> instance is provided for
 informational purposes; for example, the type of the parser can be
-retrieved using the B<parser_type> method, and the B<error> and
-B<debug> methods can be called when needed.
+retrieved using the C<parser_type> method, and the C<error> and
+C<debug> methods can be called when needed.
 
 When defining a producer, one of several things can be passed in:  A
-module name (e.g., C<My::Groovy::Producer>, a module name relative to
-the C<SQL::Translator::Producer> namespace (e.g., MySQL), a module
+module name (e.g., C<My::Groovy::Producer>), a module name relative to
+the C<SQL::Translator::Producer> namespace (e.g., C<MySQL>), a module
 name and function combination (C<My::Groovy::Producer::transmogrify>),
 or a reference to an anonymous subroutine.  If a full module name is
 passed in (for the purposes of this method, a string containing "::"
@@ -775,8 +891,8 @@ function called "produce" will be invoked: C<$modulename::produce>.
 If $modulename cannot be loaded, the final portion is stripped off and
 treated as a function.  In other words, if there is no file named
 F<My/Groovy/Producer/transmogrify.pm>, C<SQL::Translator> will attempt
-to load F<My/Groovy/Producer.pm> and use transmogrify as the name of
-the function, instead of the default "produce".
+to load F<My/Groovy/Producer.pm> and use C<transmogrify> as the name of
+the function, instead of the default C<produce>.
 
   my $tr = SQL::Translator->new;
 
@@ -795,12 +911,12 @@ the function, instead of the default "produce".
   # $subref->($tr, $data);
   $tr->producer(\&my_producer);
 
-There is also a method named B<producer_type>, which is a string
-containing the classname to which the above B<produce> function
+There is also a method named C<producer_type>, which is a string
+containing the classname to which the above C<produce> function
 belongs.  In the case of anonymous subroutines, this method returns
 the string "CODE".
 
-Finally, there is a method named B<producer_args>, which is both an
+Finally, there is a method named C<producer_args>, which is both an
 accessor and a mutator.  Arbitrary data may be stored in name => value
 pairs for the producer subroutine to access:
 
@@ -810,8 +926,8 @@ pairs for the producer subroutine to access:
 
       # $pr_args is a hashref.
 
-Extra data passed to the B<producer> method is passed to
-B<producer_args>:
+Extra data passed to the C<producer> method is passed to
+C<producer_args>:
 
   $tr->producer("xSV", delimiter => ',\s*');
 
@@ -819,11 +935,11 @@ B<producer_args>:
   my $args = $tr->producer_args;
   my $delimiter = $args->{'delimiter'}; # value is ,\s*
 
-=head2 B<parser>
+=head2 parser
 
-The B<parser> method defines or retrieves a subroutine that will be
+The C<parser> method defines or retrieves a subroutine that will be
 called to perform the parsing.  The basic idea is the same as that of
-B<producer> (see above), except the default subroutine name is
+C<producer> (see above), except the default subroutine name is
 "parse", and will be invoked as C<$module_name::parse($tr, $data)>.
 Also, the parser subroutine will be passed a string containing the
 entirety of the data to be parsed.
@@ -841,10 +957,10 @@ entirety of the data to be parsed.
     return $dumper->Dump;
   });
 
-There is also B<parser_type> and B<parser_args>, which perform
-analogously to B<producer_type> and B<producer_args>
+There is also C<parser_type> and C<parser_args>, which perform
+analogously to C<producer_type> and C<producer_args>
 
-=head2 B<show_warnings>
+=head2 show_warnings
 
 Toggles whether to print warnings of name conflicts, identifier
 mutations, etc.  Probably only generated by producers to let the user
@@ -852,15 +968,15 @@ know when something won't translate very smoothly (e.g., MySQL "enum"
 fields into Oracle).  Accepts a true or false value, returns the
 current value.
 
-=head2 B<translate>
+=head2 translate
 
-The B<translate> method calls the subroutines referenced by the
-B<parser> and B<producer> data members (described above).  It accepts
+The C<translate> method calls the subroutines referenced by the
+C<parser> and C<producer> data members (described above).  It accepts
 as arguments a number of things, in key => value format, including
 (potentially) a parser and a producer (they are passed directly to the
-B<parser> and B<producer> methods).
+C<parser> and C<producer> methods).
 
-Here is how the parameter list to B<translate> is parsed:
+Here is how the parameter list to C<translate> is parsed:
 
 =over
 
@@ -898,12 +1014,12 @@ You get the idea.
 
 =back
 
-=head2 B<filename>, B<data>
+=head2 filename, data
 
-Using the B<filename> method, the filename of the data to be parsed
-can be set. This method can be used in conjunction with the B<data>
-method, below.  If both the B<filename> and B<data> methods are
-invoked as mutators, the data set in the B<data> method is used.
+Using the C<filename> method, the filename of the data to be parsed
+can be set. This method can be used in conjunction with the C<data>
+method, below.  If both the C<filename> and C<data> methods are
+invoked as mutators, the data set in the C<data> method is used.
 
     $tr->filename("/my/data/files/create.sql");
 
@@ -916,26 +1032,34 @@ or:
     };
     $tr->data(\$create_script);
 
-B<filename> takes a string, which is interpreted as a filename.
-B<data> takes a reference to a string, which is used as the data to be
+C<filename> takes a string, which is interpreted as a filename.
+C<data> takes a reference to a string, which is used as the data to be
 parsed.  If a filename is set, then that file is opened and read when
-the B<translate> method is called, as long as the data instance
+the C<translate> method is called, as long as the data instance
 variable is not set.
 
-=pod
+=head2 schema
 
-=head2 B<trace>
+Returns the SQL::Translator::Schema object.
+
+=head2 trace
 
 Turns on/off the tracing option of Parse::RecDescent.
 
-=pod
+=head2 validate
+
+Whether or not to validate the schema object after parsing and before
+producing.
 
 =head1 AUTHORS
 
 Ken Y. Clark, E<lt>kclark@cpan.orgE<gt>,
 darren chamberlain E<lt>darren@cpan.orgE<gt>, 
 Chris Mungall E<lt>cjm@fruitfly.orgE<gt>, 
-Allen Day E<lt>allenday@users.sourceforge.netE<gt>
+Allen Day E<lt>allenday@users.sourceforge.netE<gt>,
+Sam Angiuoli E<lt>angiuoli@users.sourceforge.netE<gt>,
+Ying Zhang E<lt>zyolive@yahoo.comE<gt>,
+Mike Mellilo <mmelillo@users.sourceforge.net>.
 
 =head1 COPYRIGHT
 
@@ -953,10 +1077,18 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 USA
 
+=head1 BUGS
+
+Please use http://rt.cpan.org/ for reporting bugs.
+
 =head1 SEE ALSO
 
 L<perl>,
 L<SQL::Translator::Parser>,
 L<SQL::Translator::Producer>,
-L<Parse::RecDescent>
-
+L<Parse::RecDescent>,
+L<GD>,
+L<GraphViz>,
+L<Text::RecordParser>,
+L<Class::DBI>
+L<XML::Writer>.

@@ -1,13 +1,3 @@
-#!/usr/local/bin/perl
-# vim: set ft=perl:
-
-use strict;
-use Test::More tests => 1;
-use SQL::Translator;
-use Data::Dumper;
-
-my $create = q|
-
 -- The cvterm module design is based on the ontology 
 
 -- ================================================
@@ -34,15 +24,15 @@ create table cvterm (
        foreign key (cv_id) references cv (cv_id),
        name varchar(255) not null,
        termdefinition text,
+-- the primary dbxref for this term.  Other dbxrefs may be cvterm_dbxref
        dbxref_id int,
        foreign key (dbxref_id) references dbxref (dbxref_id),
 
        unique(termname, cv_id)
-);
-create index cvterm_idx1 on cvterm (cv_id);
--- the primary dbxref for this term.  Other dbxrefs may be cvterm_dbxref
 -- The unique key on termname, termtype_id ensures that all terms are 
 -- unique within a given cv
+);
+create index cvterm_idx1 on cvterm (cv_id);
 
 
 -- ================================================
@@ -102,10 +92,8 @@ create table cvtermsynonym (
 
        unique(cvterm_id, termsynonym)
 );
+create index cvterm_synonym_idx1 on cvterm_synonym (cvterm_id);
 
--- The table "cvterm_synonym" doesn't exist, so 
--- creating an index on it screws things up!
--- create index cvterm_synonym_idx1 on cvterm_synonym (cvterm_id);
 
 -- ================================================
 -- TABLE: cvterm_dbxref
@@ -124,11 +112,3 @@ create table cvterm_dbxref (
 create index cvterm_dbxref_idx1 on cvterm_dbxref (cvterm_id);
 create index cvterm_dbxref_idx2 on cvterm_dbxref (dbxref_id);
 
-|;
-
-my $tr = SQL::Translator->new(
-    parser   => "PostgreSQL",
-    producer => "MySQL"
-);
-
-ok( $tr->translate(\$create), 'Translate PG2My' );

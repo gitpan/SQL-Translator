@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::PostgreSQL;
 
 # -------------------------------------------------------------------
-# $Id: PostgreSQL.pm,v 1.9 2003/02/26 05:17:21 kycl4rk Exp $
+# $Id: PostgreSQL.pm,v 1.18 2003/06/17 02:12:23 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    Allen Day <allenday@users.sourceforge.net>,
@@ -103,11 +103,15 @@ Alter table:
   ALTER TABLE table
           OWNER TO new_owner 
 
+View table:
+
+    CREATE [ OR REPLACE ] VIEW view [ ( column name list ) ] AS SELECT query
+
 =cut
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.18 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -145,7 +149,9 @@ statement : create
   | grant
   | revoke
   | drop
+  | insert
   | connect
+  | update
   | set
   | <error>
 
@@ -175,6 +181,10 @@ grant : /grant/i WORD(s /,/) /on/i table_name /to/i name_with_opt_quotes(s /,/) 
 
 drop : /drop/i /[^;]*/ ';'
 
+insert : /insert/i /[^;]*/ ';'
+
+update : /update/i /[^;]*/ ';'
+
 #
 # Create table.
 #
@@ -193,21 +203,26 @@ create : create_table table_name '(' create_definition(s /,/) ')' table_option(s
                     { %$definition, order => $i };
                 $i++;
 				
-                if ( $definition->{'is_primary_key'} ) {
-                    push @{ $tables{ $table_name }{'indices'} }, {
-                        type   => 'primary_key',
-                        fields => [ $field_name ],
-                    };
-                }
-
-                for my $constraint ( @{ $definition->{'constaints'} || [] } ) {
-                    $constraint->{'fields' } = [ $field_name ];
-                    push @{$tables{ $table_name }{'constraints'}}, $constraint;
+                for my $constraint ( @{ $definition->{'constraints'} || [] } ) {
+                    $constraint->{'fields'} = [ $field_name ];
+                    push @{ $tables{ $table_name }{'constraints'} },
+                        $constraint;
                 }
             }
             elsif ( $definition->{'type'} eq 'constraint' ) {
                 $definition->{'type'} = $definition->{'constraint_type'};
-                push @{ $tables{ $table_name }{'constraints'} }, $definition;
+                # group FKs at the field level
+#                if ( $definition->{'type'} eq 'foreign_key' ) {
+#                    for my $fld ( @{ $definition->{'fields'} || [] } ) {
+#                        push @{ 
+#                            $tables{$table_name}{'fields'}{$fld}{'constraints'}
+#                        }, $definition;
+#                    }
+#                }
+#                else {
+                    push @{ $tables{ $table_name }{'constraints'} }, 
+                        $definition;
+#                }
             }
             else {
                 push @{ $tables{ $table_name }{'indices'} }, $definition;
@@ -215,7 +230,7 @@ create : create_table table_name '(' create_definition(s /,/) ')' table_option(s
         }
 
         for my $option ( @{ $item[6] } ) {
-            $tables{ $table_name }{'table_options'}{ $option->{'type'} } = 
+            $tables{ $table_name }{'table_options(s?)'}{ $option->{'type'} } = 
                 $option;
         }
 
@@ -254,33 +269,42 @@ comment : /^\s*(?:#|-{2}).*\n/
 
 field : comment(s?) field_name data_type field_meta(s?) comment(s?)
     {
-        my ( $default, @constraints );
+        my ( $default, @constraints, $is_pk );
+        my $null = 1;
         for my $meta ( @{ $item[4] } ) {
-            $default = $meta if $meta->{'meta_type'} eq 'default';
-            push @constraints, $meta if $meta->{'meta_type'} eq 'constraint';
-        }
+            if ( $meta->{'type'} eq 'default' ) {
+                $default = $meta;
+                next;
+            }
+            elsif ( $meta->{'type'} eq 'not_null' ) {
+                $null = 0;
+                next;
+            }
+            elsif ( $meta->{'type'} eq 'primary_key' ) {
+                $is_pk = 1;
+            }
 
-        my $null = ( grep { $_->{'type'} eq 'not_null' } @constraints ) ? 0 : 1;
+            push @constraints, $meta if $meta->{'supertype'} eq 'constraint';
+        }
 
         my @comments = ( @{ $item[1] }, @{ $item[5] } );
 
-        $return = { 
+        $return = {
             type           => 'field',
             name           => $item{'field_name'}, 
             data_type      => $item{'data_type'}{'type'},
             size           => $item{'data_type'}{'size'},
-            list           => $item{'data_type'}{'list'},
             null           => $null,
             default        => $default->{'value'},
             constraints    => [ @constraints ],
             comments       => [ @comments ],
+            is_primary_key => $is_pk || 0,
         } 
     }
     | <error>
 
 field_meta : default_val
-    |
-    column_constraint
+    | column_constraint
 
 column_constraint : constraint_name(?) column_constraint_type deferrable(?) deferred(?)
     {
@@ -290,7 +314,7 @@ column_constraint : constraint_name(?) column_constraint_type deferrable(?) defe
         my $expression = $desc->{'expression'} || '';
 
         $return              =  {
-            meta_type        => 'constraint',
+            supertype        => 'constraint',
             name             => $item{'constraint_name'}[0] || '',
             type             => $type,
             expression       => $type eq 'check' ? $expression : '',
@@ -320,15 +344,21 @@ column_constraint_type : /not null/i { $return = { type => 'not_null' } }
     /check/i '(' /[^)]+/ ')' 
         { $return = { type => 'check', expression => $item[2] } }
     |
-    /references/i table_name parens_value_list(?) match_type(?) on_delete_do(?) on_update_do(?)
+    /references/i table_name parens_word_list(?) match_type(?) key_action(s?)
     {
+        my ( $on_delete, $on_update );
+        for my $action ( @{ $item[5] || [] } ) {
+            $on_delete = $action->{'action'} if $action->{'type'} eq 'delete';
+            $on_update = $action->{'action'} if $action->{'type'} eq 'update';
+        }
+
         $return              =  {
             type             => 'foreign_key',
             reference_table  => $item[2],
-            reference_fields => $item[3],
+            reference_fields => $item[3][0],
             match_type       => $item[4][0],
-            on_delete_do     => $item[5][0],
-            on_update_do     => $item[6][0],
+            on_delete_do     => $on_delete,
+            on_update_do     => $on_update,
         }
     }
 
@@ -344,55 +374,110 @@ index_name : WORD
 
 data_type : pg_data_type parens_value_list(?)
     { 
-        my $type = $item[1];
+        my $data_type = $item[1];
 
         #
         # We can deduce some sizes from the data type's name.
         #
-        my $size; 
-        if ( ref $type eq 'ARRAY' ) {
-            $size = [ $type->[1] ];
-            $type = $type->[0];
-        }
-        else {
-            $size = $item[2][0] || '';
-        }
+        $data_type->{'size'} ||= $item[2][0];
 
-        $return  = { 
-            type => $type,
-            size => $size,
-        } 
+        $return  = $data_type;
     }
 
 pg_data_type :
-    /(bigint|int8|bigserial|serial8)/ { $return = [ 'integer', 8 ] }
+    /(bigint|int8|bigserial|serial8)/ 
+        { 
+            $return = { 
+                type           => 'integer',
+                size           => [8],
+                auto_increment => 1,
+            };
+        }
     |
-    /(smallint|int2)/ { $return = [ 'integer', 2 ] }
+    /(smallint|int2)/ 
+        { 
+            $return = {
+                type => 'integer', 
+                size => [2],
+            };
+        }
     |
-    /int(eger)?|int4/ { $return = [ 'integer', 4 ] }
+    /int(eger)?|int4/ 
+        { 
+            $return = {
+                type => 'integer', 
+                size => [4],
+            };
+        }
     |
-    /(double precision|float8?)/ { $return = [ 'float', 8 ] }
+    /(double precision|float8?)/ 
+        { 
+            $return = {
+                type => 'float', 
+                size => [8],
+            }; 
+        }
     |
-    /(real|float4)/ { $return = [ 'real', 4 ] }
+    /(real|float4)/ 
+        { 
+            $return = {
+                type => 'real', 
+                size => [4],
+            };
+        }
     |
-    /serial4?/ { $return = [ 'serial', 4 ] }
+    /serial4?/ 
+        { 
+            $return = { 
+                type           => 'integer',
+                size           => [4], 
+                auto_increment => 1,
+            };
+        }
     |
-    /bigserial/ { $return = [ 'serial', 8 ] }
+    /bigserial/ 
+        { 
+            $return = { 
+                type           => 'integer', 
+                size           => [8], 
+                auto_increment => 1,
+            };
+        }
     |
-    /(bit varying|varbit)/ { $return = 'varbit' }
+    /(bit varying|varbit)/ 
+        { 
+            $return = { type => 'varbit' };
+        }
     |
-    /character varying/ { $return = 'varchar' }
+    /character varying/ 
+        { 
+            $return = { type => 'varchar' };
+        }
     |
-    /char(acter)?/ { $return = 'char' }
+    /char(acter)?/ 
+        { 
+            $return = { type => 'char' };
+        }
     |
-    /bool(ean)?/ { $return = 'boolean' }
+    /bool(ean)?/ 
+        { 
+            $return = { type => 'boolean' };
+        }
     |
-    /(bytea|binary data)/ { $return = 'binary' }
+    /bytea/ 
+        { 
+            $return = { type => 'bytea' };
+        }
     |
-    /timestampz?/ { $return = 'timestamp' }
+    /timestampz?/ 
+        { 
+            $return = { type => 'timestamp' };
+        }
     |
     /(bit|box|cidr|circle|date|inet|interval|line|lseg|macaddr|money|numeric|decimal|path|point|polygon|text|time|varchar)/
-    { $item[1] }
+        { 
+            $return = { type => $item[1] };
+        }
 
 parens_value_list : '(' VALUE(s /,/) ')'
     { $item[2] }
@@ -456,16 +541,22 @@ table_constraint_type : /primary key/i '(' name_with_opt_quotes(s /,/) ')'
         }
     }
     |
-    /foreign key/i '(' name_with_opt_quotes(s /,/) ')' /references/i table_name parens_word_list(?) match_type(?) on_delete_do(?) on_update_do(?)
+    /foreign key/i '(' name_with_opt_quotes(s /,/) ')' /references/i table_name parens_word_list(?) match_type(?) key_action(s?)
     {
+        my ( $on_delete, $on_update );
+        for my $action ( @{ $item[9] || [] } ) {
+            $on_delete = $action->{'action'} if $action->{'type'} eq 'delete';
+            $on_update = $action->{'action'} if $action->{'type'} eq 'update';
+        }
+        
         $return              =  {
             type             => 'foreign_key',
             fields           => $item[3],
             reference_table  => $item[6],
             reference_fields => $item[7][0],
             match_type       => $item[8][0],
-            on_delete_do     => $item[9][0],
-            on_update_do     => $item[10][0],
+            on_delete_do     => $on_delete || '',
+            on_update_do     => $on_update || '',
         }
     }
 
@@ -480,11 +571,35 @@ match_type : /match full/i { 'match_full' }
     |
     /match partial/i { 'match_partial' }
 
-on_delete_do : /on delete/i WORD(s)
-    { $item[2] }
+key_action : key_delete 
+    |
+    key_update
 
-on_update_do : /on update/i WORD(s)
-    { $item[2] }
+key_delete : /on delete/i key_mutation
+    { 
+        $return => { 
+            type   => 'delete',
+            action => $item[2],
+        };
+    }
+
+key_update : /on update/i key_mutation
+    { 
+        $return => { 
+            type   => 'update',
+            action => $item[2],
+        };
+    }
+
+key_mutation : /no action/i { $return = 'no_action' }
+    |
+    /restrict/i { $return = 'restrict' }
+    |
+    /cascade/i { $return = 'cascade' }
+    |
+    /set null/i { $return = 'set_null' }
+    |
+    /set default/i { $return = 'set_default' }
 
 alter : alter_table table_name /add/i table_constraint ';' 
     { 
@@ -507,8 +622,17 @@ default_val  : /default/i /(?:')?[\w\d.-]*(?:')?/
         my $val =  $item[2] || '';
         $val    =~ s/'//g; 
         $return =  {
-            meta_type => 'default',
+            supertype => 'constraint',
+            type      => 'default',
             value     => $val,
+        }
+    }
+    | /null/i
+    { 
+        $return =  {
+            supertype => 'constraint',
+            type      => 'default',
+            value     => 'NULL',
         }
     }
 
@@ -569,22 +693,82 @@ sub parse {
     my $result = $parser->startrule($data);
     die "Parse failed.\n" unless defined $result;
     warn Dumper($result) if $DEBUG;
-    return $result;
+
+    my $schema = $translator->schema;
+    my @tables = sort { 
+        $result->{ $a }->{'order'} <=> $result->{ $b }->{'order'}
+    } keys %{ $result };
+
+    for my $table_name ( @tables ) {
+        my $tdata =  $result->{ $table_name };
+        my $table =  $schema->add_table( 
+            name  => $tdata->{'table_name'},
+        ) or die $schema->error;
+
+        my @fields = sort { 
+            $tdata->{'fields'}->{$a}->{'order'} 
+            <=>
+            $tdata->{'fields'}->{$b}->{'order'}
+        } keys %{ $tdata->{'fields'} };
+
+        for my $fname ( @fields ) {
+            my $fdata = $tdata->{'fields'}{ $fname };
+            my $field = $table->add_field(
+                name              => $fdata->{'name'},
+                data_type         => $fdata->{'data_type'},
+                size              => $fdata->{'size'},
+                default_value     => $fdata->{'default'},
+                is_auto_increment => $fdata->{'is_auto_inc'},
+                is_nullable       => $fdata->{'null'},
+            ) or die $table->error;
+
+            $table->primary_key( $field->name ) if $fdata->{'is_primary_key'};
+
+            for my $cdata ( @{ $fdata->{'constraints'} } ) {
+                next unless $cdata->{'type'} eq 'foreign_key';
+                $cdata->{'fields'} ||= [ $field->name ];
+                push @{ $tdata->{'constraints'} }, $cdata;
+            }
+        }
+
+        for my $idata ( @{ $tdata->{'indices'} || [] } ) {
+            my $index  =  $table->add_index(
+                name   => $idata->{'name'},
+                type   => uc $idata->{'type'},
+                fields => $idata->{'fields'},
+            ) or die $table->error;
+        }
+
+        for my $cdata ( @{ $tdata->{'constraints'} || [] } ) {
+            my $constraint       =  $table->add_constraint(
+                name             => $cdata->{'name'},
+                type             => $cdata->{'type'},
+                fields           => $cdata->{'fields'},
+                reference_table  => $cdata->{'reference_table'},
+                reference_fields => $cdata->{'reference_fields'},
+                match_type       => $cdata->{'match_type'} || '',
+                on_delete        => $cdata->{'on_delete_do'},
+                on_update        => $cdata->{'on_update_do'},
+            ) or die $table->error;
+        }
+    }
+
+    return 1;
 }
 
 1;
 
-#-----------------------------------------------------
-# Where man is not nature is barren.
-# William Blake
-#-----------------------------------------------------
+# -------------------------------------------------------------------
+# Rescue the drowning and tie your shoestrings.
+# Henry David Thoreau 
+# -------------------------------------------------------------------
 
 =pod
 
 =head1 AUTHORS
 
 Ken Y. Clark E<lt>kclark@cpan.orgE<gt>,
-Allen Day <allenday@users.sourceforge.net>.
+Allen Day <allenday@ucla.edu>.
 
 =head1 SEE ALSO
 
