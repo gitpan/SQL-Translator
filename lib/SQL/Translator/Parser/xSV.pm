@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::xSV;
 
 # -------------------------------------------------------------------
-# $Id: xSV.pm,v 1.10 2003/06/11 03:59:49 kycl4rk Exp $
+# $Id: xSV.pm,v 1.15 2003/11/06 16:55:30 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>
@@ -42,6 +42,8 @@ Text::RecordParser manpage for arguments on how to parse the file
 (e.g., C<field_separator>, C<record_separator>).  Other arguments
 include:
 
+=head1 OPTIONS
+
 =over
 
 =item * scan_fields
@@ -58,7 +60,7 @@ True by default.
 =back
 
 Field names will automatically be normalized by 
-C<SQL::Translator::Utils::normalize>.
+C<SQL::Translator::Utils::normalize_name>.
 
 =cut
 
@@ -66,7 +68,7 @@ C<SQL::Translator::Utils::normalize>.
 
 use strict;
 use vars qw($VERSION @EXPORT);
-$VERSION = sprintf "%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.15 $ =~ /(\d+)\.(\d+)/;
 
 use Exporter;
 use Text::ParseWords qw(quotewords);
@@ -89,7 +91,7 @@ sub parse {
         header_filter    => \&normalize_name,
     );
 
-    $parser->field_filter( sub { $_ = shift; s/^\s+|\s+$//g; $_ } ) 
+    $parser->field_filter( sub { $_ = shift || ''; s/^\s+|\s+$//g; $_ } ) 
         unless defined $args->{'trim_fields'} && $args->{'trim_fields'} == 0;
 
     my $schema = $tr->schema;
@@ -142,8 +144,9 @@ sub parse {
                     $data =~ /^-?\.\d+$/  
                 ) {
                     $type = 'float';
-                    my ( $w, $d ) = map { s/,//g; $_ } split( /\./, $data );
-                    $size = [ length $w, length $d ];
+                    my ( $w, $d ) = 
+                        map { s/,//g; length $_ || 1 } split( /\./, $data );
+                    $size = [ $w + $d, $d ];
                 }
                 else {
                     $type = 'char';
@@ -162,10 +165,15 @@ sub parse {
         }
 
         for my $field ( keys %field_info ) {
-            my $size      = $field_info{ $field }{'size'};
+            my $size      = $field_info{ $field }{'size'} || [ 1 ];
             my $data_type = 
-                $field_info{ $field }{'char'}  ? 'char'  : 
-                $field_info{ $field }{'float'} ? 'float' : 'integer';
+                $field_info{ $field }{'char'}    ? 'char'  : 
+                $field_info{ $field }{'float'}   ? 'float' :
+                $field_info{ $field }{'integer'} ? 'integer' : 'char';
+
+            if ( $data_type eq 'char' && scalar @$size == 2 ) {
+                $size = [ $size->[0] + $size->[1] ];
+            }
 
             my $field = $table->get_field( $field );
             $field->size( $size );
@@ -188,6 +196,6 @@ Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 
 =head1 SEE ALSO
 
-Text::RecordParser.
+Text::RecordParser, SQL::Translator.
 
 =cut

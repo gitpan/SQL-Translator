@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Constraint;
 
 # ----------------------------------------------------------------------
-# $Id: Constraint.pm,v 1.5 2003/06/06 22:35:16 kycl4rk Exp $
+# $Id: Constraint.pm,v 1.9 2003/09/25 01:31:28 allenday Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>
 #
@@ -51,7 +51,7 @@ use SQL::Translator::Utils 'parse_list_arg';
 use base 'Class::Base';
 use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
 
-$VERSION = 1.00;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/;
 
 my %VALID_CONSTRAINT_TYPE = (
     PRIMARY_KEY, 1,
@@ -75,8 +75,8 @@ Object constructor.
       type             => 'foreign_key', # type of table constraint
       name             => 'fk_phone_id', # name of the constraint
       fields           => 'phone_id',    # field in the referring table
-      reference_fields => 'phone_id',    # referenced table
-      reference_table  => 'phone',       # referenced fields
+      reference_fields => 'phone_id',    # referenced field
+      reference_table  => 'phone',       # referenced table
       match_type       => 'full',        # how to match
       on_delete_do     => 'cascade',     # what to do on deletes
       on_update_do     => '',            # what to do on updates
@@ -87,11 +87,12 @@ Object constructor.
     my ( $self, $config ) = @_;
     my @fields = qw[ 
         table name type fields reference_fields reference_table 
-        match_type on_delete on_update
+        match_type on_delete on_update expression
     ];
 
     for my $arg ( @fields ) {
         next unless $config->{ $arg };
+        next if ref $config->{ $arg } eq 'ARRAY' && ! @{ $config->{ $arg } };
         defined $self->$arg( $config->{ $arg } ) or return;
     }
 
@@ -245,7 +246,12 @@ names and keep them in order by the first occurrence of a field name.
         $self->{'fields'} = \@unique;
     }
 
-    return wantarray ? @{ $self->{'fields'} || [] } : $self->{'fields'};
+    if ( @{ $self->{'fields'} || [] } ) {
+        return wantarray ? @{ $self->{'fields'} } : $self->{'fields'};
+    }
+    else {
+        return wantarray ? () : undef;
+    }
 }
 
 # ----------------------------------------------------------------------

@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::Diagram;
 
 # -------------------------------------------------------------------
-# $Id: Diagram.pm,v 1.3 2003/06/09 04:40:50 kycl4rk Exp $
+# $Id: Diagram.pm,v 1.8 2003/11/05 22:27:25 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>
 #
@@ -20,6 +20,30 @@ package SQL::Translator::Producer::Diagram;
 # 02111-1307  USA
 # -------------------------------------------------------------------
 
+=head1 NAME
+
+SQL::Translator::Producer::Diagram - ER diagram producer for SQL::Translator
+
+=head1 SYNOPSIS
+
+Use via SQL::Translator:
+
+  use SQL::Translator;
+
+  my $t = SQL::Translator->new( parser => 'MySQL', '...' );
+  $t->translate;
+
+Or use more directly:
+
+  use SQL::Translator;
+  use SQL::Translator::MySQL 'parse';
+
+  my $t = SQL::Translator->new( filename => '...' );;
+  parse( $t, 
+
+
+=cut
+
 use strict;
 use GD;
 use Data::Dumper;
@@ -27,7 +51,7 @@ use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug);
 
 use vars qw[ $VERSION $DEBUG ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.3 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use constant VALID_FONT_SIZE => {
@@ -50,10 +74,12 @@ sub produce {
     debug("Schema =\n", Dumper( $schema ));
     debug("Producer args =\n", Dumper( $args ));
 
-    my $out_file     = $args->{'out_file'}   || '';
-    my $image_type   = $args->{'image_type'} || 'png';
-    my $title        = $args->{'title'}      || $t->filename;
-    my $font_size    = $args->{'font_size'}  || 'medium';
+    my $out_file     = $args->{'out_file'}     || '';
+    my $output_type  = $args->{'output_type'}   || 'png';
+    my $title        = $args->{'title'}        || $t->filename;
+    my $font_size    = $args->{'font_size'}    || 'medium';
+    my $imap_file    = $args->{'imap_file'}    || '';
+    my $imap_url     = $args->{'imap_url'}     || '';
     my $no_columns   = $args->{'no_columns'};
     my $no_lines     = $args->{'no_lines'};
     my $add_color    = $args->{'add_color'};
@@ -68,8 +94,8 @@ sub produce {
         skip_fields  => $args->{'skip_fields'},
     ) if $natural_join;
 
-    die "Invalid image type '$image_type'"
-        unless VALID_IMAGE_TYPE ->{ $image_type  };
+    die "Invalid image type '$output_type'"
+        unless VALID_IMAGE_TYPE ->{ $output_type  };
     die "Invalid font size '$font_size'"
         unless VALID_FONT_SIZE->{ $font_size };
 
@@ -100,6 +126,7 @@ sub produce {
     my %table_x;                    # for max x of each table
     my $field_no;                   # counter to give distinct no. to each field
     my %coords;                     # holds fields coordinates
+    my @imap_coords;                # for making clickable image map
     my %legend;
 
     for my $table ( @tables ) {
@@ -107,7 +134,6 @@ sub produce {
         my $top        = $y;
         push @shapes, 
             [ 'string', $font, $this_col_x, $y, $table_name, 'black' ];
-
         $y                   += $font->height + 2;
         my $below_table_name  = $y;
         $y                   += 2;
@@ -135,7 +161,8 @@ sub produce {
                 $name .= ' *';
                 $legend{'Primary key'} = '*';
             }
-            elsif ( $f->is_unique ) {
+
+            if ( $f->is_unique ) {
                 $name .= ' [U]';
                 $legend{'Unique constraint'} = '[U]';
             }
@@ -175,6 +202,11 @@ sub produce {
                 is_pk    => $is_pk,
                 fld_name => $orig_name,
             };
+
+            push @imap_coords, [ 
+                $imap_url."#$table_name-$orig_name",
+                $this_col_x, $y - $font->height, $length, $y_link,
+            ];
         }
 
         unless ( $natural_join ) {
@@ -186,8 +218,8 @@ sub produce {
                     for my $fk_field ( $c->reference_fields ) {
                         next unless defined $schema->get_table( $fk_table );
                         push @fk_registry, [
-                            [ $table_name, $field_name ],
                             [ $fk_table  , $fk_field  ],
+                            [ $table_name, $field_name ],
                         ];
                     }
                 }
@@ -208,6 +240,12 @@ sub produce {
             ];
             unshift @shapes, [ 'filledRectangle', @bounds, 'white' ];
         }
+
+        push @imap_coords, [ 
+            $imap_url."#$table_name",
+            $bounds[0], $bounds[1], $this_max_x, $below_table_name,
+        ];
+
         push @shapes, [ 'rectangle', @bounds, 'black' ];
         $max_x = $this_max_x if $this_max_x > $max_x;
         $y    += 25;
@@ -419,8 +457,8 @@ sub produce {
     # Render the image.
     #
     my $gd = GD::Image->new( $max_x + 30, $max_y );
-    unless ( $gd->can( $image_type ) ) {
-        die "GD can't create images of type '$image_type'\n";
+    unless ( $gd->can( $output_type ) ) {
+        die "GD can't create images of type '$output_type'\n";
     }
     my %colors = map { $_->[0], $gd->colorAllocate( @{$_->[1]} ) } (
         [ white                => [ 255, 255, 255 ] ],
@@ -442,15 +480,31 @@ sub produce {
     }
 
     #
+    # Make image map.
+    #
+    debug("imap file = '$imap_file'");
+    if ( $imap_file && @imap_coords ) {
+        open my $fh, ">$imap_file" or die "Can't write '$imap_file': $!\n";
+        print $fh qq[<html><body><img src="" usemap="#imap" border="0">\n].
+            qq[<map name="imap">\n];
+        for my $rec ( @imap_coords ) {
+            my $href = shift @$rec;
+            print $fh q[<area coords="].join(',', @$rec).qq[" href="$href">\n];
+        } 
+        print $fh qq[</body></html>];
+        close $fh;
+    }
+
+    #
     # Print the image.
     #
     if ( $out_file ) {
         open my $fh, ">$out_file" or die "Can't write '$out_file': $!\n";
-        print $fh $gd->$image_type;
+        print $fh $gd->$output_type;
         close $fh;
     }
     else {
-        return $gd->$image_type;
+        return $gd->$output_type;
     }
 }
 
@@ -458,12 +512,8 @@ sub produce {
 
 =pod
 
-=head1 NAME
-
-SQL::Translator::Producer::Diagram - ER diagram producer for SQL::Translator
-
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 
 =cut

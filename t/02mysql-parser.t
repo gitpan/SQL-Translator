@@ -38,7 +38,7 @@ use SQL::Translator::Schema::Constants;
 
     is( $f2->name, 'a_session', 'Second field name is "a_session"' );
     is( $f2->data_type, 'text', 'Type is "text"' );
-    is( $f2->size, 0, 'Size is "0"' );
+    is( $f2->size, 65_535, 'Size is "65,535"' );
     is( $f2->is_nullable, 1, 'Field can be null' );
     is( $f2->default_value, undef, 'Default value is undefined' );
     is( $f2->is_primary_key, 0, 'Field is not PK' );
@@ -375,7 +375,8 @@ use SQL::Translator::Schema::Constants;
     is( $c5->type, FOREIGN_KEY, 'Constraint is a FK' );
     is( join(',', $c5->fields), 'store_id', 'Constraint is on "store_id"' );
     is( $c5->reference_table, 'store', 'To table "store"' );
-    is( join(',', $c5->reference_fields), '', 'No reference fields defined' );
+    is( join(',', map { $_ || '' } $c5->reference_fields), '', 
+        'No reference fields defined' );
 
     my $t2  = shift @tables;
     is( $t2->name, 'address', 'Found "address" table' );

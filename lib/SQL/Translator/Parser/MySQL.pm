@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm,v 1.25 2003/06/11 03:59:49 kycl4rk Exp $
+# $Id: MySQL.pm,v 1.40 2003/09/08 18:16:04 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
@@ -123,7 +123,7 @@ Here's the word from the MySQL site
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.25 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.40 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -141,7 +141,7 @@ $::RD_HINT   = 1; # Give out hints to help fix problems.
 $GRAMMAR = q!
 
 { 
-    our ( %tables, $table_order );
+    my ( %tables, $table_order, @table_comments );
 }
 
 #
@@ -156,15 +156,24 @@ eofile : /^\Z/
 
 statement : comment
     | use
+    | set
     | drop
     | create
     | <error>
 
 use : /use/i WORD ';'
+    { @table_comments = () }
+
+set : /set/i /[^;]+/ ';'
+    { @table_comments = () }
+
+drop : /drop/i TABLE /[^;]+/ ';'
 
 drop : /drop/i WORD(s) ';'
+    { @table_comments = () }
 
 create : CREATE /database/i WORD ';'
+    { @table_comments = () }
 
 create : CREATE TEMPORARY(?) TABLE opt_if_not_exists(?) table_name '(' create_definition(s /,/) ')' table_option(s?) ';'
     { 
@@ -172,10 +181,14 @@ create : CREATE TEMPORARY(?) TABLE opt_if_not_exists(?) table_name '(' create_de
         $tables{ $table_name }{'order'}      = ++$table_order;
         $tables{ $table_name }{'table_name'} = $table_name;
 
+        if ( @table_comments ) {
+            $tables{ $table_name }{'comments'} = [ @table_comments ];
+            @table_comments = ();
+        }
+
         my $i = 1;
         for my $definition ( @{ $item[7] } ) {
             if ( $definition->{'supertype'} eq 'field' ) {
-
                 my $field_name = $definition->{'name'};
                 $tables{ $table_name }{'fields'}{ $field_name } = 
                     { %$definition, order => $i };
@@ -191,20 +204,10 @@ create : CREATE TEMPORARY(?) TABLE opt_if_not_exists(?) table_name '(' create_de
                 }
             }
             elsif ( $definition->{'supertype'} eq 'constraint' ) {
-                # prob get rid of this?
-#                for my $field ( @{ $definition->{'fields'} } ) {
-#                    push @{ 
-#                        $tables{$table_name}{'fields'}{$field}{'constraints'}
-#                    },
-#                    $definition; 
-#                }
-
-                # this should be the only one needed
                 push @{ $tables{ $table_name }{'constraints'} }, $definition;
             }
             elsif ( $definition->{'supertype'} eq 'index' ) {
-                push @{ $tables{ $table_name }{'indices'} },
-                    $definition;
+                push @{ $tables{ $table_name }{'indices'} }, $definition;
             }
         }
 
@@ -221,6 +224,7 @@ opt_if_not_exists : /if not exists/i
 
 create : CREATE UNIQUE(?) /(index|key)/i index_name /on/i table_name '(' field_name(s /,/) ')' ';'
     {
+        @table_comments = ();
         push @{ $tables{ $item{'table_name'} }{'indices'} },
             {
                 name   => $item[4],
@@ -235,18 +239,37 @@ create_definition : constraint
     | field
     | <error>
 
-comment : /^\s*(?:#|-{2}).*\n/
+comment : /^\s*(?:#|-{2}).*\n/ 
+    { 
+        my $comment =  $item[1];
+        $comment    =~ s/^\s*(#|-{2})\s*//;
+        $comment    =~ s/\s*$//;
+        $return     = $comment;
+        push @table_comments, $comment;
+    }
+
+field_comment : /^\s*(?:#|-{2}).*\n/ 
+    { 
+        my $comment =  $item[1];
+        $comment    =~ s/^\s*(#|-{2})\s*//;
+        $comment    =~ s/\s*$//;
+        $return     = $comment;
+    }
 
 blank : /\s*/
 
-field : field_name data_type field_qualifier(s?) reference_definition(?)
+field : field_comment(s?) field_name data_type field_qualifier(s?) reference_definition(?) field_comment(s?)
     { 
-        my %qualifiers = map { %$_ } @{ $item{'field_qualifier(s?)'} || [] };
-        my $null = defined $item{'not_null'} ? $item{'not_null'} : 1;
-        delete $qualifiers{'not_null'};
+        my %qualifiers  = map { %$_ } @{ $item{'field_qualifier(s?)'} || [] };
         if ( my @type_quals = @{ $item{'data_type'}{'qualifiers'} || [] } ) {
             $qualifiers{ $_ } = 1 for @type_quals;
         }
+
+        my $null = defined $qualifiers{'not_null'} 
+                   ? $qualifiers{'not_null'} : 1;
+        delete $qualifiers{'not_null'};
+
+        my @comments = ( @{ $item[1] }, @{ $item[6] } );
 
         $return = { 
             supertype   => 'field',
@@ -256,6 +279,7 @@ field : field_name data_type field_qualifier(s?) reference_definition(?)
             list        => $item{'data_type'}{'list'},
             null        => $null,
             constraints => $item{'reference_definition(?)'},
+            comments    => [ @comments ],
             %qualifiers,
         } 
     }
@@ -296,6 +320,13 @@ field_qualifier : unsigned
         } 
     }
 
+field_qualifier : /character set/i WORD
+    {
+        $return = {
+            character_set => $item[2],
+        }
+    }
+
 reference_definition : /references/i table_name parens_field_list(?) match_type(?) on_delete_do(?) on_update_do(?)
     {
         $return = {
@@ -329,9 +360,9 @@ index : normal_index
     | fulltext_index
     | <error>
 
-table_name   : WORD
+table_name   : NAME
 
-field_name   : WORD
+field_name   : NAME
 
 index_name   : WORD
 
@@ -352,24 +383,39 @@ data_type    : WORD parens_value_list(s?) type_qualifier(s?)
 
         unless ( @{ $size || [] } ) {
             if ( lc $type eq 'tinyint' ) {
-                $size = [4];
+                $size = 4;
             }
             elsif ( lc $type eq 'smallint' ) {
-                $size = [6];
+                $size = 6;
             }
             elsif ( lc $type eq 'mediumint' ) {
-                $size = [9];
+                $size = 9;
             }
             elsif ( $type =~ /^int(eger)?$/ ) {
                 $type = 'int';
-                $size = [11];
+                $size = 11;
             }
             elsif ( lc $type eq 'bigint' ) {
-                $size = [20];
+                $size = 20;
             }
-            elsif ( lc $type =~ /(float|double|decimal|numeric|real)/ ) {
+            elsif ( 
+                lc $type =~ /(float|double|decimal|numeric|real|fixed|dec)/ 
+            ) {
                 $size = [8,2];
             }
+        }
+
+        if ( $type =~ /^tiny(text|blob)$/i ) {
+            $size = 255;
+        }
+        elsif ( $type =~ /^(blob|text)$/i ) {
+            $size = 65_535;
+        }
+        elsif ( $type =~ /^medium(blob|text)$/i ) {
+            $size = 16_777_215;
+        }
+        elsif ( $type =~ /^long(blob|text)$/i ) {
+            $size = 4_294_967_295;
         }
 
         $return        = { 
@@ -397,7 +443,7 @@ not_null     : /not/i /null/i { $return = 0 }
 
 unsigned     : /unsigned/i { $return = 0 }
 
-default_val  : /default/i /(?:')?[\w\d:.-]*(?:')?/ 
+default_val  : /default/i /(?:')?[\s\w\d:.-]*(?:')?/ 
     { 
         $item[2] =~ s/'//g; 
         $return  =  $item[2];
@@ -412,20 +458,21 @@ constraint : primary_key_def
     | foreign_key_def
     | <error>
 
-foreign_key_def : opt_constraint(?) /foreign key/i WORD(?) parens_field_list reference_definition
+foreign_key_def : opt_constraint(?) /foreign key/i parens_field_list reference_definition
     {
         $return              =  {
             supertype        => 'constraint',
             type             => 'foreign_key',
-            name             => $item[3][0],
-            fields           => $item[4],
+            name             => $item[1][0],
+            fields           => $item[3],
             %{ $item{'reference_definition'} },
         }
     }
 
-opt_constraint : /constraint/i WORD
+opt_constraint : /constraint/i NAME
+    { $item[2] }
 
-primary_key_def : primary_key index_name(?) '(' field_name(s /,/) ')'
+primary_key_def : primary_key index_name(?) '(' name_with_opt_paren(s /,/) ')'
     { 
         $return       = { 
             supertype => 'constraint',
@@ -536,11 +583,7 @@ sub parse {
             name  => $tdata->{'table_name'},
         ) or die $schema->error;
 
-#        for my $opt ( @{ $tdata->{'table_options'} } ) {
-#            if ( my ( $key, $val ) = each %$opt ) {
-#                $tables->options( 
-#            }
-#        }
+        $table->comments( $tdata->{'comments'} );
 
         my @fields = sort { 
             $tdata->{'fields'}->{$a}->{'order'} 
@@ -557,6 +600,7 @@ sub parse {
                 default_value     => $fdata->{'default'},
                 is_auto_increment => $fdata->{'is_auto_inc'},
                 is_nullable       => $fdata->{'null'},
+                comments          => $fdata->{'comments'},
             ) or die $table->error;
 
             $table->primary_key( $field->name ) if $fdata->{'is_primary_key'};
@@ -570,7 +614,7 @@ sub parse {
 
             if ( $field->data_type =~ /(set|enum)/i && !$field->size ) {
                 my %extra = $field->extra;
-                my $longest;
+                my $longest = 0;
                 for my $len ( map { length } @{ $extra{'list'} || [] } ) {
                     $longest = $len if $len > $longest;
                 }

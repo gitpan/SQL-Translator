@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::Oracle;
 
 # -------------------------------------------------------------------
-# $Id: Oracle.pm,v 1.13 2003/06/11 04:00:43 kycl4rk Exp $
+# $Id: Oracle.pm,v 1.28 2003/11/05 22:27:55 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
@@ -22,9 +22,26 @@ package SQL::Translator::Producer::Oracle;
 # 02111-1307  USA
 # -------------------------------------------------------------------
 
+=head1 NAME
+
+SQL::Translator::Producer::Oracle - Oracle SQL producer
+
+=head1 SYNOPSIS
+
+  use SQL::Translator;
+
+  my $t = SQL::Translator->new( parser => '...', producer => 'Oracle' );
+  print $translator->translate( $file );
+
+=head1 DESCRIPTION
+
+Creates an SQL DDL suitable for Oracle.
+
+=cut
+
 use strict;
 use vars qw[ $VERSION $DEBUG $WARN ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.28 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use SQL::Translator::Schema::Constants;
@@ -39,19 +56,20 @@ my %translate  = (
     decimal    => 'number',
     float      => 'number',
     int        => 'number',
+    integer    => 'number',
     mediumint  => 'number',
     smallint   => 'number',
     tinyint    => 'number',
     char       => 'char',
     varchar    => 'varchar2',
-    tinyblob   => 'CLOB',
-    blob       => 'CLOB',
-    mediumblob => 'CLOB',
-    longblob   => 'CLOB',
-    longtext   => 'long',
-    mediumtext => 'long',
-    text       => 'long',
-    tinytext   => 'long',
+    tinyblob   => 'blob',
+    blob       => 'blob',
+    mediumblob => 'blob',
+    longblob   => 'blob',
+    tinytext   => 'varchar2',
+    text       => 'clob',
+    longtext   => 'clob',
+    mediumtext => 'clob',
     enum       => 'varchar2',
     set        => 'varchar2',
     date       => 'date',
@@ -85,6 +103,13 @@ my %translate  = (
     macaddr             => 'varchar2',
     bit                 => 'number',
     'bit varying'       => 'number',
+
+    #
+    # Oracle types
+    #
+    number              => 'number',
+    varchar2            => 'varchar2',
+    long                => 'clob',
 );
 
 #
@@ -137,8 +162,11 @@ sub produce {
 
     if ( $translator->parser_type =~ /mysql/i ) {
         $output .= 
-        "-- We assume that default NLS_DATE_FORMAT has been changed\n".
-        "-- but we set it here anyway to be self-consistent.\n".
+            "-- We assume that default NLS_DATE_FORMAT has been changed\n".
+            "-- but we set it here anyway to be self-consistent.\n"
+            unless $no_comments;
+
+        $output .= 
         "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS';\n\n";
     }
 
@@ -154,7 +182,7 @@ sub produce {
 
         push @comments, "--\n-- Table: $table_name_ur\n--" unless $no_comments;
 
-        my %field_name_scope;
+        my ( %field_name_scope, @field_comments );
         for my $field ( $table->get_fields ) {
             #
             # Field name
@@ -173,10 +201,11 @@ sub produce {
             my @size      = $field->size;
             my %extra     = $field->extra;
             my $list      = $extra{'list'} || [];
-            my $commalist = join ",", @$list;
+            # \todo deal with embedded quotes
+            my $commalist = join( ', ', map { qq['$_'] } @$list );
 
             if ( $data_type eq 'enum' ) {
-                $check = "CHECK ($field_name IN ($commalist))";
+                $check = "CHECK ($field_name_ur IN ($commalist))";
                 $data_type = 'varchar2';
             }
             elsif ( $data_type eq 'set' ) {
@@ -187,31 +216,80 @@ sub produce {
             else {
                 $data_type  = defined $translate{ $data_type } ?
                               $translate{ $data_type } :
-                              die "Unknown datatype: $data_type\n";
+                              $data_type;
+                $data_type ||= 'varchar2';
+            }
+            
+            #
+            # Fixes ORA-02329: column of datatype LOB cannot be 
+            # unique or a primary key
+            #
+            if ( $data_type eq 'clob' && $field->is_primary_key ) {
+                $data_type = 'varchar2';
+                $size[0]   = 4000;
+                warn "CLOB cannot be a primary key, changing to VARCHAR2\n"
+                    if $WARN;
+            }
+
+            #
+            # Fixes ORA-00907: missing right parenthesis
+            #
+            if ( $data_type =~ /(date|clob)/i ) {
+                undef @size;
             }
 
             $field_def .= " $data_type";
             if ( defined $size[0] && $size[0] > 0 ) {
                 $field_def .= '(' . join( ', ', @size ) . ')';
             }
-        
+
             #
             # Default value
             #
             my $default = $field->default_value;
             if ( defined $default ) {
-                $field_def .= sprintf(
-                    ' DEFAULT %s',
-                    $default =~ m/null/i ? 'NULL' : "'$default'"
-                );
+                #
+                # Wherein we try to catch a string being used as 
+                # a default value for a numerical field.  If "true/false,"
+                # then sub "1/0," otherwise just test the truthity of the
+                # argument and use that (naive?).
+                #
+                if ( 
+                    $data_type =~ /^number$/i && 
+                    $default   !~ /^\d+$/     &&
+                    $default   !~ m/null/i
+                ) {
+                    if ( $default =~ /^true$/i ) {
+                        $default = "'1'";
+                    }
+                    elsif ( $default =~ /^false$/i ) {
+                        $default = "'0'";
+                    }
+                    else {
+                        $default = $default ? "'1'" : "'0'";
+                    }
+                }
+                elsif ( 
+                    $data_type =~ /date/ && $default eq 'current_timestamp' 
+                ) {
+                    $default = 'SYSDATE';
+                }
+                else {
+                    $default = $default =~ m/null/i ? 'NULL' : "'$default'"
+                } 
+
+                $field_def .= " DEFAULT $default",
             }
 
             #
             # Not null constraint
             #
             unless ( $field->is_nullable ) {
-                my $constraint_name = mk_name($field_name_ur, 'nn');
-                $field_def .= ' CONSTRAINT ' . $constraint_name . ' NOT NULL';
+#                my $constraint_name = mk_name( 
+#                    join('_', $table_name_ur, $field_name_ur ), 'nn' 
+#                );
+#                $field_def .= ' CONSTRAINT ' . $constraint_name . ' NOT NULL';
+                $field_def .= ' NOT NULL';
             }
 
             $field_def .= " $check" if $check;
@@ -246,25 +324,53 @@ sub produce {
                 push @trigger_defs, 
                     "CREATE OR REPLACE TRIGGER $trig_name\n".
                     "BEFORE INSERT OR UPDATE ON $table_name_ur\n".
-                    "FOR EACH ROW WHEN (new.$field_name_ur} IS NULL)\n".
+                    "FOR EACH ROW WHEN (new.$field_name_ur IS NULL)\n".
                     "BEGIN \n".
-                    " SELECT sysdate INTO :new.$field_name_ur} FROM dual;\n".
+                    " SELECT sysdate INTO :new.$field_name_ur FROM dual;\n".
                     "END;\n/";
             }
 
             push @field_defs, $field_def;
+
+            if ( my $comment = $field->comments ) {
+                push @field_comments, 
+                    "COMMENT ON COLUMN $table_name.$field_name_ur is\n  '".
+                    $comment."';" unless $no_comments;
+            }
+        }
+
+        #
+        # Table options
+        #
+        my @table_options;
+        for my $opt ( $table->options ) {
+            if ( ref $opt eq 'HASH' ) {
+                my ( $key, $value ) = each %$opt;
+                if ( ref $value eq 'ARRAY' ) {
+                    push @table_options, "$key\n(\n".  join ("\n",
+                        map { "  $_->[0]\t$_->[1]" } 
+                        map { [ each %$_ ] }
+                        @$value
+                    )."\n)";
+                }
+                elsif ( !defined $value ) {
+                    push @table_options, $key;
+                }
+                else {
+                    push @table_options, "$key    $value";
+                }
+            }
         }
 
         #
         # Table constraints
         #
-        my $constraint_name_default;
         for my $c ( $table->get_constraints ) {
             my $name    = $c->name || '';
             my @fields  = map { unreserve( $_, $table_name ) } $c->fields;
             my @rfields = map { unreserve( $_, $table_name ) } 
                 $c->reference_fields;
-            next unless @fields;
+            next if !@fields && $c->type ne CHECK_C;
 
             if ( $c->type eq PRIMARY_KEY ) {
                 $name ||= mk_name( $table_name, 'pk' );
@@ -272,14 +378,26 @@ sub produce {
                     '(' . join( ', ', @fields ) . ')';
             }
             elsif ( $c->type eq UNIQUE ) {
-                $name ||= mk_name( $table_name, ++$constraint_name_default );
+                $name ||= mk_name( $table_name, 'u' );
                 push @constraint_defs, "CONSTRAINT $name UNIQUE " .
                     '(' . join( ', ', @fields ) . ')';
             }
+            elsif ( $c->type eq CHECK_C ) {
+                $name ||= mk_name( $table_name, 'ck' );
+                my $expression = $c->expression || '';
+                push @constraint_defs, "CONSTRAINT $name CHECK ($expression)";
+            }
             elsif ( $c->type eq FOREIGN_KEY ) {
-                $name ||= mk_name( $table_name, ++$constraint_name_default );
-                my $def = "CONSTRAINT $name FOREIGN KEY REFERENCES ".
-                    $c->reference_table;
+                $name ||= mk_name( join('_', $table_name, $c->fields), 'fk' );
+                my $def = "CONSTRAINT $name FOREIGN KEY ";
+
+                if ( @fields ) {
+                    $def .= '(' . join( ', ', @fields ) . ')';
+                }
+
+                my $ref_table = unreserve($c->reference_table);
+
+                $def .= " REFERENCES $ref_table";
 
                 if ( @rfields ) {
                     $def .= ' (' . join( ', ', @rfields ) . ')';
@@ -306,7 +424,6 @@ sub produce {
         # Index Declarations
         #
         my @index_defs = ();
-        my $idx_name_default;
         for my $index ( $table->get_indices ) {
             my $index_name = $index->name || '';
             my $index_type = $index->type || NORMAL;
@@ -315,22 +432,12 @@ sub produce {
             next unless @fields;
 
             if ( $index_type eq PRIMARY_KEY ) {
-                $index_name = mk_name( $table_name, 'pk' );
+                $index_name ||= mk_name( $table_name, 'pk' );
                 push @field_defs, 'CONSTRAINT '.$index_name.' PRIMARY KEY '.
                     '(' . join( ', ', @fields ) . ')';
             }
-            elsif ( $index_type eq UNIQUE ) {
-                $index_name = mk_name( 
-                    $table_name, $index_name || ++$idx_name_default
-                );
-                push @field_defs, 'CONSTRAINT ' . $index_name . ' UNIQUE ' .
-                    '(' . join( ', ', @fields ) . ')';
-            }
-
             elsif ( $index_type eq NORMAL ) {
-                $index_name = mk_name( 
-                    $table_name, $index_name || ++$idx_name_default
-                );
+                $index_name ||= mk_name( $table_name, $index_name || 'i' );
                 push @index_defs, 
                     "CREATE INDEX $index_name on $table_name_ur (".
                         join( ', ', @fields ).  
@@ -344,11 +451,21 @@ sub produce {
 
         my $create_statement;
         $create_statement  = "DROP TABLE $table_name_ur;\n" if $add_drop_table;
-        $create_statement .= 
-            join( ",\n", map { "-- $_" } $table->comments ) .
-            "CREATE TABLE $table_name_ur (\n" .
+
+        if ( my @table_comments = $table->comments ) {
+            for my $comment ( @table_comments ) {
+                next unless $comment;
+                push @field_comments, "COMMENT ON TABLE $table_name is\n  '".
+                    $comment."';" unless $no_comments
+                ;
+            }
+        }
+
+        my $table_options = @table_options 
+            ? "\n".join("\n", @table_options) : '';
+        $create_statement .= "CREATE TABLE $table_name_ur (\n" .
             join( ",\n", map { "  $_" } @field_defs, @constraint_defs ) .
-            "\n);"
+            "\n)$table_options;"
         ;
 
         $output .= join( "\n\n", 
@@ -356,6 +473,7 @@ sub produce {
             $create_statement, 
             @trigger_defs, 
             @index_defs, 
+            @field_comments, 
             '' 
         );
     }
@@ -380,6 +498,7 @@ sub produce {
 sub mk_name {
     my $basename      = shift || ''; 
     my $type          = shift || ''; 
+       $type          = '' if $type =~ /^\d/;
     my $scope         = shift || ''; 
     my $critical      = shift || '';
     my $basename_orig = $basename;
@@ -442,40 +561,19 @@ sub unreserve {
 # Oscar Wilde
 # -------------------------------------------------------------------
 
-=head1 NAME
-
-SQL::Translator::Producer::Oracle - Oracle SQL producer
-
-=head1 SYNOPSIS
-
-  use SQL::Translator::Parser::MySQL;
-  use SQL::Translator::Producer::Oracle;
-
-  my $original_create = ""; # get this from somewhere...
-  my $translator = SQL::Translator->new;
-
-  $translator->parser("SQL::Translator::Parser::MySQL");
-  $translator->producer("SQL::Translator::Producer::Oracle");
-
-  my $new_create = $translator->translate($original_create);
-
-=head1 DESCRIPTION
-
-SQL::Translator::Producer::Oracle takes a parsed data structure,
-created by a SQL::Translator::Parser subclass, and turns it into a
-create string suitable for use with an Oracle database.
+=pod
 
 =head1 CREDITS
 
-A hearty "thank-you" to Tim Bunce for much of the logic stolen from 
-his "mysql2ora" script.
+Mad props to Tim Bunce for much of the logic stolen from his "mysql2ora"
+script.
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 
 =head1 SEE ALSO
 
-perl(1).
+SQL::Translator, DDL::Oracle, mysql2ora.
 
 =cut

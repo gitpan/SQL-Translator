@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::PostgreSQL;
 
 # -------------------------------------------------------------------
-# $Id: PostgreSQL.pm,v 1.18 2003/06/17 02:12:23 kycl4rk Exp $
+# $Id: PostgreSQL.pm,v 1.31 2003/08/21 18:08:04 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    Allen Day <allenday@users.sourceforge.net>,
@@ -111,7 +111,7 @@ View table:
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.18 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.31 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -131,7 +131,7 @@ my $parser; # should we do this?  There's no programmic way to
 
 $GRAMMAR = q!
 
-{ our ( %tables, $table_order ) }
+{ my ( %tables, $table_order ) }
 
 #
 # The "eofile" rule makes the parser fail if any "statement" rule
@@ -157,25 +157,25 @@ statement : create
 
 connect : /^\s*\\\connect.*\n/
 
-set : /SET/ /[^;]*/ ';'
+set : /set/i /[^;]*/ ';'
 
-revoke : /revoke/i WORD(s /,/) /on/i table_name /from/i name_with_opt_quotes(s /,/) ';'
+revoke : /revoke/i WORD(s /,/) /on/i TABLE(?) table_name /from/i name_with_opt_quotes(s /,/) ';'
     {
         my $table_name = $item{'table_name'};
         push @{ $tables{ $table_name }{'permissions'} }, {
             type       => 'revoke',
             actions    => $item[2],
-            users      => $item[6],
+            users      => $item[7],
         }
     }
 
-grant : /grant/i WORD(s /,/) /on/i table_name /to/i name_with_opt_quotes(s /,/) ';'
+grant : /grant/i WORD(s /,/) /on/i TABLE(?) table_name /to/i name_with_opt_quotes(s /,/) ';'
     {
         my $table_name = $item{'table_name'};
         push @{ $tables{ $table_name }{'permissions'} }, {
             type       => 'grant',
             actions    => $item[2],
-            users      => $item[6],
+            users      => $item[7],
         }
     }
 
@@ -197,7 +197,7 @@ create : create_table table_name '(' create_definition(s /,/) ')' table_option(s
         my $i = 1;
         my @constraints;
         for my $definition ( @{ $item[4] } ) {
-            if ( $definition->{'type'} eq 'field' ) {
+            if ( $definition->{'supertype'} eq 'field' ) {
                 my $field_name = $definition->{'name'};
                 $tables{ $table_name }{'fields'}{ $field_name } = 
                     { %$definition, order => $i };
@@ -209,22 +209,10 @@ create : create_table table_name '(' create_definition(s /,/) ')' table_option(s
                         $constraint;
                 }
             }
-            elsif ( $definition->{'type'} eq 'constraint' ) {
-                $definition->{'type'} = $definition->{'constraint_type'};
-                # group FKs at the field level
-#                if ( $definition->{'type'} eq 'foreign_key' ) {
-#                    for my $fld ( @{ $definition->{'fields'} || [] } ) {
-#                        push @{ 
-#                            $tables{$table_name}{'fields'}{$fld}{'constraints'}
-#                        }, $definition;
-#                    }
-#                }
-#                else {
-                    push @{ $tables{ $table_name }{'constraints'} }, 
-                        $definition;
-#                }
+            elsif ( $definition->{'supertype'} eq 'constraint' ) {
+                push @{ $tables{ $table_name }{'constraints'} }, $definition;
             }
-            else {
+            elsif ( $definition->{'supertype'} eq 'index' ) {
                 push @{ $tables{ $table_name }{'indices'} }, $definition;
             }
         }
@@ -237,17 +225,15 @@ create : create_table table_name '(' create_definition(s /,/) ')' table_option(s
         1;
     }
 
-#
-# Create index.
-#
 create : /create/i unique(?) /(index|key)/i index_name /on/i table_name using_method(?) '(' field_name(s /,/) ')' where_predicate(?) ';'
     {
         push @{ $tables{ $item{'table_name'} }{'indices'} },
             {
-                name   => $item{'index_name'},
-                type   => $item{'unique'}[0] ? 'unique' : 'normal',
-                fields => $item[9],
-                method => $item{'using_method'}[0],
+                name      => $item{'index_name'},
+                supertype => $item{'unique'}[0] ? 'constraint' : 'index',
+                type      => $item{'unique'}[0] ? 'unique'     : 'normal',
+                fields    => $item[9],
+                method    => $item{'using_method'}[0],
             }
         ;
     }
@@ -278,7 +264,7 @@ field : comment(s?) field_name data_type field_meta(s?) comment(s?)
             }
             elsif ( $meta->{'type'} eq 'not_null' ) {
                 $null = 0;
-                next;
+#                next;
             }
             elsif ( $meta->{'type'} eq 'primary_key' ) {
                 $is_pk = 1;
@@ -290,15 +276,16 @@ field : comment(s?) field_name data_type field_meta(s?) comment(s?)
         my @comments = ( @{ $item[1] }, @{ $item[5] } );
 
         $return = {
-            type           => 'field',
-            name           => $item{'field_name'}, 
-            data_type      => $item{'data_type'}{'type'},
-            size           => $item{'data_type'}{'size'},
-            null           => $null,
-            default        => $default->{'value'},
-            constraints    => [ @constraints ],
-            comments       => [ @comments ],
-            is_primary_key => $is_pk || 0,
+            supertype         => 'field',
+            name              => $item{'field_name'}, 
+            data_type         => $item{'data_type'}{'type'},
+            size              => $item{'data_type'}{'size'},
+            null              => $null,
+            default           => $default->{'value'},
+            constraints       => [ @constraints ],
+            comments          => [ @comments ],
+            is_primary_key    => $is_pk || 0,
+            is_auto_increment => $item{'data_type'}{'is_auto_increment'},
         } 
     }
     | <error>
@@ -318,7 +305,7 @@ column_constraint : constraint_name(?) column_constraint_type deferrable(?) defe
             name             => $item{'constraint_name'}[0] || '',
             type             => $type,
             expression       => $type eq 'check' ? $expression : '',
-            deferreable      => $item{'deferrable'},
+            deferrable       => $item{'deferrable'},
             deferred         => $item{'deferred'},
             reference_table  => $desc->{'reference_table'},
             reference_fields => $desc->{'reference_fields'},
@@ -332,17 +319,17 @@ constraint_name : /constraint/i name_with_opt_quotes { $item[2] }
 
 column_constraint_type : /not null/i { $return = { type => 'not_null' } }
     |
-    /null/ 
+    /null/i
         { $return = { type => 'null' } }
     |
-    /unique/ 
+    /unique/i
         { $return = { type => 'unique' } }
     |
     /primary key/i 
         { $return = { type => 'primary_key' } }
     |
     /check/i '(' /[^)]+/ ')' 
-        { $return = { type => 'check', expression => $item[2] } }
+        { $return = { type => 'check', expression => $item[3] } }
     |
     /references/i table_name parens_word_list(?) match_type(?) key_action(s?)
     {
@@ -385,96 +372,103 @@ data_type : pg_data_type parens_value_list(?)
     }
 
 pg_data_type :
-    /(bigint|int8|bigserial|serial8)/ 
+    /(bigint|int8)/i
         { 
             $return = { 
-                type           => 'integer',
-                size           => [8],
-                auto_increment => 1,
+                type => 'integer',
+                size => 20,
             };
         }
     |
-    /(smallint|int2)/ 
+    /(smallint|int2)/i
         { 
             $return = {
                 type => 'integer', 
-                size => [2],
+                size => 5,
             };
         }
     |
-    /int(eger)?|int4/ 
+    /(integer|int4?)/i # interval must come before this
         { 
             $return = {
                 type => 'integer', 
-                size => [4],
+                size => 10,
             };
         }
-    |
-    /(double precision|float8?)/ 
-        { 
-            $return = {
-                type => 'float', 
-                size => [8],
-            }; 
-        }
-    |
-    /(real|float4)/ 
+    |    
+    /(real|float4)/i
         { 
             $return = {
                 type => 'real', 
-                size => [4],
+                size => 10,
             };
         }
     |
-    /serial4?/ 
+    /(double precision|float8?)/i
+        { 
+            $return = {
+                type => 'float', 
+                size => 20,
+            }; 
+        }
+    |
+    /(bigserial|serial8)/i
         { 
             $return = { 
-                type           => 'integer',
-                size           => [4], 
-                auto_increment => 1,
+                type              => 'integer', 
+                size              => 20, 
+                is_auto_increment => 1,
             };
         }
     |
-    /bigserial/ 
+    /serial4?/i
         { 
             $return = { 
-                type           => 'integer', 
-                size           => [8], 
-                auto_increment => 1,
+                type              => 'integer',
+                size              => 11, 
+                is_auto_increment => 1,
             };
         }
     |
-    /(bit varying|varbit)/ 
+    /(bit varying|varbit)/i
         { 
             $return = { type => 'varbit' };
         }
     |
-    /character varying/ 
+    /character varying/i
         { 
             $return = { type => 'varchar' };
         }
     |
-    /char(acter)?/ 
+    /char(acter)?/i
         { 
             $return = { type => 'char' };
         }
     |
-    /bool(ean)?/ 
+    /bool(ean)?/i
         { 
             $return = { type => 'boolean' };
         }
     |
-    /bytea/ 
+    /bytea/i
         { 
             $return = { type => 'bytea' };
         }
     |
-    /timestampz?/ 
+    /(timestamptz|timestamp)/i
         { 
             $return = { type => 'timestamp' };
         }
     |
-    /(bit|box|cidr|circle|date|inet|interval|line|lseg|macaddr|money|numeric|decimal|path|point|polygon|text|time|varchar)/
+    /text/i
+        { 
+            $return = { 
+                type => 'text',
+                size => 64_000,
+            };
+        }
+    |
+    /(bit|box|cidr|circle|date|inet|interval|line|lseg|macaddr|money|numeric|decimal|path|point|polygon|timetz|time|varchar)/i
         { 
             $return = { type => $item[1] };
         }
@@ -502,11 +496,11 @@ table_constraint : comment(s?) constraint_name(?) table_constraint_type deferrab
 
         $return              =  {
             name             => $item{'constraint_name'}[0] || '',
-            type             => 'constraint',
-            constraint_type  => $type,
+            supertype        => 'constraint',
+            type             => $type,
             fields           => $type ne 'check' ? $fields : [],
             expression       => $type eq 'check' ? $expression : '',
-            deferreable      => $item{'deferrable'},
+            deferrable       => $item{'deferrable'},
             deferred         => $item{'deferred'},
             reference_table  => $desc->{'reference_table'},
             reference_fields => $desc->{'reference_fields'},
@@ -533,7 +527,7 @@ table_constraint_type : /primary key/i '(' name_with_opt_quotes(s /,/) ')'
         }
     }
     |
-    /check/ '(' /(.+)/ ')'
+    /check/i '(' /[^)]+/ ')' 
     {
         $return        =  {
             type       => 'check',
@@ -550,6 +544,7 @@ table_constraint_type : /primary key/i '(' name_with_opt_quotes(s /,/) ')'
         }
         
         $return              =  {
+            supertype        => 'constraint',
             type             => 'foreign_key',
             fields           => $item[3],
             reference_table  => $item[6],
@@ -597,15 +592,14 @@ key_mutation : /no action/i { $return = 'no_action' }
     |
     /cascade/i { $return = 'cascade' }
     |
-    /set null/i { $return = 'set_null' }
+    /set null/i { $return = 'set null' }
     |
-    /set default/i { $return = 'set_default' }
+    /set default/i { $return = 'set default' }
 
 alter : alter_table table_name /add/i table_constraint ';' 
     { 
         my $table_name = $item[2];
         my $constraint = $item[4];
-        $constraint->{'type'} = $constraint->{'constraint_type'};
         push @{ $tables{ $table_name }{'constraints'} }, $constraint;
     }
 
@@ -613,14 +607,14 @@ alter_table : /alter/i /table/i only(?)
 
 only : /only/i
 
-create_table : /create/i /table/i
+create_table : /create/i TABLE
 
 create_index : /create/i /index/i
 
-default_val  : /default/i /(?:')?[\w\d.-]*(?:')?/ 
+default_val  : /default/i /(\d+|'[^']*'|\w+\(.*?\))|\w+/
     { 
-        my $val =  $item[2] || '';
-        $val    =~ s/'//g; 
+        my $val =  defined $item[2] ? $item[2] : '';
+        $val    =~ s/^'|'$//g; 
         $return =  {
             supertype => 'constraint',
             type      => 'default',
@@ -653,6 +647,8 @@ table_option : /inherits/i '(' name_with_opt_quotes(s /,/) ')'
         $return = { type => $item[1] =~ /out/i ? 'without_oids' : 'with_oids' }
     }
 
+TABLE : /table/i
+
 SEMICOLON : /\s*;\n?/
 
 WORD : /\w+/
@@ -672,7 +668,7 @@ VALUE   : /[-+]?\.?\d+(?:[eE]\d+)?/
     { $item[1] }
     | /'.*?'/   # XXX doesn't handle embedded quotes
     { $item[1] }
-    | /NULL/
+    | /null/i
     { 'NULL' }
 
 !;
@@ -703,12 +699,12 @@ sub parse {
         my $tdata =  $result->{ $table_name };
         my $table =  $schema->add_table( 
             name  => $tdata->{'table_name'},
-        ) or die $schema->error;
+        ) or die "Couldn't create table '$table_name': " . $schema->error;
 
         my @fields = sort { 
-            $tdata->{'fields'}->{$a}->{'order'} 
+            $tdata->{'fields'}->{ $a }->{'order'} 
             <=>
-            $tdata->{'fields'}->{$b}->{'order'}
+            $tdata->{'fields'}->{ $b }->{'order'}
         } keys %{ $tdata->{'fields'} };
 
         for my $fname ( @fields ) {
@@ -718,7 +714,7 @@ sub parse {
                 data_type         => $fdata->{'data_type'},
                 size              => $fdata->{'size'},
                 default_value     => $fdata->{'default'},
-                is_auto_increment => $fdata->{'is_auto_inc'},
+                is_auto_increment => $fdata->{'is_auto_increment'},
                 is_nullable       => $fdata->{'null'},
             ) or die $table->error;
 
@@ -749,7 +745,10 @@ sub parse {
                 match_type       => $cdata->{'match_type'} || '',
                 on_delete        => $cdata->{'on_delete_do'},
                 on_update        => $cdata->{'on_update_do'},
-            ) or die $table->error;
+                expression       => $cdata->{'expression'},
+            ) or die "Can't add constraint of type '" .
+                $cdata->{'type'} .  "' to table '" . $table->name . 
+                "': " . $table->error;
         }
     }
 
@@ -768,7 +767,7 @@ sub parse {
 =head1 AUTHORS
 
 Ken Y. Clark E<lt>kclark@cpan.orgE<gt>,
-Allen Day <allenday@ucla.edu>.
+Allen Day E<lt>allenday@ucla.eduE<gt>.
 
 =head1 SEE ALSO
 

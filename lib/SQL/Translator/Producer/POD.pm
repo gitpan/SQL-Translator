@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::POD;
 
 # -------------------------------------------------------------------
-# $Id: POD.pm,v 1.2 2003/06/10 03:49:35 kycl4rk Exp $
+# $Id: POD.pm,v 1.4 2003/10/15 19:04:19 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>
 #
@@ -20,9 +20,29 @@ package SQL::Translator::Producer::POD;
 # 02111-1307  USA
 # -------------------------------------------------------------------
 
+=head1 NAME
+
+SQL::Translator::Producer::POD - POD producer for SQL::Translator
+
+=head1 SYNOPSIS
+
+  use SQL::Translator;
+
+  my $t = SQL::Translator->new( parser => '...', producer => 'POD', '...' );
+  print $t->translate;
+
+=head1 DESCRIPTION
+
+Creates a POD description of each table, field, index, and constraint.  
+A good starting point for text documentation of a schema.  You can 
+easily convert the output to HTML or text using "perldoc" or other 
+interesting formats using Pod::POM or Template::Toolkit's POD plugin.
+
+=cut
+
 use strict;
 use vars qw[ $VERSION ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.4 $ =~ /(\d+)\.(\d+)/;
 
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(header_comment);
@@ -33,8 +53,9 @@ sub produce {
     my $schema      = $t->schema;
     my $schema_name = $schema->name || 'Schema';
     my $args        = $t->producer_args;
+    my $title       = $args->{'title'} || $schema_name;
 
-    my $pod = "=pod\n\n=head1 DESCRIPTION\n\n$schema_name\n\n=head1 TABLES\n\n";
+    my $pod = "=pod\n\n=head1 DESCRIPTION\n\n$title\n\n=head1 TABLES\n\n";
 
     for my $table ( $schema->get_tables ) {
         my $table_name = $table->name or next;
@@ -121,27 +142,14 @@ sub produce {
 # William Blake
 # -------------------------------------------------------------------
 
-=head1 NAME
-
-SQL::Translator::Producer::POD - POD producer for SQL::Translator
-
-=head1 SYNOPSIS
-
-  use SQL::Translator::Producer::POD;
-
-=head1 DESCRIPTION
-
-Creates a POD description of each table, field, index, and constraint.  
-A good starting point for text documentation of a schema.  You can 
-easily convert the output to HTML or text using "perldoc" or other 
-interesting formats using Pod::POM or Template::Toolkit.
+=pod
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 
 =head1 SEE ALSO
 
-perldoc, perlpod, Pod::POM, Template::Toolkit.
+perldoc, perlpod, Pod::POM, Template::Manual::Plugins.
 
 =cut

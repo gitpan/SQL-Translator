@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::PostgreSQL;
 
 # -------------------------------------------------------------------
-# $Id: PostgreSQL.pm,v 1.10 2003/06/11 04:00:43 kycl4rk Exp $
+# $Id: PostgreSQL.pm,v 1.20 2003/10/15 19:07:13 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
@@ -26,11 +26,21 @@ package SQL::Translator::Producer::PostgreSQL;
 
 SQL::Translator::Producer::PostgreSQL - PostgreSQL producer for SQL::Translator
 
+=head1 SYNOPSIS
+
+  my $t = SQL::Translator->new( parser => '...', producer => 'PostgreSQL' );
+  $t->translate;
+
+=head1 DESCRIPTION
+
+Creates a DDL suitable for PostgreSQL.  Very heavily based on the Oracle
+producer.
+
 =cut
 
 use strict;
 use vars qw[ $DEBUG $WARN $VERSION ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.20 $ =~ /(\d+)\.(\d+)/;
 $DEBUG = 1 unless defined $DEBUG;
 
 use SQL::Translator::Schema::Constants;
@@ -42,14 +52,14 @@ my %translate  = (
     # MySQL types
     #
     bigint     => 'bigint',
-    double     => 'double precision',
-    decimal    => 'decimal',
-    float      => 'double precision',
+    double     => 'numeric',
+    decimal    => 'numeric',
+    float      => 'numeric',
     int        => 'integer',
     mediumint  => 'integer',
     smallint   => 'smallint',
     tinyint    => 'smallint',
-    char       => 'char',
+    char       => 'character',
     varchar    => 'character varying',
     longtext   => 'text',
     mediumtext => 'text',
@@ -71,7 +81,7 @@ my %translate  = (
     # Oracle types
     #
     number     => 'integer',
-    char       => 'char',
+    char       => 'character',
     varchar2   => 'character varying',
     long       => 'text',
     CLOB       => 'bytea',
@@ -85,11 +95,11 @@ my %translate  = (
     varchar    => 'character varying',
     datetime   => 'timestamp',
     text       => 'text',
-    real       => 'double precision',
+    real       => 'numeric',
     comment    => 'text',
     bit        => 'bit',
     tinyint    => 'smallint',
-    float      => 'double precision',
+    float      => 'numeric',
 );
 
 my %reserved = map { $_, 1 } qw[
@@ -168,7 +178,9 @@ sub produce {
 
     my $output;
     $output .= header_comment unless ($no_comments);
+    my %used_index_names;
 
+    my @fks;
     for my $table ( $schema->get_tables ) {
         my $table_name    = $table->name or next;
         $table_name       = mk_name( $table_name, '', undef, 1 );
@@ -196,46 +208,76 @@ sub produce {
             my $data_type = lc $field->data_type;
             my %extra     = $field->extra;
             my $list      = $extra{'list'} || [];
-            my $commalist = join ",", @$list;
+            # todo deal with embedded quotes
+            my $commalist = join( ', ', map { qq['$_'] } @$list );
             my $seq_name;
 
             if ( $data_type eq 'enum' ) {
                 my $len = 0;
                 $len = ($len < length($_)) ? length($_) : $len for (@$list);
-                my $check_name = mk_name( $table_name.'_'.$field_name, 'chk' );
+                my $chk_name = mk_name( $table_name.'_'.$field_name, 'chk' );
                 push @constraint_defs, 
-                "CONSTRAINT $check_name CHECK ($field_name IN ($commalist))";
+                    qq[Constraint "$chk_name" CHECK ("$field_name" ].
+                    qq[IN ($commalist))];
                 $data_type = 'character varying';
             }
             elsif ( $data_type eq 'set' ) {
-                # XXX add a CHECK constraint maybe 
-                # (trickier and slower, than enum :)
-#                my $len     = length $commalist;
-#                $field_def .= " character varying($len) /* set $commalist */";
                 $data_type = 'character varying';
             }
             elsif ( $field->is_auto_increment ) {
-                $field_def .= ' serial';
-#                $seq_name   = mk_name( $table_name.'_'.$field_name, 'sq' );
-#                push @sequence_defs, qq[DROP SEQUENCE "$seq_name";];
-#                push @sequence_defs, qq[CREATE SEQUENCE "$seq_name";];
+                if ( defined $size[0] && $size[0] > 11 ) {
+                    $data_type = 'bigserial';
+                }
+                else {
+                    $data_type = 'serial';
+                }
+                undef @size;
             }
             else {
                 $data_type  = defined $translate{ $data_type } ?
                               $translate{ $data_type } :
-                              die "Unknown datatype: $data_type\n";
+                              $data_type;
             }
 
+            if ( $data_type =~ /timestamp/i ) {
+                if ( defined $size[0] && $size[0] > 6 ) {
+                    $size[0] = 6;
+                }
+            }
+
+            if ( $data_type eq 'integer' ) {
+                if ( defined $size[0] ) {
+                    if ( $size[0] > 10 ) {
+                        $data_type = 'bigint';
+                    }
+                    elsif ( $size[0] < 5 ) {
+                        $data_type = 'smallint';
+                    }
+                    else {
+                        $data_type = 'integer';
+                    }
+                }
+                else {
+                    $data_type = 'integer';
+                }
+            }
+
+            #
+            # PG doesn't need a size for integers or text
+            #
+            undef @size if $data_type =~ m/(integer|smallint|bigint|text)/;
+            
             $field_def .= " $data_type";
 
             if ( defined $size[0] && $size[0] > 0 ) {
-                $field_def .= '(' . join( ', ', @size ) . ')';
+                $field_def .= '(' . join( ',', @size ) . ')';
             }
 
             #
-            # Default value
+            # Default value -- disallow for timestamps
             #
-            my $default = $field->default_value;
+            my $default = $data_type =~ /(timestamp|date)/i
+                ? undef : $field->default_value;
             if ( defined $default ) {
                 $field_def .= sprintf( ' DEFAULT %s',
                     ( $field->is_auto_increment && $seq_name )
@@ -259,6 +301,11 @@ sub produce {
         my $idx_name_default;
         for my $index ( $table->get_indices ) {
             my $name = $index->name || '';
+            if ( $name ) {
+                $name = next_unused_name($name, \%used_index_names);
+                $used_index_names{$name} = $name;
+            }
+
             my $type = $index->type || NORMAL;
             my @fields     = 
                 map { $_ =~ s/\(.+\)//; $_ }
@@ -266,26 +313,21 @@ sub produce {
                 $index->fields;
             next unless @fields;
 
+            my $def_start = qq[Constraint "$name" ];
             if ( $type eq PRIMARY_KEY ) {
-                $name ||= mk_name( $table_name, 'pk' );
-                push @constraint_defs, 'CONSTRAINT '.$name.' PRIMARY KEY '.
-                    '(' . join( ', ', @fields ) . ')';
+                push @constraint_defs, "${def_start}PRIMARY KEY ".
+                    '("' . join( '", "', @fields ) . '")';
             }
             elsif ( $type eq UNIQUE ) {
-                $name ||= mk_name( 
-                    $table_name, $name || ++$idx_name_default
-                );
-                push @constraint_defs, 'CONSTRAINT ' . $name . ' UNIQUE ' .
-                    '(' . join( ', ', @fields ) . ')';
+                push @constraint_defs, "${def_start}UNIQUE " .
+                    '("' . join( '", "', @fields ) . '")';
             }
             elsif ( $type eq NORMAL ) {
-                $name ||= mk_name( 
-                    $table_name, $name || ++$idx_name_default
-                );
                 push @index_defs, 
-                    qq[CREATE INDEX "$name" on $table_name_ur (].
-                        join( ', ', @fields ).  
-                    ');'; 
+                    'CREATE INDEX "' . $name . "\" on $table_name_ur (".
+                        join( ', ', map { qq["$_"] } @fields ).  
+                    ');'
+                ; 
             }
             else {
                 warn "Unknown index type ($type) on table $table_name.\n"
@@ -299,39 +341,45 @@ sub produce {
         my $c_name_default;
         for my $c ( $table->get_constraints ) {
             my $name = $c->name || '';
+            if ( $name ) {
+                $name = next_unused_name($name, \%used_index_names);
+                $used_index_names{$name} = $name;
+            }
+
             my @fields     = 
                 map { $_ =~ s/\(.+\)//; $_ }
                 map { unreserve( $_, $table_name ) }
                 $c->fields;
+
             my @rfields     = 
                 map { $_ =~ s/\(.+\)//; $_ }
                 map { unreserve( $_, $table_name ) }
                 $c->reference_fields;
-            next unless @fields;
 
+            next if !@fields && $c->type ne CHECK_C;
+
+            my $def_start = $name ? qq[Constraint "$name" ] : '';
             if ( $c->type eq PRIMARY_KEY ) {
-                $name ||= mk_name( $table_name, 'pk' );
-                push @constraint_defs, "CONSTRAINT $name PRIMARY KEY ".
-                    '(' . join( ', ', @fields ) . ')';
+                push @constraint_defs, "${def_start}PRIMARY KEY ".
+                    '("' . join( '", "', @fields ) . '")';
             }
             elsif ( $c->type eq UNIQUE ) {
-                $name ||= mk_name( 
-                    $table_name, $name || ++$c_name_default
-                );
-                push @constraint_defs, "CONSTRAINT $name UNIQUE " .
-                    '(' . join( ', ', @fields ) . ')';
+                $name = next_unused_name($name, \%used_index_names);
+                $used_index_names{$name} = $name;
+                push @constraint_defs, "${def_start}UNIQUE " .
+                    '("' . join( '", "', @fields ) . '")';
+            }
+            elsif ( $c->type eq CHECK_C ) {
+                my $expression = $c->expression;
+                push @constraint_defs, "${def_start}CHECK ($expression)";
             }
             elsif ( $c->type eq FOREIGN_KEY ) {
-                my $def = join(' ', 
-                    map { $_ || () } 'FOREIGN KEY', $c->name 
-                );
-
-                $def .= ' (' . join( ', ', @fields ) . ')';
-
-                $def .= ' REFERENCES ' . $c->reference_table;
+                my $def .= "ALTER TABLE $table_name ADD FOREIGN KEY (" . 
+                    join( ', ', map { qq["$_"] } @fields ) . ')' .
+                    "\n  REFERENCES " . $c->reference_table;
 
                 if ( @rfields ) {
-                    $def .= ' (' . join( ', ', @rfields ) . ')';
+                    $def .= ' ("' . join( '", "', @rfields ) . '")';
                 }
 
                 if ( $c->match_type ) {
@@ -347,7 +395,7 @@ sub produce {
                     $def .= ' ON UPDATE '.join( ' ', $c->on_update );
                 }
 
-                push @constraint_defs, $def;
+                push @fks, "$def;";
             }
         }
 
@@ -366,6 +414,11 @@ sub produce {
             @index_defs, 
             '' 
         );
+    }
+
+    if ( @fks ) {
+        $output .= "--\n-- Foreign Key Definitions\n--\n\n" unless $no_comments;
+        $output .= join( "\n\n", @fks );
     }
 
     if ( $WARN ) {
@@ -443,6 +496,27 @@ sub unreserve {
     return $unreserve.$suffix;
 }
 
+# -------------------------------------------------------------------
+sub next_unused_name {
+    my $name       = shift || '';
+    my $used_names = shift || '';
+
+    my %used_names = %$used_names;
+
+    if ( !defined($used_names{$name}) ) {
+        $used_names{$name} = $name;
+        return $name;
+    }
+    
+    my $i = 2;
+    while ( defined($used_names{$name . $i}) ) {
+        ++$i;
+    }
+    $name .= $i;
+    $used_names{$name} = $name;
+    return $name;
+}
+
 1;
 
 # -------------------------------------------------------------------
@@ -453,8 +527,12 @@ sub unreserve {
 
 =pod
 
+=head1 SEE ALSO
+
+SQL::Translator, SQL::Translator::Producer::Oracle.
+
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 
 =cut

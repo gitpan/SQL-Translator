@@ -1,0 +1,260 @@
+#!/usr/bin/perl -w
+# vim: set ft=perl:
+
+# -------------------------------------------------------------------
+# $Id: sqlt,v 1.10 2003/10/19 17:01:25 grommit Exp $
+# -------------------------------------------------------------------
+# Copyright (C) 2002 Ken Y. Clark <kclar@cpan.org>,
+#                    darren chamberlain <darren@cpan.org>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; version 2.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# 02111-1307  USA
+# -------------------------------------------------------------------
+
+=head1 NAME
+
+sqlt - convert SQL schema using SQL::Translator
+
+=head1 SYNOPSIS
+
+For help:
+
+  sqlt -h|--help
+
+For a list of all parsers and producers: 
+
+  sqlt -l|--list
+
+To translate a schema:
+
+  sqlt -f|--from|--parser MySQL 
+       -t|--to|--producer Oracle 
+       [options] 
+       file [file2 ...]
+
+  General Options:
+
+    -d|--debug         Print debug info
+    -v|--validate      Validate the schema
+    --trace            Print parser trace info
+    --show-warnings    Print warnings to STDERR
+
+  DBI Parser Options:
+
+    --dsn              DSN for connecting to database
+    --db-user          Database user
+    --db-password      Database password              
+
+  xSV Parser Options:
+
+    --fs               The field separator
+    --rs               The record separator
+    --no-trim          Don't trim whitespace on fields 
+    --no-scan          Don't scan fields for data types and sizes 
+
+  DB Producer Options:
+
+    --add-drop-table   Add 'DROP TABLE' statements before creates
+    --no-comments      Don't include comments in SQL output
+
+  Diagram Producer Options:
+
+    --imap-file        Filename to put image map data
+    --imap-url         URL to use for image map
+
+  HTML/POD Producer Options:
+
+    --pretty           Use CGI::Pretty for the output
+    --title            Title of schema
+
+  TTSchema Producer Options:
+
+    --template         The path to the template
+
+  XML-SQLFairy Producer Options:
+
+    --emit-empty-tags  Print empty tags for attributes
+    --attrib-values    Use attributes instead of tags for 
+                       values of the schema objects
+
+=head1 DESCRIPTION
+
+This script is part of the SQL Fairy project.  It will try to convert
+any source file for which it has a grammar into any format for which
+it has a producer.
+
+If using "show-warnings," be sure to redirect STDERR to a separate file.  
+In bash, you could do this:
+
+    $ sql_translator.pl -f MySQL -t PostgreSQL --show-warnings \
+       file.sql 1>out 2>err
+
+You can specify a parser or producer located in any module that Perl
+knows about, allowing you to easily substitute your own.
+
+=cut
+
+# -------------------------------------------------------------------
+
+use strict;
+use Getopt::Long;
+use Pod::Usage;
+use SQL::Translator;
+
+use vars qw( $VERSION );
+$VERSION = sprintf "%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/;
+
+my $from;             # the original database
+my $to;               # the destination database 
+my $help;             # show POD and bail
+my $stdin;            # whether to read STDIN for create script
+my $no_comments;      # whether to put comments in out file
+my $show_warnings;    # whether to show warnings from SQL::Translator
+my $add_drop_table;   # whether to show warnings from SQL::Translator
+my $debug;            # whether to print debug info
+my $trace;            # whether to print parser trace
+my $list;             # list all parsers and producers
+my $no_trim;          # don't trim whitespace on xSV fields
+my $no_scan;          # don't scan xSV fields for data types and sizes
+my $field_separator;  # for xSV files
+my $record_separator; # for xSV files
+my $validate;         # whether to validate the parsed document
+my $imap_file;        # filename where to place image map coords
+my $imap_url;         # URL to use in making image map
+my $pretty;           # use CGI::Pretty instead of CGI (HTML producer)
+my $template;         # template to pass to TTSchema producer
+my $title;            # title for HTML/POD producer
+my $emit_empty_tags;  # show empty XML tags
+my $attrib_values;    # use XML attributes instead of tags
+my $dsn;              # DBI parser 
+my $db_user;          # DBI parser 
+my $db_password;      # DBI parser 
+
+GetOptions(
+    'add-drop-table'  => \$add_drop_table,
+    'attrib-values'   => \$attrib_values,
+    'd|debug'         => \$debug,
+    'emit-empty-tags' => \$emit_empty_tags,
+    'f|from|parser:s' => \$from,
+    'fs:s'            => \$field_separator,
+    'h|help'          => \$help,
+    'imap-file:s'     => \$imap_file,
+    'imap-url:s'      => \$imap_url,
+    't|to|producer:s' => \$to,
+    'l|list'          => \$list,
+    'pretty!'         => \$pretty,
+    'no-comments'     => \$no_comments,
+    'no-scan'         => \$no_scan,
+    'no-trim'         => \$no_trim,
+    'rs:s'            => \$record_separator,
+    'show-warnings'   => \$show_warnings,
+    'template:s'      => \$template,
+    'title:s'         => \$title,
+    'trace'           => \$trace,
+    'v|validate'      => \$validate,
+    'dsn:s'           => \$dsn,
+    'db-user:s'       => \$db_user,
+    'db-password:s'   => \$db_password,
+) or pod2usage(2);
+
+my @files = @ARGV; # source files
+unless ( @files ) {
+    if ( $from eq 'DBI' ) {
+        @files = ('!');
+    }
+    else {
+        @files = ('-');
+    }
+}
+
+pod2usage(1) if $help;
+
+my $translator           =  SQL::Translator->new( 
+    debug                => $debug          ||  0,
+    trace                => $trace          ||  0,
+    no_comments          => $no_comments    ||  0,
+    show_warnings        => $show_warnings  ||  0,
+    add_drop_table       => $add_drop_table ||  0,
+    validate             => $validate       ||  0,
+    parser_args          => {
+        trim_fields      => $no_trim ? 0 : 1,
+        scan_fields      => $no_scan ? 0 : 1,
+        field_separator  => $field_separator,
+        record_separator => $record_separator,
+        dsn              => $dsn,
+        db_user          => $db_user,
+        db_password      => $db_password,
+    },
+    producer_args   => {
+        imap_file        => $imap_file,
+        imap_url         => $imap_url,
+        pretty           => $pretty,
+        ttfile           => $template,
+        title            => $title,
+        emit_empty_tags  => $emit_empty_tags,
+        attrib_values    => $attrib_values,
+    },
+);
+
+if ( $list ) {
+    my @parsers   = $translator->list_parsers;
+    my @producers = $translator->list_producers;
+
+    for ( @parsers, @producers ) {
+        if ( $_ =~ m/.+::(\w+)\.pm/ ) {
+            $_ = $1;
+        }
+    }
+    
+    print "\nParsers:\n",   map { "\t$_\n" } sort @parsers;
+    print "\nProducers:\n", map { "\t$_\n" } sort @producers;
+    print "\n";
+    exit(0);
+}
+
+pod2usage( msg => 'Please supply "from" and "to" arguments' ) 
+    unless $from && $to;
+
+$translator->parser($from);
+$translator->producer($to);
+
+for my $file (@files) {
+    my @args = 
+        ($file eq '-') ? (data => \*STDIN) :
+        ($file eq '!') ? (data => '') :
+        (file => $file);
+
+    my $output = $translator->translate(@args) or die
+        "Error: " . $translator->error;
+
+    print $output;
+}
+
+# ----------------------------------------------------
+# It is not all books that are as dull as their readers.
+# Henry David Thoreau
+# ----------------------------------------------------
+
+=pod
+
+=head1 AUTHOR
+
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>,
+darren chamberlain E<lt>darren@cpan.orgE<gt>.
+
+=head1 SEE ALSO
+
+SQL::Translator, L<http://sqlfairy.sourceforge.net>.
+
+=cut

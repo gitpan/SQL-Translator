@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::SQLite;
 
 # -------------------------------------------------------------------
-# $Id: SQLite.pm,v 1.5 2003/06/11 04:00:44 kycl4rk Exp $
+# $Id: SQLite.pm,v 1.9 2003/10/15 19:09:15 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
@@ -22,6 +22,23 @@ package SQL::Translator::Producer::SQLite;
 # 02111-1307  USA
 # -------------------------------------------------------------------
 
+=head1 NAME
+
+SQL::Translator::Producer::SQLite - SQLite producer for SQL::Translator
+
+=head1 SYNOPSIS
+
+  use SQL::Translator;
+
+  my $t = SQL::Translator->new( parser => '...', producer => 'SQLite' );
+  $t->translate;
+
+=head1 DESCRIPTION
+
+This module will produce text output of the schema suitable for SQLite.
+
+=cut
+
 use strict;
 use Data::Dumper;
 use SQL::Translator::Schema::Constants;
@@ -29,7 +46,7 @@ use SQL::Translator::Utils qw(debug header_comment);
 
 use vars qw[ $VERSION $DEBUG $WARN ];
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/;
 $DEBUG = 0 unless defined $DEBUG;
 $WARN = 0 unless defined $WARN;
 
@@ -48,9 +65,11 @@ sub produce {
 
     debug("PKG: Beginning production\n");
 
-    my $create = ''; 
+    my $create = '';
     $create .= header_comment unless ($no_comments);
+    $create .= "BEGIN TRANSACTION;\n\n";
 
+    my ( @index_defs, @constraint_defs, @trigger_defs );
     for my $table ( $schema->get_tables ) {
         my $table_name = $table->name;
         debug("PKG: Looking at table '$table_name'\n");
@@ -65,9 +84,15 @@ sub produce {
         $create .= "CREATE TABLE $table_name (\n";
 
         #
+        # How many fields in PK?
+        #
+        my $pk        = $table->primary_key;
+        my @pk_fields = $pk ? $pk->fields : ();
+
+        #
         # Fields
         #
-        my @field_defs;
+        my ( @field_defs, $pk_set );
         for my $field ( @fields ) {
             my $field_name = $field->name;
             debug("PKG: Looking at field '$field_name'\n");
@@ -78,13 +103,35 @@ sub produce {
             my $data_type = $field->data_type;
             $data_type    = 'varchar' if lc $data_type eq 'set';
 
+            if ( $data_type =~ /timestamp/i ) {
+                push @trigger_defs, 
+                    "CREATE TRIGGER ts_${table_name} ".
+                    "after insert on $table_name\n".
+                    "begin\n".
+                    "  update $table_name set $field_name=timestamp() ".
+                       "where id=new.id;\n".
+                    "end;\n"
+                ;
+
+            }
+
             #
             # SQLite is generally typeless, but newer versions will
             # make a field autoincrement if it is declared as (and
             # *only* as) INTEGER PRIMARY KEY
             #
-            if ( $field->is_auto_increment && $field->is_primary_key ) {
+            if ( 
+                $field->is_primary_key && 
+                scalar @pk_fields == 1 &&
+                (
+                    $data_type =~ /^int(eger)?$/i
+                    ||
+                    ( $data_type =~ /^number?$/i && $size !~ /,/ )
+                )
+            ) {
                 $data_type = 'INTEGER PRIMARY KEY';
+                $size      = undef;
+                $pk_set    = 1;
             }
 
             $field_def .= sprintf " %s%s", $data_type, 
@@ -106,24 +153,32 @@ sub produce {
             push @field_defs, $field_def;
         }
 
+        if ( 
+            scalar @pk_fields > 1 
+            || 
+            ( @pk_fields && !$pk_set ) 
+        ) {
+            push @field_defs, 'PRIMARY KEY (' . join(', ', @pk_fields ) . ')';
+        }
+
         #
         # Indices
         #
-        my @index_defs;
         my $idx_name_default = 'A';
         for my $index ( $table->get_indices ) {
             my $name   = $index->name;
             $name      = mk_name($table_name, $name || ++$idx_name_default);
-            my @fields = $index->fields;
+
+            # strip any field size qualifiers as SQLite doesn't like these
+            my @fields = map { s/\(\d+\)$//; $_ } $index->fields;
             push @index_defs, 
                 "CREATE INDEX $name on $table_name ".
-                '(' . join( ', ', @fields ) . ')';
+                '(' . join( ', ', @fields ) . ');';
         }
 
         #
         # Constraints
         #
-        my @constraint_defs;
         my $c_name_default = 'A';
         for my $c ( $table->get_constraints ) {
             next unless $c->type eq UNIQUE; 
@@ -133,17 +188,19 @@ sub produce {
 
             push @constraint_defs, 
                 "CREATE UNIQUE INDEX $name on $table_name ".
-                '(' . join( ', ', @fields ) . ')';
+                '(' . join( ', ', @fields ) . ');';
         }
 
         $create .= join(",\n", map { "  $_" } @field_defs ) . "\n);\n";
 
-        for my $index_create ( @index_defs, @constraint_defs ) {
-            $create .= "$index_create;\n";
-        }
-
         $create .= "\n";
     }
+
+    for my $def ( @index_defs, @constraint_defs, @trigger_defs ) {
+        $create .= "$def\n";
+    }
+
+    $create .= "COMMIT;\n";
 
     return $create;
 }
@@ -185,10 +242,16 @@ sub mk_name {
 
 1;
 
-=head1 NAME
+# -------------------------------------------------------------------
 
-SQL::Translator::Producer::SQLite - SQLite producer for SQL::Translator
+=pod
+
+=head1 SEE ALSO
+
+SQL::Translator, http://www.sqlite.org/.
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
+
+=cut

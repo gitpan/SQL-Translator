@@ -4,7 +4,7 @@
 $| = 1;
 
 use strict;
-use Test::More tests => 157;
+use Test::More tests => 186;
 use SQL::Translator::Schema::Constants;
 
 require_ok( 'SQL::Translator::Schema' );
@@ -64,7 +64,7 @@ require_ok( 'SQL::Translator::Schema' );
     is( scalar @{ $fields || [] }, 0, 'Table "foo" has no fields' );
     like( $foo_table->error, qr/no fields/i, 'Error for no fields' );
 
-    is( $foo_table->comments, '', 'No comments' );
+    is( $foo_table->comments, undef, 'No comments' );
 
     #
     # New table with args
@@ -242,8 +242,17 @@ require_ok( 'SQL::Translator::Schema' );
     isa_ok( $constraint2, 'SQL::Translator::Schema::Constraint', 'Constraint' );
     is( $constraint2->name, 'bar', 'Constraint name is "bar"' );
 
+    my $constraint3 = $person_table->add_constraint(
+        type       => 'check',
+        expression => 'foo bar',
+    ) or die $person_table->error;
+    isa_ok( $constraint3, 'SQL::Translator::Schema::Constraint', 'Constraint' );
+    is( $constraint3->type, CHECK_C, 'Constraint type is "CHECK"' );
+    is( $constraint3->expression, 'foo bar', 
+        'Constraint expression is "foo bar"' );
+
     my $constraints = $person_table->get_constraints;
-    is( scalar @$constraints, 2, 'Two constraints' );
+    is( scalar @$constraints, 3, 'Three constraints' );
     is( $constraints->[0]->name, 'foo', '"foo" constraint' );
     is( $constraints->[1]->name, 'bar', '"bar" constraint' );
 
@@ -438,18 +447,99 @@ require_ok( 'SQL::Translator::Schema' );
 # View
 #
 {
+    my $s      = SQL::Translator::Schema->new( name => 'ViewTest' );
     my $name   = 'foo_view';
     my $sql    = 'select name, age from person';
     my $fields = 'name, age';
-    my $s      = SQL::Translator::Schema->new;
     my $v      = $s->add_view(
         name   => $name,
         sql    => $sql,
         fields => $fields,
+        schema => $s,
     );
 
     isa_ok( $v, 'SQL::Translator::Schema::View', 'View' );
+    isa_ok( $v->schema, 'SQL::Translator::Schema', 'Schema' );
+    is( $v->schema->name, 'ViewTest', qq[Schema name is "'ViewTest'"] );
     is( $v->name, $name, qq[Name is "$name"] );
     is( $v->sql, $sql, qq[Name is "$sql"] );
     is( join(':', $v->fields), 'name:age', qq[Fields are "$fields"] );
+
+    my @views = $s->get_views;
+    is( scalar @views, 1, 'Number of views is 1' );
+
+    my $v1 = $s->get_view( $name );
+    isa_ok( $v1, 'SQL::Translator::Schema::View', 'View' );
+    is( $v1->name, $name, qq[Name is "$name"] );
+}
+
+#
+# Trigger
+#
+{
+    my $s                   = SQL::Translator::Schema->new(name => 'TrigTest');
+    my $name                = 'foo_trigger';
+    my $perform_action_when = 'after';
+    my $database_event      = 'insert';
+    my $on_table            = 'foo';
+    my $action              = 'update modified=timestamp();';
+    my $t                   = $s->add_trigger(
+        name                => $name,
+        perform_action_when => $perform_action_when,
+        database_event      => $database_event,
+        on_table            => $on_table,
+        action              => $action,
+    ) or die $s->error;
+
+    isa_ok( $t, 'SQL::Translator::Schema::Trigger', 'Trigger' );
+    isa_ok( $t->schema, 'SQL::Translator::Schema', 'Schema' );
+    is( $t->schema->name, 'TrigTest', qq[Schema name is "'TrigTest'"] );
+    is( $t->name, $name, qq[Name is "$name"] );
+    is( $t->perform_action_when, $perform_action_when, 
+        qq[Perform action when is "$perform_action_when"] );
+    is( $t->database_event, $database_event, 
+        qq[Database event is "$database_event"] );
+    is( $t->on_table, $on_table, qq[Table is "$on_table"] );
+    is( $t->action, $action, qq[Action is "$action"] );
+
+    my @triggs = $s->get_triggers;
+    is( scalar @triggs, 1, 'Number of triggers is 1' );
+
+    my $t1 = $s->get_trigger( $name );
+    isa_ok( $t1, 'SQL::Translator::Schema::Trigger', 'Trigger' );
+    is( $t1->name, $name, qq[Name is "$name"] );
+}
+
+#
+# Procedure
+#
+{
+    my $s          = SQL::Translator::Schema->new( name => 'ProcTest' );
+    my $name       = 'foo_proc';
+    my $sql        = 'select foo from bar';
+    my $parameters = 'foo, bar';
+    my $owner      = 'Nomar';
+    my $comments   = 'Go Sox!';
+    my $p          = $s->add_procedure(
+        name       => $name,
+        sql        => $sql,
+        parameters => $parameters,
+        owner      => $owner,
+        comments   => $comments,
+    ) or die $s->error;
+
+    isa_ok( $p, 'SQL::Translator::Schema::Procedure', 'Procedure' );
+    isa_ok( $p->schema, 'SQL::Translator::Schema', 'Schema' );
+    is( $p->schema->name, 'ProcTest', qq[Schema name is "'ProcTest'"] );
+    is( $p->name, $name, qq[Name is "$name"] );
+    is( $p->sql, $sql, qq[SQL is "$sql"] );
+    is( join(',', $p->parameters), 'foo,bar', qq[Params = 'foo,bar'] );
+    is( $p->comments, $comments, qq[Comments = "$comments"] );
+
+    my @procs = $s->get_procedures;
+    is( scalar @procs, 1, 'Number of procedures is 1' );
+
+    my $p1 = $s->get_procedure( $name );
+    isa_ok( $p1, 'SQL::Translator::Schema::Procedure', 'Procedure' );
+    is( $p1->name, $name, qq[Name is "$name"] );
 }

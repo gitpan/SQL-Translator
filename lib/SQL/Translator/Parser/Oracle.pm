@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::Oracle;
 
 # -------------------------------------------------------------------
-# $Id: Oracle.pm,v 1.4 2003/06/11 03:59:49 kycl4rk Exp $
+# $Id: Oracle.pm,v 1.14 2003/10/15 18:59:53 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>
 #
@@ -91,11 +91,14 @@ constrnt_state
           [ENABLE|DISABLE] [VALIDATE|NOVALIDATE]
               [EXCEPTIONS INTO [schema.]table]
 
+Note that probably not all of the above syntax is supported, but the grammar 
+was altered to better handle the syntax created by DDL::Oracle.
+
 =cut
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.4 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.14 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -114,7 +117,7 @@ my $parser;
 
 $GRAMMAR = q!
 
-{ our ( %tables, $table_order ) }
+{ my ( %tables, $table_order, @table_comments ) }
 
 #
 # The "eofile" rule makes the parser fail if any "statement" rule
@@ -127,23 +130,37 @@ startrule : statement(s) eofile { \%tables }
 eofile : /^\Z/
 
 statement : create
-  | comment
-  | comment_on_table
-  | comment_on_column
-  | alter
-  | <error>
+    | table_comment
+    | comment_on_table
+    | comment_on_column
+    | alter
+    | drop
+    | <error>
 
 alter : /alter/i WORD /[^;]+/ ';'
+    { @table_comments = () }
 
-create : create_table table_name '(' create_definition(s /,/) ')' table_option(s?) ';'
+drop : /drop/i TABLE ';'
+
+drop : /drop/i WORD(s) ';'
+    { @table_comments = () }
+
+prompt : /prompt/i create_table table_name
+
+create : prompt(?) create_table table_name '(' create_definition(s /,/) ')' table_option(s?) ';'
     {
         my $table_name                       = $item{'table_name'};
         $tables{ $table_name }{'order'}      = ++$table_order;
         $tables{ $table_name }{'table_name'} = $table_name;
 
+        if ( @table_comments ) {
+            $tables{ $table_name }{'comments'} = [ @table_comments ];
+            @table_comments = ();
+        }
+
         my $i = 1;
         my @constraints;
-        for my $definition ( @{ $item[4] } ) {
+        for my $definition ( @{ $item[5] } ) {
             if ( $definition->{'type'} eq 'field' ) {
                 my $field_name = $definition->{'name'};
                 $tables{ $table_name }{'fields'}{ $field_name } = 
@@ -158,34 +175,33 @@ create : create_table table_name '(' create_definition(s /,/) ')' table_option(s
             }
             elsif ( $definition->{'type'} eq 'constraint' ) {
                 $definition->{'type'} = $definition->{'constraint_type'};
-                # group FKs at the field level
-#                if ( $definition->{'type'} eq 'foreign_key' ) {
-#                    for my $fld ( @{ $definition->{'fields'} || [] } ) {
-#                        push @{ 
-#                            $tables{$table_name}{'fields'}{$fld}{'constraints'}
-#                        }, $definition;
-#                    }
-#                }
-#                else {
-                    push @{ $tables{ $table_name }{'constraints'} }, 
-                        $definition;
-#                }
+                push @{ $tables{ $table_name }{'constraints'} }, $definition;
             }
             else {
                 push @{ $tables{ $table_name }{'indices'} }, $definition;
             }
         }
 
-        for my $option ( @{ $item[6] } ) {
-            $tables{ $table_name }{'table_options'}{ $option->{'type'} } = 
-                $option;
+        for my $option ( @{ $item[7] } ) {
+            push @{ $tables{ $table_name }{'table_options'} }, $option;
         }
 
         1;
     }
 
+create : /create/i /index/i WORD /on/i table_name parens_word_list ';'
+    {
+        my $table_name = $item[5];
+        push @{ $tables{ $table_name }{'indices'} }, {
+            name   => $item[3],
+            type   => 'normal',
+            fields => $item[6][0],
+        };
+    }
+
 # Create anything else (e.g., domain, function, etc.)
 create : /create/i WORD /[^;]+/ ';'
+    { @table_comments = () }
 
 global_temporary: /global/i /temporary/i
 
@@ -198,7 +214,27 @@ create_definition : field
     | table_constraint
     | <error>
 
+table_comment : comment
+    {
+        my $comment = $item[1];
+        $return     = $comment;
+        push @table_comments, $comment;
+    }
+
 comment : /^\s*(?:#|-{2}).*\n/
+    {
+        my $comment =  $item[1];
+        $comment    =~ s/^\s*(#|-{2})\s*//;
+        $comment    =~ s/\s*$//;
+        $return     = $comment;
+    }
+
+comment : /\/\*/ /[^\*]+/ /\*\// 
+    {
+        my $comment = $item[2];
+        $comment    =~ s/^\s*|\s*$//g;
+        $return = $comment;
+    }
 
 comment_on_table : /comment/i /on/i /table/i table_name /is/i comment_phrase ';'
     {
@@ -282,7 +318,7 @@ column_constraint : constraint_name(?) column_constraint_type
             name             => $item{'constraint_name(?)'}[0] || '',
             type             => $type,
             expression       => $type eq 'check' ? $expression : '',
-            deferreable      => $item{'deferrable'},
+            deferrable       => $item{'deferrable'},
             deferred         => $item{'deferred'},
             reference_table  => $desc->{'reference_table'},
             reference_fields => $desc->{'reference_fields'},
@@ -335,6 +371,8 @@ ora_data_type :
     |
     /n?char/i { $return = 'character' }
     |
+	/n?dec/i { $return = 'decimal' }
+	|
     /number/i { $return = 'number' }
     |
     /(pls_integer|binary_integer)/i { $return = 'integer' }
@@ -358,8 +396,8 @@ field_meta : default_val
 
 default_val  : /default/i /(?:')?[\w\d.-]*(?:')?/ 
     { 
-        my $val =  $item[2] || '';
-        $val    =~ s/'//g; 
+        my $val =  $item[2];
+        $val    =~ s/'//g if defined $val; 
         $return =  {
             supertype => 'constraint',
             type      => 'default',
@@ -368,6 +406,26 @@ default_val  : /default/i /(?:')?[\w\d.-]*(?:')?/
     }
 
 create_table : /create/i global_temporary(?) /table/i
+
+table_option : /organization/i WORD
+    {
+        $return = { 'ORGANIZATION' => $item[2] }
+    }
+
+table_option : /nomonitoring/i
+    {
+        $return = { 'NOMONITORING' => undef }
+    }
+
+table_option : /parallel/i '(' key_value(s) ')'
+    {
+        $return = { 'PARALLEL' => $item[3] }
+    }
+
+key_value : WORD VALUE
+    {
+        $return = { $item[1], $item[2] }
+    }
 
 table_option : /[^;]+/
 
@@ -385,7 +443,7 @@ table_constraint : comment(s?) constraint_name(?) table_constraint_type deferrab
             constraint_type  => $type,
             fields           => $type ne 'check' ? $fields : [],
             expression       => $type eq 'check' ? $expression : '',
-            deferreable      => $item{'deferrable(?)'},
+            deferrable       => $item{'deferrable(?)'},
             deferred         => $item{'deferred(?)'},
             reference_table  => $desc->{'reference_table'},
             reference_fields => $desc->{'reference_fields'},
@@ -440,6 +498,8 @@ WORD : /\w+/
 
 NAME : /\w+/ { $item[1] }
 
+TABLE : /table/i
+
 VALUE   : /[-+]?\.?\d+(?:[eE]\d+)?/
     { $item[1] }
     | /'.*?'/   # XXX doesn't handle embedded quotes
@@ -477,6 +537,8 @@ sub parse {
             name     => $tdata->{'table_name'},
             comments => $tdata->{'comments'},
         ) or die $schema->error;
+
+        $table->options( $tdata->{'table_options'} );
 
         my @fields = sort { 
             $tdata->{'fields'}->{$a}->{'order'} 
@@ -543,6 +605,6 @@ Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 
 =head1 SEE ALSO
 
-perl(1), Parse::RecDescent.
+SQL::Translator, Parse::RecDescent, DDL::Oracle.
 
 =cut

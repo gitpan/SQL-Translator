@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Table;
 
 # ----------------------------------------------------------------------
-# $Id: Table.pm,v 1.8 2003/06/09 02:10:10 kycl4rk Exp $
+# $Id: Table.pm,v 1.23 2003/10/04 01:22:04 kycl4rk Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>
 #
@@ -46,11 +46,12 @@ use SQL::Translator::Schema::Constants;
 use SQL::Translator::Schema::Constraint;
 use SQL::Translator::Schema::Field;
 use SQL::Translator::Schema::Index;
+use Data::Dumper;
 
 use base 'Class::Base';
 use vars qw( $VERSION $FIELD_ORDER );
 
-$VERSION = 1.00;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.23 $ =~ /(\d+)\.(\d+)/;
 
 # ----------------------------------------------------------------------
 sub init {
@@ -88,10 +89,10 @@ sub add_constraint {
 Add a constraint to the table.  Returns the newly created 
 C<SQL::Translator::Schema::Constraint> object.
 
-  my $c1 = $table->add_constraint(
-      name        => 'pk',
-      type        => PRIMARY_KEY,
-      fields      => [ 'foo_id' ],
+  my $c1     = $table->add_constraint(
+      name   => 'pk',
+      type   => PRIMARY_KEY,
+      fields => [ 'foo_id' ],
   );
 
   my $c2 = SQL::Translator::Schema::Constraint->new( name => 'uniq' );
@@ -118,31 +119,41 @@ C<SQL::Translator::Schema::Constraint> object.
     # If we're trying to add a PK when one is already defined,
     # then just add the fields to the existing definition.
     #
-    my $ok = 0;
+    my $ok = 1;
     my $pk = $self->primary_key;
     if ( $pk && $constraint->type eq PRIMARY_KEY ) {
         $self->primary_key( $constraint->fields );
         $constraint = $pk;
+        $ok         = 0;
     }
-    else {
-        my @field_names = $constraint->fields;
-        $ok = 1;
-
-        for my $c ( 
-            grep { $_->type eq $constraint->type } 
-            $self->get_constraints 
-        ) {
-            my %fields = map { $_, 1 } $c->fields;
-            for my $field_name ( @field_names ) {
-                if ( $fields{ $field_name } ) {
-                    $constraint = $c;
-                    $ok = 0; 
-                    last;
-                }
+    elsif ( $constraint->type eq PRIMARY_KEY ) {
+        for my $fname ( $constraint->fields ) {
+            if ( my $f = $self->get_field( $fname ) ) {
+                $f->is_primary_key( 1 );
             }
-            last unless $ok;
         }
     }
+    #
+    # See if another constraint of the same type 
+    # covers the same fields.  -- This doesn't work!  ky
+    #
+#    elsif ( $constraint->type ne CHECK_C ) {
+#        my @field_names = $constraint->fields;
+#        for my $c ( 
+#            grep { $_->type eq $constraint->type } 
+#            $self->get_constraints 
+#        ) {
+#            my %fields = map { $_, 1 } $c->fields;
+#            for my $field_name ( @field_names ) {
+#                if ( $fields{ $field_name } ) {
+#                    $constraint = $c;
+#                    $ok = 0; 
+#                    last;
+#                }
+#            }
+#            last unless $ok;
+#        }
+#    }
 
     if ( $ok ) {
         push @{ $self->{'constraints'} }, $constraint;
@@ -161,7 +172,7 @@ sub add_index {
 Add an index to the table.  Returns the newly created
 C<SQL::Translator::Schema::Index> object.
 
-  my $i1 = $table->add_index(
+  my $i1     = $table->add_index(
       name   => 'name',
       fields => [ 'name' ],
       type   => 'normal',
@@ -203,17 +214,17 @@ C<SQL::Translator::Schema::Field> object.  The "name" parameter is
 required.  If you try to create a field with the same name as an 
 existing field, you will get an error and the field will not be created.
 
-  my $f1    =  $table->add_field(
+  my $f1        =  $table->add_field(
       name      => 'foo_id',
       data_type => 'integer',
       size      => 11,
   );
 
-  my $f2 =  SQL::Translator::Schema::Field->new( 
+  my $f2     =  SQL::Translator::Schema::Field->new( 
       name   => 'name', 
       table  => $table,
   );
-  $f2    = $table->add_field( $field2 ) or die $table->error;
+  $f2 = $table->add_field( $field2 ) or die $table->error;
 
 =cut
 
@@ -263,16 +274,23 @@ all the comments joined on newlines.
 
 =cut
 
-    my $self = shift;
+    my $self     = shift;
+    my @comments = ref $_[0] ? @{ $_[0] } : @_;
 
-    for my $arg ( @_ ) {
+    for my $arg ( @comments ) {
         $arg = $arg->[0] if ref $arg;
-        push @{ $self->{'comments'} }, $arg;
+        push @{ $self->{'comments'} }, $arg if defined $arg && $arg;
     }
 
-    return wantarray 
-        ? @{ $self->{'comments'} || [] }
-        : join( "\n", @{ $self->{'comments'} || [] } );
+    if ( @{ $self->{'comments'} || [] } ) {
+        return wantarray 
+            ? @{ $self->{'comments'} }
+            : join( "\n", @{ $self->{'comments'} } )
+        ;
+    } 
+    else {
+        return wantarray ? () : undef;
+    }
 }
 
 # ----------------------------------------------------------------------
@@ -402,6 +420,154 @@ Determine whether the view is valid or not.
 }
 
 # ----------------------------------------------------------------------
+sub is_trivial_link {
+
+=pod
+
+=head2 is_data
+
+=cut
+
+    my $self = shift;
+    return 0 if $self->is_data;
+    return $self->{'is_trivial_link'} if defined $self->{'is_trivial_link'};
+
+    $self->{'is_trivial_link'} = 1;
+
+    my %fk = ();
+
+    foreach my $field ( $self->get_fields ) {
+	  next unless $field->is_foreign_key;
+	  $fk{$field->foreign_key_reference->reference_table}++;
+	}
+
+    foreach my $referenced (keys %fk){
+	if($fk{$referenced} > 1){
+	  $self->{'is_trivial_link'} = 0;
+	  last;
+	}
+    }
+
+    return $self->{'is_trivial_link'};
+
+}
+
+sub is_data {
+
+=pod
+
+=head2 is_data
+
+=cut
+
+    my $self = shift;
+    return $self->{'is_data'} if defined $self->{'is_data'};
+
+    $self->{'is_data'} = 0;
+
+    foreach my $field ( $self->get_fields ) {
+        if ( !$field->is_primary_key and !$field->is_foreign_key ) {
+            $self->{'is_data'} = 1;
+            return $self->{'is_data'};
+        }
+    }
+
+    return $self->{'is_data'};
+}
+
+# ----------------------------------------------------------------------
+sub can_link {
+
+=pod
+
+=head2 can_link
+
+Determine whether the table can link two arg tables via many-to-many.
+
+  my $ok = $table->can_link($table1,$table2);
+
+=cut
+
+    my ( $self, $table1, $table2 ) = @_;
+
+    return $self->{'can_link'}{ $table1->name }{ $table2->name }
+      if defined $self->{'can_link'}{ $table1->name }{ $table2->name };
+
+    if ( $self->is_data == 1 ) {
+        $self->{'can_link'}{ $table1->name }{ $table2->name } = [0];
+        $self->{'can_link'}{ $table2->name }{ $table1->name } = [0];
+        return $self->{'can_link'}{ $table1->name }{ $table2->name };
+    }
+
+    my %fk = ();
+
+    foreach my $field ( $self->get_fields ) {
+        if ( $field->is_foreign_key ) {
+            push @{ $fk{ $field->foreign_key_reference->reference_table } },
+              $field->foreign_key_reference;
+        }
+    }
+
+    if ( !defined( $fk{ $table1->name } ) or !defined( $fk{ $table2->name } ) )
+    {
+        $self->{'can_link'}{ $table1->name }{ $table2->name } = [0];
+        $self->{'can_link'}{ $table2->name }{ $table1->name } = [0];
+        return $self->{'can_link'}{ $table1->name }{ $table2->name };
+    }
+
+    # trivial traversal, only one way to link the two tables
+    if (    scalar( @{ $fk{ $table1->name } } == 1 )
+        and scalar( @{ $fk{ $table2->name } } == 1 ) )
+    {
+        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+          [ 'one2one', $fk{ $table1->name }, $fk{ $table2->name } ];
+        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+          [ 'one2one', $fk{ $table2->name }, $fk{ $table1->name } ];
+
+        # non-trivial traversal.  one way to link table2, 
+        # many ways to link table1
+    }
+    elsif ( scalar( @{ $fk{ $table1->name } } > 1 )
+        and scalar( @{ $fk{ $table2->name } } == 1 ) )
+    {
+        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+          [ 'many2one', $fk{ $table1->name }, $fk{ $table2->name } ];
+        $self->{'can_link'}{ $table2->name }{ $table1->name } =
+          [ 'one2many', $fk{ $table2->name }, $fk{ $table1->name } ];
+
+        # non-trivial traversal.  one way to link table1, 
+        # many ways to link table2
+    }
+    elsif ( scalar( @{ $fk{ $table1->name } } == 1 )
+        and scalar( @{ $fk{ $table2->name } } > 1 ) )
+    {
+        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+          [ 'one2many', $fk{ $table1->name }, $fk{ $table2->name } ];
+        $self->{'can_link'}{ $table2->name }{ $table1->name } =
+          [ 'many2one', $fk{ $table2->name }, $fk{ $table1->name } ];
+
+        # non-trivial traversal.  many ways to link table1 and table2
+    }
+    elsif ( scalar( @{ $fk{ $table1->name } } > 1 )
+        and scalar( @{ $fk{ $table2->name } } > 1 ) )
+    {
+        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+          [ 'many2many', $fk{ $table1->name }, $fk{ $table2->name } ];
+        $self->{'can_link'}{ $table2->name }{ $table1->name } =
+          [ 'many2many', $fk{ $table2->name }, $fk{ $table1->name } ];
+
+        # one of the tables didn't export a key 
+        # to this table, no linking possible
+    }
+    else {
+        $self->{'can_link'}{ $table1->name }{ $table2->name } = [0];
+        $self->{'can_link'}{ $table2->name }{ $table1->name } = [0];
+    }
+
+    return $self->{'can_link'}{ $table1->name }{ $table2->name };
+}
+
+# ----------------------------------------------------------------------
 sub name {
 
 =pod
@@ -458,7 +624,7 @@ sub primary_key {
 
 =pod
 
-=head2 options
+=head2 primary_key
 
 Gets or sets the table's primary key(s).  Takes one or more field
 names (as a string, list or array[ref]) as an argument.  If the field
@@ -583,8 +749,9 @@ sub DESTROY {
 
 =pod
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>,
+Allen Day E<lt>allenday@ucla.eduE<gt>.
 
 =cut

@@ -1,6 +1,8 @@
 package SQL::Translator::Parser::Excel;
 
 # -------------------------------------------------------------------
+# $Id: Excel.pm,v 1.13 2003/11/06 16:54:43 kycl4rk Exp $
+# -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
 #                    Chris Mungall <cjm@fruitfly.org>,
@@ -28,21 +30,31 @@ SQL::Translator::Parser::Excel - parser for Excel
 =head1 SYNOPSIS
 
   use SQL::Translator;
-  use SQL::Translator::Parser::Excel;
 
   my $translator = SQL::Translator->new;
-  $translator->parser("SQL::Translator::Parser::Excel");
+  $translator->parser('Excel');
 
 =head1 DESCRIPTION
 
-Parses an Excel spreadsheet file for SQL::Translator.  You can then
-turn the data into a database tables or graphs.
+Parses an Excel spreadsheet file using Spreadsheet::ParseExcel.
+
+=head1 OPTIONS
+
+=over
+
+=item * scan_fields
+
+Indicates that the columns should be scanned to determine data types
+and field sizes.  True by default.
+
+=back
 
 =cut
 
 use strict;
 use vars qw($DEBUG $VERSION @EXPORT_OK);
 $DEBUG = 0 unless defined $DEBUG;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/;
 
 use Spreadsheet::ParseExcel;
 use Exporter;
@@ -66,6 +78,7 @@ my %ET_to_ST  = (
 # -------------------------------------------------------------------
 sub parse {
     my ($tr, $data) = @_;
+    my $args        = $tr->parser_args;
     my $filename    = $tr->filename || return;
     my $wb          = Spreadsheet::ParseExcel::Workbook->Parse( $filename );
     my $schema      = $tr->schema;
@@ -82,10 +95,12 @@ sub parse {
 
         my $table = $schema->add_table( name => $table_name );
 
+        my @field_names = ();
         for my $col ( $cols[0] .. $cols[1] ) {
             my $cell      = $ws->Cell(0, $col);
             my $col_name  = normalize_name( $cell->{'Val'} );
             my $data_type = ET_to_ST( $cell->{'Type'} );
+            push @field_names, $col_name;
 
             my $field = $table->add_field(
                 name              => $col_name,
@@ -101,11 +116,87 @@ sub parse {
                 $field->is_primary_key(1);
             }
         }
+
+        #
+        # If directed, look at every field's values to guess size and type.
+        #
+        unless ( 
+            defined $args->{'scan_fields'} &&
+            $args->{'scan_fields'} == 0
+        ) {
+            my %field_info = map { $_, {} } @field_names;
+
+            for(
+                my $iR = $ws->{'MinRow'} == 0 ? 1 : $ws->{'MinRow'};
+                defined $ws->{'MaxRow'} && $iR <= $ws->{'MaxRow'}; 
+                $iR++
+            ) {
+               for ( 
+                    my $iC = $ws->{'MinCol'};
+                    defined $ws->{'MaxCol'} && $iC <= $ws->{'MaxCol'}; 
+                    $iC++
+                ) {
+                    my $field = $field_names[ $iC ];
+                    my $data  = $ws->{'Cells'}[ $iR ][ $iC ]->{'_Value'};
+                    next if !defined $data || $data eq '';
+                    my $size  = [ length $data ];
+                    my $type;
+
+                    if ( $data =~ /^-?\d+$/ ) {
+                        $type = 'integer';
+                    }
+                    elsif ( 
+                        $data =~ /^-?[,\d]+\.[\d+]?$/ 
+                        ||
+                        $data =~ /^-?[,\d]+?\.\d+$/  
+                        ||
+                        $data =~ /^-?\.\d+$/  
+                    ) {
+                        $type = 'float';
+                        my ( $w, $d ) = 
+                            map { s/,//g; length $_ || 1 } 
+                            split( /\./, $data )
+                        ;
+                        $size = [ $w + $d, $d ];
+                    }
+                    else {
+                        $type = 'char';
+                    }
+
+                    for my $i ( 0, 1 ) {
+                        next unless defined $size->[ $i ];
+                        my $fsize = $field_info{ $field }{'size'}[ $i ] || 0;
+                        if ( $size->[ $i ] > $fsize ) {
+                            $field_info{ $field }{'size'}[ $i ] = $size->[ $i ];
+                        }
+                    }
+
+                    $field_info{ $field }{ $type }++;
+                }
+            }
+
+            for my $field ( keys %field_info ) {
+                my $size      = $field_info{ $field }{'size'} || [ 1 ];
+                my $data_type = 
+                    $field_info{ $field }{'char'}    ? 'char'    : 
+                    $field_info{ $field }{'float'}   ? 'float'   :
+                    $field_info{ $field }{'integer'} ? 'integer' : 'char';
+
+                if ( $data_type eq 'char' && scalar @$size == 2 ) {
+                    $size = [ $size->[0] + $size->[1] ];
+                }
+
+                my $field = $table->get_field( $field );
+                $field->size( $size ) if $size;
+                $field->data_type( $data_type );
+            }
+        }
     }
 
     return 1;
 }
 
+# -------------------------------------------------------------------
 sub ET_to_ST {
     my $et = shift;
     $ET_to_ST{$et} || $ET_to_ST{'Text'};
@@ -125,11 +216,11 @@ sub ET_to_ST {
 =head1 AUTHORS
 
 Mike Mellilo <mmelillo@users.sourceforge.net>,
-darren chamberlain E<lt>dlc@users.sourceforge.netE<gt>
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>
+darren chamberlain E<lt>dlc@users.sourceforge.netE<gt>,
+Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 
 =head1 SEE ALSO
 
-perl(1), Spreadsheet::ParseExcel.
+Spreadsheet::ParseExcel, SQL::Translator.
 
 =cut

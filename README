@@ -1,68 +1,96 @@
                       SQL::Translator README
 
-SQL::Translator is a group of Perl modules that converts
-vendor-specific SQL table definitions into other formats, such as
-other vendor-specific SQL, ER diagrams, documentation (POD and HTML),
-XML, and Class::DBI classes.  The main focus of SQL::Translator is
-SQL, but parsers exist for other structured data formats, including
-Excel spreadsheets and arbitrarily delimited text files.  Through the
-separation of the code into parsers and producers with an object model
-in between, it's possible to combine any parser with any producer, to
-plug in custom parsers or producers, or to manipulate the parsed data
-via the built-in object model.  Presently only the definition parts of
-SQL are handled (CREATE, ALTER), not the manipulation of data (INSERT,
-UPDATE, DELETE).
+SQL::Translator is a group of Perl modules that manipulate structure
+data definitions (mostly database schemas) in interesting ways, such
+as converting among different dialects of CREATE syntax (e.g.,
+MySQL-to-Oracle), visualizations of schemas (pseudo-ER diagrams
+GraphViz or GD), automatic code generation (using Class::DBI),
+converting non-RDBMS files to SQL schemas (xSV text files, Excel
+spreadsheets), serializing parsed schemas (via Storable, YAML and
+XML), creating documentation (HTML and POD), and more.  New to version
+0.03 is the ability to talk directly to a database through DBI to
+query for the structures of several databases.
 
-As of version 0.02, parsers exist for the following:
+Through the separation of the code into parsers and producers with an
+object model in between, it's possible to combine any parser with any
+producer, to plug in custom parsers or producers, or to manipulate the
+parsed data via the built-in object model.  Presently only the
+definition parts of SQL are handled (CREATE, ALTER), not the
+manipulation of data (INSERT, UPDATE, DELETE).
 
-    Excel
-    MySQL
-    Oracle
-    PostgreSQL
-    Sybase
-    xSV (arbitrarily delimited text files)
+As of version 0.03, parsers exist for the following:
+
+    Databases:
+        MySQL
+        Oracle
+        PostgreSQL
+        Sybase
+        SQLite
+
+        DBI-MySQL
+        DBI-PostgreSQL
+        DBI-SQLite
+        DBI-Sybase
+
+    Other:
+        xSV          : arbitrarily delimited text files
+        Excel        : Microsoft Excel spreadsheets
+        XML-SQLFairy : SQLFairy's XML format
+        YAML/Storable: Serialized schema objects
 
 And the following producers exist:
 
-    ClassDBI: Class::DBI classes
-    Diagram: quasi-ER diagrams using libgd
-    GraphViz: ER diagrams using GraphViz
-    HTML: HTML documentation of schema
-    MySQL: MySQL-specific schema
-    Oracle: Oracle-specific schema
-    POD: Plain Old Documenation of schema
-    PostgreSQL: PostgreSQL-specific schema
-    SQLite: SQLite-specific schema
-    Sybase: Sybase-specific schema
-    XML: structure of the schema described in XML
+    Databases:
+        MySQL
+        Oracle
+        PostgreSQL
+        SQLite
+        Sybase
+    
+    Code Generators:
+        ClassDBI     : Class::DBI classes
+
+    Documentation:
+        Diagram      : quasi-ER diagrams using libgd
+        GraphViz     : ER diagrams using GraphViz
+        HTML         : HTML documentation of schema
+        POD          : Plain Old Documenation of schema
+
+    Serialization:
+        Storable     : using Perl's Storable module
+        YAML         : YAML format
+        XML-SQLFairy : structure of the schema described in SQLFairy's XML
+
+    Other:
+        TTSchema     : to any text format via Template Toolkit
 
 Included in this distribution are a few scripts designed to be user
 interfaces for the actual SQL::Translator modules.  In the "bin"
 directory, you will find:
 
-*   sqlt-diagram.pl
-*   sqlt-graph.pl
-*   sql_translator.cgi
-*   sql_translator.pl
+*   sqlt-diagram
+*   sqlt-graph
+*   sqlt-dumper
+*   sqlt
+*   sqlt.cgi
 
-All scripts ending in ".pl" are meant to be run from the command line
-with various switches to control the input and output of the scripts,
-while the ".cgi" script is a web-form frontend.  The script you'll
-probably find most useful is the "sql_translator.pl" script which is
-meant to be the main interface for translating from text-to-text.  The
-graphic producers, however, have many extra switches, so there are
-scripts specific for each of the the GraphViz and ER-diagram producers.
-All scripts start with "sql" so it will be easier to identify them on
-your system.  All the "*.pl" scripts will be installed in the normal
-installation process, but you'll have to put the CGI script into your
-web CGI directory to use it.
+All scripts not ending in ".cgi" are meant to be run from the command
+line with various switches to control the input and output of the
+scripts, while the ".cgi" script is a web-form frontend.  The script
+you'll probably find most useful is "sqlt" which is meant to be the
+main interface for translating from text-to-text.  The graphic
+producers, however, have many extra switches, so there are scripts
+specific for each of the the GraphViz and ER-diagram producers.  All
+scripts start with "sqlt" so it will be easier to identify them on
+your system.  All the non-CGI scripts will be installed in a system
+path when you "make install," but you'll have to manually place the
+CGI script into your web CGI directory to use it.
 
 If you're more interested in using the SQL::Translator modules
 directly, then you might be more interested to examine some of the
-test scripts in the "t" directory.  While the test suite isn't
-currently as thorough as it should be, you will definitely get the
-idea of how to parse a file and manipulate the SQL::Translator::Schema
-objects.
+test scripts in the "t" directory.  The test suite is relatively
+thorough and should give you an idea of how to parse a file and
+manipulate the SQL::Translator::Schema objects.
 
 INSTALLATION
 
@@ -73,16 +101,6 @@ The regular method:
     $ make test
     $ su -
     # make install
-
-AUTHORS
-
-Ken Y. Clark, <kclark@cpan.org>, 
-darren chamberlain <darren@cpan.org>,
-Chris Mungall <cjm@fruitfly.org>, 
-Allen Day <allenday@users.sourceforge.net>, 
-Sam Angiuoli <angiuoli@users.sourceforge.net>, 
-Ying Zhang <zyolive@yahoo.com>, 
-Mike Mellilo <mmelillo@users.sourceforge.net>.
 
 COPYRIGHT
 
@@ -103,9 +121,18 @@ BUGS
 
 Please use http://rt.cpan.org/ for reporting bugs.
 
+PRAISE
+
+If you find this module useful, please use 
+"http://cpanratings.perl.org/rate/?distribution=SQL-Translator" to rate it.
+
 SEE ALSO
 
 Check out the SQLFairy homepage at Sourceforge for more information,
 mailing lists, etc.:
 
     http://sqlfairy.sourceforge.net/
+
+AUTHORS
+
+See the include AUTHORS file.

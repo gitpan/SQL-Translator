@@ -1,7 +1,7 @@
 package SQL::Translator;
 
 # ----------------------------------------------------------------------
-# $Id: Translator.pm,v 1.32 2003/06/18 17:15:38 kycl4rk Exp $
+# $Id: Translator.pm,v 1.47 2003/10/17 19:49:16 dlc Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
@@ -26,13 +26,18 @@ use strict;
 use vars qw( $VERSION $REVISION $DEFAULT_SUB $DEBUG $ERROR );
 use base 'Class::Base';
 
-$VERSION  = '0.02';
-$REVISION = sprintf "%d.%02d", q$Revision: 1.32 $ =~ /(\d+)\.(\d+)/;
+require 5.004;
+
+$VERSION  = '0.03';
+$REVISION = sprintf "%d.%02d", q$Revision: 1.47 $ =~ /(\d+)\.(\d+)/;
 $DEBUG    = 0 unless defined $DEBUG;
 $ERROR    = "";
 
 use Carp qw(carp);
 
+use Data::Dumper;
+use Class::Base;
+use File::Find;
 use File::Spec::Functions qw(catfile);
 use File::Basename qw(dirname);
 use IO::Dir;
@@ -43,7 +48,7 @@ use SQL::Translator::Schema;
 # SQL::Translator instance is the first value ($_[0]), and the stuff
 # to be parsed is the second value ($_[1])
 # ----------------------------------------------------------------------
-$DEFAULT_SUB = sub { $_[1] } unless defined $DEFAULT_SUB;
+$DEFAULT_SUB = sub { $_[0]->schema } unless defined $DEFAULT_SUB;
 
 # ----------------------------------------------------------------------
 # init([ARGS])
@@ -60,7 +65,6 @@ $DEFAULT_SUB = sub { $_[1] } unless defined $DEFAULT_SUB;
 # ----------------------------------------------------------------------
 sub init {
     my ( $self, $config ) = @_;
-
     #
     # Set the parser and producer.
     #
@@ -71,13 +75,13 @@ sub init {
     $self->parser  ($config->{'parser'}   || $config->{'from'} || $DEFAULT_SUB);
     $self->producer($config->{'producer'} || $config->{'to'}   || $DEFAULT_SUB);
 
-	#
-	# Set up callbacks for formatting of pk,fk,table,package names in producer
-	#
-	$self->format_table_name($config->{'format_table_name'});
-	$self->format_package_name($config->{'format_package_name'});
-	$self->format_fk_name($config->{'format_fk_name'});
-	$self->format_pk_name($config->{'format_pk_name'});
+        #
+        # Set up callbacks for formatting of pk,fk,table,package names in producer
+        #
+        $self->format_table_name($config->{'format_table_name'});
+        $self->format_package_name($config->{'format_package_name'});
+        $self->format_fk_name($config->{'format_fk_name'});
+        $self->format_pk_name($config->{'format_pk_name'});
 
     #
     # Set the parser_args and producer_args
@@ -193,6 +197,7 @@ sub producer {
 
         # passed a string containing no "::"; relative package name
         else {
+            $producer =~ s/-/::/g;
             my $Pp = sprintf "SQL::Translator::Producer::$producer";
             load($Pp) or die "Can't load $Pp: $@";
             $self->{'producer'} = \&{ "$Pp\::produce" };
@@ -285,6 +290,7 @@ sub parser {
 
         # passed a string containing no "::"; relative package name
         else {
+            $parser =~ s/-/::/g;
             my $Pp = "SQL::Translator::Parser::$parser";
             load( $Pp ) or die "Can't load $Pp: $@";
             $self->{'parser'}      = \&{ "$Pp\::parse" };
@@ -328,9 +334,9 @@ sub filename {
         if (-d $filename) {
             my $msg = "Cannot use directory '$filename' as input source";
             return $self->error($msg);
-	} elsif (ref($filename) eq 'ARRAY') {
-	    $self->{'filename'} = $filename;
-	    $self->debug("Got array of files: ".join(', ',@$filename)."\n");
+        } elsif (ref($filename) eq 'ARRAY') {
+            $self->{'filename'} = $filename;
+            $self->debug("Got array of files: ".join(', ',@$filename)."\n");
         } elsif (-f _ && -r _) {
             $self->{'filename'} = $filename;
             $self->debug("Got filename: '$self->{'filename'}'\n");
@@ -383,24 +389,35 @@ sub data {
         local $/;
         my $data;
 
-	my @files = ref($filename) eq 'ARRAY' ? @$filename : ($filename);
+        my @files = ref($filename) eq 'ARRAY' ? @$filename : ($filename);
 
-	foreach my $file (@files) {
-	        unless (open FH, $file) {
-	            return $self->error("Can't read file '$file': $!");
-	        }
+        foreach my $file (@files) {
+                unless (open FH, $file) {
+                    return $self->error("Can't read file '$file': $!");
+                }
 
-	        $data .= <FH>;
+                $data .= <FH>;
 
-	        unless (close FH) {
-	            return $self->error("Can't close file '$file': $!");
-	        }
-	}
+                unless (close FH) {
+                    return $self->error("Can't close file '$file': $!");
+                }
+        }
 
-	$self->{'data'} = \$data;
+        $self->{'data'} = \$data;
     }
 
     return $self->{'data'};
+}
+
+# ----------------------------------------------------------------------
+sub reset {
+#
+# Deletes the existing Schema object so that future calls to translate
+# don't append to the existing.
+#
+    my $self = shift;
+    $self->{'schema'} = undef;
+    return 1;
 }
 
 # ----------------------------------------------------------------------
@@ -511,9 +528,6 @@ sub translate {
     # Get the data.
     # ----------------------------------------------------------------
     my $data = $self->data;
-    unless (ref($data) eq 'SCALAR' and length $$data) {
-        return $self->error("Empty data file!");
-    }
 
     # ----------------------------------------------------------------
     # Local reference to the parser subroutine
@@ -540,22 +554,26 @@ sub translate {
     # the future, each of these might happen in a Safe environment,
     # depending on how paranoid we want to be.
     # ----------------------------------------------------------------
-    eval { $parser_output = $parser->($self, $$data) };
-    if ($@ || ! $parser_output) {
-        my $msg = sprintf "translate: Error with parser '%s': %s",
-            $parser_type, ($@) ? $@ : " no results";
-        return $self->error($msg);
+    unless ( defined $self->{'schema'} ) {
+        eval { $parser_output = $parser->($self, $$data) };
+        if ($@ || ! $parser_output) {
+            my $msg = sprintf "translate: Error with parser '%s': %s",
+                $parser_type, ($@) ? $@ : " no results";
+            return $self->error($msg);
+        }
     }
 
-    if ( $self->validate ) {
+    $self->debug("Schema =\n", Dumper($self->schema), "\n");
+
+    if ($self->validate) {
         my $schema = $self->schema;
         return $self->error('Invalid schema') unless $schema->is_valid;
     }
 
     eval { $producer_output = $producer->($self) };
     if ($@ || ! $producer_output) {
-        my $msg = sprintf "translate: Error with producer '%s': %s",
-            $producer_type, ($@) ? $@ : " no results";
+        my $err = $@ || $self->error || "no results";
+        my $msg = "translate: Error with producer '$producer_type': $err";
         return $self->error($msg);
     }
 
@@ -635,26 +653,57 @@ sub _args {
 # _list($type)
 # ----------------------------------------------------------------------
 sub _list {
-    my $self = shift;
-    my $type = shift || return ();
+    my $self   = shift;
+    my $type   = shift || return ();
     my $uctype = ucfirst lc $type;
-    my %found;
 
+    #
+    # First find all the directories where SQL::Translator 
+    # parsers or producers (the "type") appear to live.
+    #
     load("SQL::Translator::$uctype") or return ();
     my $path = catfile "SQL", "Translator", $uctype;
+    my @dirs;
     for (@INC) {
         my $dir = catfile $_, $path;
-        $self->debug("_list_${type}s searching $dir");
+        $self->debug("_list_${type}s searching $dir\n");
         next unless -d $dir;
-
-        my $dh = IO::Dir->new($dir);
-        for (grep /\.pm$/, $dh->read) {
-            s/\.pm$//;
-            $found{ join "::", "SQL::Translator::$uctype", $_ } = 1;
-        }
+        push @dirs, $dir;
     }
 
-    return keys %found;
+    #
+    # Now use File::File::find to look recursively in those 
+    # directories for all the *.pm files, then present them
+    # with the slashes turned into dashes.
+    #
+    my %found;
+    find( 
+        sub { 
+            if ( -f && m/\.pm$/ ) {
+                my $mod      =  $_;
+                   $mod      =~ s/\.pm$//;
+                my $cur_dir  = $File::Find::dir;
+                my $base_dir = catfile 'SQL', 'Translator', $uctype;
+
+                #
+                # See if the current directory is below the base directory.
+                #
+                if ( $cur_dir =~ m/$base_dir(.*)/ ) {
+                    $cur_dir = $1;
+                    $cur_dir =~ s!^/!!;  # kill leading slash
+                    $cur_dir =~ s!/!-!g; # turn other slashes into dashes
+                }
+                else {
+                    $cur_dir = '';
+                }
+
+                $found{ join '-', map { $_ || () } $cur_dir, $mod } = 1;
+            }
+        },
+        @dirs
+    );
+
+    return sort { lc $a cmp lc $b } keys %found;
 }
 
 # ----------------------------------------------------------------------
@@ -677,42 +726,43 @@ sub load {
 
 # ----------------------------------------------------------------------
 sub format_table_name {
-    my $self = shift;
-    my $sub  = shift;
-    $self->{'_format_table_name'} = $sub if ref $sub eq 'CODE';
-    return $self->{'_format_table_name'}->( $sub, @_ ) 
-        if defined $self->{'_format_table_name'};
-    return $sub;
+    return shift->_format_name('_format_table_name', @_);
 }
 
 # ----------------------------------------------------------------------
 sub format_package_name {
-    my $self = shift;
-    my $sub  = shift;
-    $self->{'_format_package_name'} = $sub if ref $sub eq 'CODE';
-    return $self->{'_format_package_name'}->( $sub, @_ ) 
-        if defined $self->{'_format_package_name'};
-    return $sub;
+    return shift->_format_name('_format_package_name', @_);
 }
 
 # ----------------------------------------------------------------------
 sub format_fk_name {
-    my $self = shift;
-    my $sub  = shift;
-    $self->{'_format_fk_name'} = $sub if ref $sub eq 'CODE';
-    return $self->{'_format_fk_name'}->( $sub, @_ ) 
-        if defined $self->{'_format_fk_name'};
-    return $sub;
+    return shift->_format_name('_format_fk_name', @_);
 }
 
 # ----------------------------------------------------------------------
 sub format_pk_name {
+    return shift->_format_name('_format_pk_name', @_);
+}
+
+# ----------------------------------------------------------------------
+# The other format_*_name methods rely on this one.  It optionally 
+# accepts a subroutine ref as the first argument (or uses an identity
+# sub if one isn't provided or it doesn't already exist), and applies
+# it to the rest of the arguments (if any).
+# ----------------------------------------------------------------------
+sub _format_name {
     my $self = shift;
-    my $sub  = shift;
-    $self->{'_format_pk_name'} = $sub if ref $sub eq 'CODE';
-    return $self->{'_format_pk_name'}->( $sub, @_ ) 
-        if defined $self->{'_format_pk_name'};
-    return $sub;
+    my $field = shift;
+    my @args = @_;
+
+    if (ref($args[0]) eq 'CODE') {
+        $self->{$field} = shift @args;
+    }
+    elsif (! exists $self->{$field}) {
+        $self->{$field} = sub { return shift };
+    }
+
+    return @args ? $self->{$field}->(@args) : $self->{$field};
 }
 
 # ----------------------------------------------------------------------
@@ -1053,13 +1103,46 @@ producing.
 
 =head1 AUTHORS
 
-Ken Y. Clark, E<lt>kclark@cpan.orgE<gt>,
-darren chamberlain E<lt>darren@cpan.orgE<gt>, 
-Chris Mungall E<lt>cjm@fruitfly.orgE<gt>, 
-Allen Day E<lt>allenday@users.sourceforge.netE<gt>,
-Sam Angiuoli E<lt>angiuoli@users.sourceforge.netE<gt>,
-Ying Zhang E<lt>zyolive@yahoo.comE<gt>,
-Mike Mellilo <mmelillo@users.sourceforge.net>.
+The following people have contributed to the SQLFairy project:
+
+=over 4
+
+=item * Mark Addison <grommit@users.sourceforge.net>
+
+=item * Sam Angiuoli <angiuoli@users.sourceforge.net>
+
+=item * Darren Chamberlain <dlc@users.sourceforge.net>
+
+=item * Ken Y. Clark <kclark@cpan.org>
+
+=item * Allen Day <allenday@users.sourceforge.net>
+
+=item * Paul Harrington <phrrngtn@users.sourceforge.net>
+
+=item * Mikey Melillo <mmelillo@users.sourceforge.net>
+
+=item * Chris Mungall <cjm@fruitfly.org>
+
+=item * Ross Smith II <rossta@users.sf.net>
+
+=item * Gudmundur A. Thorisson <mummi@cshl.org>
+
+=item * Chris To <christot@users.sourceforge.net>
+
+=item * Jason Williams <smdwilliams@users.sourceforge.net>
+
+=item * Ying Zhang <zyolive@yahoo.com>
+
+=back
+
+If you would like to contribute to the project, you can send patches
+to the developers mailing list:
+
+    sqlfairy-developers@lists.sourceforge.net
+
+Or send us a message (with your Sourceforge username) asking to be
+added to the project and what you'd like to contribute.
+
 
 =head1 COPYRIGHT
 
@@ -1079,7 +1162,12 @@ USA
 
 =head1 BUGS
 
-Please use http://rt.cpan.org/ for reporting bugs.
+Please use L<http://rt.cpan.org/> for reporting bugs.
+
+=head1 PRAISE
+
+If you find this module useful, please use 
+L<http://cpanratings.perl.org/rate/?distribution=SQL-Translator> to rate it.
 
 =head1 SEE ALSO
 
@@ -1090,5 +1178,5 @@ L<Parse::RecDescent>,
 L<GD>,
 L<GraphViz>,
 L<Text::RecordParser>,
-L<Class::DBI>
+L<Class::DBI>,
 L<XML::Writer>.

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
-use Test::More tests => 72;
+use Test::More tests => 76;
 use SQL::Translator;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Parser::Oracle qw(parse);
@@ -19,6 +19,7 @@ my $sql = q[
     comment on column qtl_trait_category.qtl_trait_category_id 
         is 'the primary key!';
 
+    -- foo bar comment
     CREATE TABLE qtl_trait
     (
         qtl_trait_id            NUMBER(11)      NOT NULL    
@@ -31,11 +32,13 @@ my $sql = q[
         FOREIGN KEY ( qtl_trait_category_id ) REFERENCES qtl_trait_category
     );
 
+    /* qtl table comment */
     CREATE TABLE qtl
     (
+        /* qtl_id comment */
         qtl_id              NUMBER(11)      NOT NULL    
             CONSTRAINT pk_qtl PRIMARY KEY,
-        qtl_accession_id    VARCHAR2(20)    NOT NULL,
+        qtl_accession_id    VARCHAR2(20)    NOT NULL /* accession comment */,
         published_symbol    VARCHAR2(100),
         qtl_trait_id        NUMBER(11)      NOT NULL,
         linkage_group       VARCHAR2(32)    NOT NULL,
@@ -117,6 +120,7 @@ is( join(',', $c2->fields), 'trait_category',
 #
 my $t2 = shift @tables;
 is( $t2->name, 'qtl_trait', 'Table "qtl_trait" exists' );
+is( $t2->comments, 'foo bar comment', 'Comment "foo bar" exists' );
 
 my @t2_fields = $t2->get_fields;
 is( scalar @t2_fields, 4, '4 fields in table' );
@@ -197,6 +201,15 @@ is( scalar @t3_fields, 8, '8 fields in table' );
 
 my @t3_constraints = $t3->get_constraints;
 is( scalar @t3_constraints, 3, '3 constraints on table' );
+
+is( $t3->comments, 'qtl table comment', 'Comment "qtl table comment" exists' );
+
+my $t3_f1     = shift @t3_fields;
+is( $t3_f1->comments, 'qtl_id comment', 'Comment "qtl_id comment" exists' );
+
+my $t3_f2     = shift @t3_fields;
+is( $t3_f2->comments, 'accession comment', 
+    'Comment "accession comment" exists' );
 
 #
 # qtl_trait_synonym

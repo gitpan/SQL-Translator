@@ -8,7 +8,7 @@ use File::Temp qw(tempfile);
 use FindBin qw($Bin);
 use Test;
 
-my @script = qw(blib script sqlt-diagram.pl);
+my @script = qw(blib script sqlt-diagram);
 my @data = qw(data mysql Apache-Session-MySQL.sql);
 
 my $sqlt_diagram = (-d "blib")
@@ -39,4 +39,5 @@ if ($@ && $@ =~ /locate GD.pm in /) {
     eval { system(@cmd); };
     ok(!$@ && ($? == 0));
     ok(-e $tmp); 
+    eval { unlink $tmp; };
 }
