@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Field;
 
 # ----------------------------------------------------------------------
-# $Id: Field.pm,v 1.19 2004/07/09 00:46:28 grommit Exp $
+# $Id: Field.pm,v 1.22 2004/11/05 15:03:10 grommit Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -43,14 +43,14 @@ C<SQL::Translator::Schema::Field> is the field object.
 =cut
 
 use strict;
-use Class::Base;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils 'parse_list_arg';
 
-use base 'Class::Base';
+use base 'SQL::Translator::Schema::Object';
+
 use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.19 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.22 $ =~ /(\d+)\.(\d+)/;
 
 # Stringify to our name, being careful not to pass any args through so we don't
 # accidentally set it to undef. We also have to tweak bool so the object is
@@ -62,7 +62,12 @@ use overload
 ;
 
 # ----------------------------------------------------------------------
-sub init {
+
+__PACKAGE__->_attributes( qw/
+    table name data_type size is_primary_key is_nullable
+    is_auto_increment default_value comments is_foreign_key
+    is_unique order
+/);
 
 =pod
 
@@ -76,21 +81,6 @@ Object constructor.
   );
 
 =cut
-
-    my ( $self, $config ) = @_;
-
-    for my $arg (
-        qw[
-            table name data_type size is_primary_key is_nullable
-            is_auto_increment default_value comments extra
-        ]
-    ) {
-        next unless defined $config->{ $arg };
-        defined $self->$arg( $config->{ $arg } ) or return;
-    }
-
-    return $self;
-}
 
 # ----------------------------------------------------------------------
 sub comments {
@@ -167,8 +157,6 @@ assume an error like other methods.
 }
 
 # ----------------------------------------------------------------------
-sub extra {
-
 =pod
 
 =head2 extra
@@ -181,15 +169,6 @@ Accepts a hash(ref) of name/value pairs to store;  returns a hash.
 
 =cut
 
-    my $self = shift;
-    my $args = ref $_[0] eq 'HASH' ? shift : { @_ };
-
-    while ( my ( $key, $value ) = each %$args ) {
-        $self->{'extra'}{ $key } = $value;
-    }
-
-    return %{ $self->{'extra'} || {} };
-}
 
 # ----------------------------------------------------------------------
 sub foreign_key_reference {

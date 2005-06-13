@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Procedure;
 
 # ----------------------------------------------------------------------
-# $Id: Procedure.pm,v 1.2 2004/02/09 22:15:15 kycl4rk Exp $
+# $Id: Procedure.pm,v 1.4 2004/11/05 13:19:31 grommit Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -48,16 +48,19 @@ stored procedures (and possibly other pieces of nameable SQL code?).
 =cut
 
 use strict;
-use Class::Base;
 use SQL::Translator::Utils 'parse_list_arg';
 
-use base 'Class::Base';
+use base 'SQL::Translator::Schema::Object';
+
 use vars qw($VERSION);
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.4 $ =~ /(\d+)\.(\d+)/;
 
 # ----------------------------------------------------------------------
-sub init {
+
+__PACKAGE__->_attributes( qw/
+    name sql parameters comments owner sql schema order
+/);
 
 =pod
 
@@ -68,16 +71,6 @@ Object constructor.
   my $schema = SQL::Translator::Schema::Procedure->new;
 
 =cut
-
-    my ( $self, $config ) = @_;
-
-    for my $arg ( qw[ name sql parameters comments owner sql schema ] ) {
-        next unless $config->{ $arg };
-        $self->$arg( $config->{ $arg } ) or return;
-    }
-
-    return $self;
-}
 
 # ----------------------------------------------------------------------
 sub parameters {

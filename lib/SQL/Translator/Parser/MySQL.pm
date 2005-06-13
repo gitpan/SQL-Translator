@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm,v 1.44 2004/03/01 17:39:22 kycl4rk Exp $
+# $Id: MySQL.pm,v 1.47 2005/06/10 18:12:37 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -117,11 +117,24 @@ Here's the word from the MySQL site
   or      DATA DIRECTORY="absolute path to directory"
   or      INDEX DIRECTORY="absolute path to directory"
 
+A subset of the ALTER TABLE syntax that allows addition of foreign keys:
+
+  ALTER [IGNORE] TABLE tbl_name alter_specification [, alter_specification] ...
+
+  alter_specification:
+          ADD [CONSTRAINT [symbol]]
+          FOREIGN KEY [index_name] (index_col_name,...)
+             [reference_definition]
+
+A subset of INSERT that we ignore:
+
+  INSERT anything
+
 =cut
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.44 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.47 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -139,7 +152,7 @@ $::RD_HINT   = 1; # Give out hints to help fix problems.
 $GRAMMAR = q!
 
 { 
-    my ( %tables, $table_order, @table_comments );
+    my ( $database_name, %tables, $table_order, @table_comments );
 }
 
 #
@@ -148,7 +161,9 @@ $GRAMMAR = q!
 # won't cause the failure needed to know that the parse, as a whole,
 # failed. -ky
 #
-startrule : statement(s) eofile { \%tables }
+startrule : statement(s) eofile { 
+    { tables => \%tables, database_name => $database_name } 
+}
 
 eofile : /^\Z/
 
@@ -157,10 +172,15 @@ statement : comment
     | set
     | drop
     | create
+    | alter
+    | insert
     | <error>
 
 use : /use/i WORD ';'
-    { @table_comments = () }
+    {
+        $database_name = $item[2];
+        @table_comments = ();
+    }
 
 set : /set/i /[^;]+/ ';'
     { @table_comments = () }
@@ -170,10 +190,26 @@ drop : /drop/i TABLE /[^;]+/ ';'
 drop : /drop/i WORD(s) ';'
     { @table_comments = () }
 
+insert : /insert/i  /[^;]+/ ';'
+
+alter : ALTER TABLE table_name alter_specification(s /,/) ';'
+    {
+        my $table_name                       = $item{'table_name'};
+    die "Cannot ALTER table '$table_name'; it does not exist"
+        unless $tables{ $table_name };
+        for my $definition ( @{ $item[4] } ) { 
+        $definition->{'extra'}->{'alter'} = 1;
+        push @{ $tables{ $table_name }{'constraints'} }, $definition;
+    }
+    }
+
+alter_specification : ADD foreign_key_def
+    { $return = $item[2] }
+
 create : CREATE /database/i WORD ';'
     { @table_comments = () }
 
-create : CREATE TEMPORARY(?) TABLE opt_if_not_exists(?) table_name '(' create_definition(s /,/) ')' table_option(s?) ';'
+create : CREATE TEMPORARY(?) TABLE opt_if_not_exists(?) table_name '(' create_definition(s /,/) /(,\s*)?\)/ table_option(s?) ';'
     { 
         my $table_name                       = $item{'table_name'};
         $tables{ $table_name }{'order'}      = ++$table_order;
@@ -245,6 +281,13 @@ comment : /^\s*(?:#|-{2}).*\n/
         push @table_comments, $comment;
     }
 
+comment : /\/\*/ /[^\*]+/ /\*\// ';'
+    {
+        my $comment = $item[2];
+        $comment    =~ s/^\s*|\s*$//g;
+        $return = $comment;
+    }
+
 field_comment : /^\s*(?:#|-{2}).*\n/ 
     { 
         my $comment =  $item[1];
@@ -255,7 +298,7 @@ field_comment : /^\s*(?:#|-{2}).*\n/
 
 blank : /\s*/
 
-field : field_comment(s?) field_name data_type field_qualifier(s?) reference_definition(?) field_comment(s?)
+field : field_comment(s?) field_name data_type field_qualifier(s?) reference_definition(?) on_update_do(?) field_comment(s?)
     { 
         my %qualifiers  = map { %$_ } @{ $item{'field_qualifier(s?)'} || [] };
         if ( my @type_quals = @{ $item{'data_type'}{'qualifiers'} || [] } ) {
@@ -343,7 +386,11 @@ match_type : /match full/i { 'full' }
 on_delete_do : /on delete/i reference_option
     { $item[2] }
 
-on_update_do : /on update/i reference_option
+on_update_do : 
+    /on update/i 'CURRENT_TIMESTAMP'
+    { $item[2] }
+    |
+    /on update/i reference_option
     { $item[2] }
 
 reference_option: /restrict/i | 
@@ -388,7 +435,7 @@ data_type    : WORD parens_value_list(s?) type_qualifier(s?)
             elsif ( lc $type eq 'mediumint' ) {
                 $size = 9;
             }
-            elsif ( $type =~ /^int(eger)?$/ ) {
+            elsif ( $type =~ /^int(eger)?$/i ) {
                 $type = 'int';
                 $size = 11;
             }
@@ -436,7 +483,11 @@ field_type   : WORD
 
 create_index : /create/i /index/i
 
-not_null     : /not/i /null/i { $return = 0 }
+not_null     : /not/i /null/i 
+    { $return = 0 }
+    |
+    /null/i
+    { $return = 1 }
 
 unsigned     : /unsigned/i { $return = 0 }
 
@@ -446,7 +497,13 @@ unsigned     : /unsigned/i { $return = 0 }
 #        $return  =  $item[2];
 #    }
 
-default_val : /default/i /'(?:.*?\\')*.*?'|(?:')?[\w\d:.-]*(?:')?/
+default_val : 
+    /default/i 'CURRENT_TIMESTAMP'
+    {
+        $return =  $item[2];
+    }
+    |
+    /default/i /'(?:.*?\\')*.*?'|(?:')?[\w\d:.-]*(?:')?/
     {
         $item[2] =~ s/^\s*'|'\s*$//g;
         $return  =  $item[2];
@@ -472,10 +529,16 @@ foreign_key_def : foreign_key_def_begin parens_field_list reference_definition
         }
     }
 
-foreign_key_def_begin : /constraint/i /foreign key/i 
+foreign_key_def_begin : /constraint/i /foreign key/i WORD
+    { $return = $item[3] }
+    |
+    /constraint/i NAME /foreign key/i
+    { $return = $item[2] }
+    |
+    /constraint/i /foreign key/i
     { $return = '' }
     |
-    /constraint/i WORD /foreign key/i
+    /foreign key/i WORD
     { $return = $item[2] }
     |
     /foreign key/i
@@ -528,10 +591,18 @@ UNIQUE : /unique/i { 1 }
 
 KEY : /key/i | /index/i
 
-table_option : WORD /\s*=\s*/ WORD
+table_option : 'DEFAULT CHARSET' /\s*=\s*/ WORD
     { 
         $return = { $item[1] => $item[3] };
     }
+    | WORD /\s*=\s*/ WORD
+    { 
+        $return = { $item[1] => $item[3] };
+    }
+
+ADD : /add/i
+
+ALTER : /alter/i
 
 CREATE : /create/i
 
@@ -579,15 +650,19 @@ sub parse {
 
     my $result = $parser->startrule($data);
     return $translator->error( "Parse failed." ) unless defined $result;
-    warn Dumper( $result ) if $DEBUG;
+    warn "Parse result:".Dumper( $result ) if $DEBUG;
 
     my $schema = $translator->schema;
+    $schema->name($result->{'database_name'}) if $result->{'database_name'};
+
     my @tables = sort { 
-        $result->{ $a }->{'order'} <=> $result->{ $b }->{'order'}
-    } keys %{ $result };
+        $result->{'tables'}{ $a }{'order'} 
+        <=> 
+        $result->{'tables'}{ $b }{'order'}
+    } keys %{ $result->{'tables'} };
 
     for my $table_name ( @tables ) {
-        my $tdata =  $result->{ $table_name };
+        my $tdata =  $result->{tables}{ $table_name };
         my $table =  $schema->add_table( 
             name  => $tdata->{'table_name'},
         ) or die $schema->error;

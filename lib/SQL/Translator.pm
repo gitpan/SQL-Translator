@@ -1,7 +1,7 @@
 package SQL::Translator;
 
 # ----------------------------------------------------------------------
-# $Id: Translator.pm,v 1.57 2004/04/22 19:59:46 kycl4rk Exp $
+# $Id: Translator.pm,v 1.68 2005/06/09 02:02:00 grommit Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 The SQLFairy Authors
 #
@@ -26,8 +26,8 @@ use base 'Class::Base';
 
 require 5.004;
 
-$VERSION  = '0.06';
-$REVISION = sprintf "%d.%02d", q$Revision: 1.57 $ =~ /(\d+)\.(\d+)/;
+$VERSION  = '0.07';
+$REVISION = sprintf "%d.%02d", q$Revision: 1.68 $ =~ /(\d+)\.(\d+)/;
 $DEBUG    = 0 unless defined $DEBUG;
 $ERROR    = "";
 
@@ -73,13 +73,14 @@ sub init {
     $self->parser  ($config->{'parser'}   || $config->{'from'} || $DEFAULT_SUB);
     $self->producer($config->{'producer'} || $config->{'to'}   || $DEFAULT_SUB);
 
-        #
-        # Set up callbacks for formatting of pk,fk,table,package names in producer
-        #
-        $self->format_table_name($config->{'format_table_name'});
-        $self->format_package_name($config->{'format_package_name'});
-        $self->format_fk_name($config->{'format_fk_name'});
-        $self->format_pk_name($config->{'format_pk_name'});
+    #
+    # Set up callbacks for formatting of pk,fk,table,package names in producer
+    # MOVED TO PRODUCER ARGS
+    #
+    #$self->format_table_name($config->{'format_table_name'});
+    #$self->format_package_name($config->{'format_package_name'});
+    #$self->format_fk_name($config->{'format_fk_name'});
+    #$self->format_pk_name($config->{'format_pk_name'});
 
     #
     # Set the parser_args and producer_args
@@ -89,13 +90,21 @@ sub init {
     }
 
     #
+    # Initialize the filters.
+    #
+    if ( $config->{filters} && ref $config->{filters} eq "ARRAY" ) {
+        $self->filters( @{$config->{filters}} )
+        || return $self->error('Error inititializing filters: '.$self->error);
+    }
+
+    #
     # Set the data source, if 'filename' or 'file' is provided.
     #
     $config->{'filename'} ||= $config->{'file'} || "";
     $self->filename( $config->{'filename'} ) if $config->{'filename'};
 
     #
-    # Finally, if there is a 'data' parameter, use that in 
+    # Finally, if there is a 'data' parameter, use that in
     # preference to filename and file
     #
     if ( my $data = $config->{'data'} ) {
@@ -108,7 +117,7 @@ sub init {
     $self->{'debug'} = defined $config->{'debug'} ? $config->{'debug'} : $DEBUG;
 
     $self->add_drop_table( $config->{'add_drop_table'} );
-    
+
     $self->no_comments( $config->{'no_comments'} );
 
     $self->show_warnings( $config->{'show_warnings'} );
@@ -150,68 +159,12 @@ sub no_comments {
 # Get or set the producer for the current translator.
 # ----------------------------------------------------------------------
 sub producer {
-    my $self = shift;
-
-    # producer as a mutator
-    if (@_) {
-        my $producer = shift;
-
-        # Passed a module name (string containing "::")
-        if ($producer =~ /::/) {
-            my $func_name;
-
-            # Module name was passed directly
-            # We try to load the name; if it doesn't load, there's
-            # a possibility that it has a function name attached to
-            # it.
-            if (load($producer)) {
-                $func_name = "produce";
-            } 
-
-            # Module::function was passed
-            else {
-                # Passed Module::Name::function; try to recover
-                my @func_parts = split /::/, $producer;
-                $func_name = pop @func_parts;
-                $producer = join "::", @func_parts;
-
-                # If this doesn't work, then we have a legitimate
-                # problem.
-                load($producer) or die "Can't load $producer: $@";
-            }
-
-            # get code reference and assign
-            $self->{'producer'} = \&{ "$producer\::$func_name" };
-            $self->{'producer_type'} = $producer;
-            $self->debug("Got producer: $producer\::$func_name\n");
-        } 
-
-        # passed an anonymous subroutine reference
-        elsif (isa($producer, 'CODE')) {
-            $self->{'producer'} = $producer;
-            $self->{'producer_type'} = "CODE";
-            $self->debug("Got producer: code ref\n");
-        } 
-
-        # passed a string containing no "::"; relative package name
-        else {
-            $producer =~ s/-/::/g;
-            my $Pp = sprintf "SQL::Translator::Producer::$producer";
-            load($Pp) or die "Can't load $Pp: $@";
-            $self->{'producer'} = \&{ "$Pp\::produce" };
-            $self->{'producer_type'} = $Pp;
-            $self->debug("Got producer: $Pp\n");
-        }
-
-        # At this point, $self->{'producer'} contains a subroutine
-        # reference that is ready to run
-
-        # Anything left?  If so, it's producer_args
-        $self->producer_args(@_) if (@_);
-    }
-
-    return $self->{'producer'};
-};
+    shift->_tool({
+            name => 'producer',
+            path => "SQL::Translator::Producer",
+            default_sub => "produce",
+    }, @_);
+}
 
 # ----------------------------------------------------------------------
 # producer_type()
@@ -234,86 +187,57 @@ sub producer_type { $_[0]->{'producer_type'} }
 # is cleared; all subsequent elements are added to the hash of name,
 # value pairs stored as producer_args.
 # ----------------------------------------------------------------------
-sub producer_args {
-    my $self = shift;
-    return $self->_args("producer", @_);
-}
+sub producer_args { shift->_args("producer", @_); }
 
 # ----------------------------------------------------------------------
 # parser([$parser_spec])
 # ----------------------------------------------------------------------
 sub parser {
+    shift->_tool({
+        name => 'parser',
+        path => "SQL::Translator::Parser",
+        default_sub => "parse",
+    }, @_);
+}
+
+sub parser_type { $_[0]->{'parser_type'}; }
+
+sub parser_args { shift->_args("parser", @_); }
+
+# ----------------------------------------------------------------------
+# e.g.
+#   $sqlt->filters => [
+#       sub { },
+#       [ "NormalizeNames", field => "lc", tabel => "ucfirst" ],
+#       [
+#           "DataTypeMap",
+#           "TEXT" => "BIGTEXT",
+#       ],
+#   ],
+# ----------------------------------------------------------------------
+sub filters {
     my $self = shift;
+    my $filters = $self->{filters} ||= [];
+    return @$filters unless @_;
 
-    # parser as a mutator
-    if (@_) {
-        my $parser = shift;
-
-        # Passed a module name (string containing "::")
-        if ($parser =~ /::/) {
-            my $func_name;
-
-            # Module name was passed directly
-            # We try to load the name; if it doesn't load, there's
-            # a possibility that it has a function name attached to
-            # it.
-            if (load($parser)) {
-                $func_name = "parse";
-            }
-
-            # Module::function was passed
-            else {
-                # Passed Module::Name::function; try to recover
-                my @func_parts = split /::/, $parser;
-                $func_name = pop @func_parts;
-                $parser = join "::", @func_parts;
-
-                # If this doesn't work, then we have a legitimate
-                # problem.
-                load($parser) or die "Can't load $parser: $@";
-            } 
-
-            # get code reference and assign
-            $self->{'parser'} = \&{ "$parser\::$func_name" };
-            $self->{'parser_type'} = $parser;
-            $self->debug("Got parser: $parser\::$func_name\n");
+    # Set. Convert args to list of [\&code,@args]
+    foreach (@_) {
+        my ($filt,@args) = ref($_) eq "ARRAY" ? @$_ : $_;
+        if ( isa($filt,"CODE") ) {
+            push @$filters, [$filt,@args];
+            next;
         }
-
-        # passed an anonymous subroutine reference
-        elsif ( isa( $parser, 'CODE' ) ) {
-            $self->{'parser'}      = $parser;
-            $self->{'parser_type'} = "CODE";
-            $self->debug("Got parser: code ref\n");
-        } 
-
-        # passed a string containing no "::"; relative package name
         else {
-            $parser =~ s/-/::/g;
-            my $Pp = "SQL::Translator::Parser::$parser";
-            load( $Pp ) or die "Can't load $Pp: $@";
-            $self->{'parser'}      = \&{ "$Pp\::parse" };
-            $self->{'parser_type'} = $Pp;
-            $self->debug("Got parser: $Pp\n");
-        } 
-
-        #
-        # At this point, $self->{'parser'} contains a subroutine
-        # reference that is ready to run
-        #
-        $self->parser_args( @_ ) if (@_);
+            $self->debug("Adding $filt filter. Args:".Dumper(\@args)."\n");
+            $filt = _load_sub("$filt\::filter", "SQL::Translator::Filter")
+            || return $self->error(__PACKAGE__->error);
+            push @$filters, [$filt,@args];
+        }
     }
-
-    return $self->{'parser'};
+    return @$filters;
 }
 
 # ----------------------------------------------------------------------
-sub parser_type { $_[0]->{'parser_type'} }
-
-sub parser_args {
-    my $self = shift;
-    return $self->_args("parser", @_);
-}
-
 sub show_warnings {
     my $self = shift;
     my $arg  = shift;
@@ -426,7 +350,9 @@ sub schema {
     my $self = shift;
 
     unless ( defined $self->{'schema'} ) {
-        $self->{'schema'} = SQL::Translator::Schema->new;
+        $self->{'schema'} = SQL::Translator::Schema->new(
+            translator      => $self,
+        );
     }
 
     return $self->{'schema'};
@@ -463,7 +389,7 @@ sub translate {
     my ($parser_output, $producer_output);
 
     # Parse arguments
-    if (@_ == 1) { 
+    if (@_ == 1) {
         # Passed a reference to a hash?
         if (isa($_[0], 'HASH')) {
             # yep, a hashref
@@ -546,12 +472,14 @@ sub translate {
     $producer_type = $self->producer_type;
 
     # ----------------------------------------------------------------
-    # Execute the parser, then execute the producer with that output.
+    # Execute the parser, the filters and then execute the producer.
     # Allowances are made for each piece to die, or fail to compile,
     # since the referenced subroutines could be almost anything.  In
     # the future, each of these might happen in a Safe environment,
     # depending on how paranoid we want to be.
     # ----------------------------------------------------------------
+
+    # Run parser
     unless ( defined $self->{'schema'} ) {
         eval { $parser_output = $parser->($self, $$data) };
         if ($@ || ! $parser_output) {
@@ -560,14 +488,25 @@ sub translate {
             return $self->error($msg);
         }
     }
-
     $self->debug("Schema =\n", Dumper($self->schema), "\n");
 
+    # Validate the schema if asked to.
     if ($self->validate) {
         my $schema = $self->schema;
         return $self->error('Invalid schema') unless $schema->is_valid;
     }
 
+    # Run filters
+    my $filt_num = 0;
+    foreach ($self->filters) {
+        $filt_num++;
+        my ($code,@args) = @$_;
+        eval { $code->($self->schema, @args) };
+        my $err = $@ || $self->error || 0;
+        return $self->error("Error with filter $filt_num : $err") if $err;
+    }
+
+    # Run producer
     eval { $producer_output = $producer->($self) };
     if ($@ || ! $producer_output) {
         my $err = $@ || $self->error || "no results";
@@ -648,6 +587,67 @@ sub _args {
 }
 
 # ----------------------------------------------------------------------
+# Does the get/set work for parser and producer. e.g.
+# return $self->_tool({ 
+#   name => 'producer', 
+#   path => "SQL::Translator::Producer",
+#   default_sub => "produce",
+# }, @_);
+# ----------------------------------------------------------------------
+sub _tool {
+    my ($self,$args) = (shift, shift);
+    my $name = $args->{name};
+    return $self->{$name} unless @_; # get accessor
+
+    my $path = $args->{path};
+    my $default_sub = $args->{default_sub};
+    my $tool = shift;
+   
+    # passed an anonymous subroutine reference
+    if (isa($tool, 'CODE')) {
+        $self->{$name} = $tool;
+        $self->{"$name\_type"} = "CODE";
+        $self->debug("Got $name: code ref\n");
+    }
+
+    # Module name was passed directly
+    # We try to load the name; if it doesn't load, there's a
+    # possibility that it has a function name attached to it,
+    # so we give it a go.
+    else {
+        $tool =~ s/-/::/g if $tool !~ /::/;
+        my ($code,$sub);
+        ($code,$sub) = _load_sub("$tool\::$default_sub", $path);
+        unless ($code) {
+            if ( __PACKAGE__->error =~ m/Can't find module/ ) {
+                # Mod not found so try sub
+                ($code,$sub) = _load_sub("$tool", $path) unless $code;
+                die "Can't load $name subroutine '$tool' : ".__PACKAGE__->error
+                unless $code;
+            }
+            else {
+                die "Can't load $name '$tool' : ".__PACKAGE__->error;
+            }
+        }
+
+        # get code reference and assign
+        my (undef,$module,undef) = $sub =~ m/((.*)::)?(\w+)$/;
+        $self->{$name} = $code;
+        $self->{"$name\_type"} = $sub eq "CODE" ? "CODE" : $module;
+        $self->debug("Got $name: $sub\n");
+    }
+
+    # At this point, $self->{$name} contains a subroutine
+    # reference that is ready to run
+
+    # Anything left?  If so, it's args
+    my $meth = "$name\_args";
+    $self->$meth(@_) if (@_);
+
+    return $self->{$name};
+}
+
+# ----------------------------------------------------------------------
 # _list($type)
 # ----------------------------------------------------------------------
 sub _list {
@@ -705,21 +705,60 @@ sub _list {
 }
 
 # ----------------------------------------------------------------------
-# load($module)
+# load(MODULE [,PATH[,PATH]...])
 #
 # Loads a Perl module.  Short circuits if a module is already loaded.
+#
+# MODULE - is the name of the module to load.
+#
+# PATH - optional list of 'package paths' to look for the module in. e.g
+# If you called load('Super::Foo' => 'My', 'Other') it will
+# try to load the mod Super::Foo then My::Super::Foo then Other::Super::Foo.
+#
+# Returns package name of the module actually loaded or false and sets error.
+#
+# Note, you can't load a name from the root namespace (ie one without '::' in
+# it), therefore a single word name without a path fails.
 # ----------------------------------------------------------------------
 sub load {
-    my $module = do { my $m = shift; $m =~ s[::][/]g; "$m.pm" };
-    return 1 if $INC{$module};
+    my $name = shift;
+    my @path;
+    push @path, "" if $name =~ /::/; # Empty path to check name on its own first
+    push @path, @_ if @_;
 
-    eval {
-        require $module;
-        $module->import(@_);
-    };
+    foreach (@path) {
+        my $module = $_ ? "$_\::$name" : $name;
+        my $file = $module; $file =~ s[::][/]g; $file .= ".pm";
+        __PACKAGE__->debug("Loading $name as $file\n");
+        return $module if $INC{$file}; # Already loaded
 
-    return __PACKAGE__->error($@) if ($@);
-    return 1;
+        eval { require $file };
+        next if $@ =~ /Can't locate $file in \@INC/; 
+        eval { $module->import() } unless $@;
+        return __PACKAGE__->error("Error loading $name as $module : $@")
+        if $@ && $@ !~ /"SQL::Translator::Producer" is not exported/;
+
+        return $module; # Module loaded ok
+    }
+
+    return __PACKAGE__->error("Can't find module $name. Path:".join(",",@path));
+}
+
+# ----------------------------------------------------------------------
+# Load the sub name given (including package), optionally using a base package
+# path. Returns code ref and name of sub loaded, including its package.
+# (\&code, $sub) = load_sub( 'MySQL::produce', "SQL::Translator::Producer" );
+# (\&code, $sub) = load_sub( 'MySQL::produce', @path );
+# ----------------------------------------------------------------------
+sub _load_sub {
+    my ($tool, @path) = @_;
+
+    my (undef,$module,$func_name) = $tool =~ m/((.*)::)?(\w+)$/;
+    if ( my $module = load($module => @path) ) {
+        my $sub = "$module\::$func_name";
+        return wantarray ? ( \&{ $sub }, $sub ) : \&$sub;
+    }
+    return undef;
 }
 
 # ----------------------------------------------------------------------
@@ -743,7 +782,7 @@ sub format_pk_name {
 }
 
 # ----------------------------------------------------------------------
-# The other format_*_name methods rely on this one.  It optionally 
+# The other format_*_name methods rely on this one.  It optionally
 # accepts a subroutine ref as the first argument (or uses an identity
 # sub if one isn't provided or it doesn't already exist), and applies
 # it to the rest of the arguments (if any).
@@ -816,15 +855,15 @@ SQL::Translator - manipulate structured data definitions (SQL and more)
       # Print debug info
       debug               => 1,
       # Print Parse::RecDescent trace
-      trace               => 0, 
+      trace               => 0,
       # Don't include comments in output
-      no_comments         => 0, 
+      no_comments         => 0,
       # Print name mutations, conflicts
-      show_warnings       => 0, 
+      show_warnings       => 0,
       # Add "drop table" statements
-      add_drop_table      => 1, 
+      add_drop_table      => 1,
       # Validate schema object
-      validate            => 1, 
+      validate            => 1,
       # Make all table names CAPS in producers which support this option
       format_table_name   => sub {my $tablename = shift; return uc($tablename)},
       # Null-op formatting, only here for documentation's sake
@@ -837,7 +876,7 @@ SQL::Translator - manipulate structured data definitions (SQL and more)
       from       => 'MySQL',
       to         => 'Oracle',
       # Or an arrayref of filenames, i.e. [ $file1, $file2, $file3 ]
-      filename   => $file, 
+      filename   => $file,
   ) or die $translator->error;
 
   print $output;
@@ -883,6 +922,10 @@ producer / to
 =item *
 
 producer_args
+
+=item *
+
+filters
 
 =item *
 
@@ -1023,6 +1066,56 @@ entirety of the data to be parsed.
 There is also C<parser_type> and C<parser_args>, which perform
 analogously to C<producer_type> and C<producer_args>
 
+=head2 filters
+
+Set or retreive the filters to run over the schema during the
+translation, before the producer creates its output. Filters are sub
+routines called, in order, with the schema object to filter as the 1st
+arg and a hash of options (passed as a list) for the rest of the args.
+They are free to do whatever they want to the schema object, which will be
+handed to any following filters, then used by the producer.
+
+Filters are set as an array, which gives the order they run in.
+Like parsers and producers, they can be defined by a module name, a
+module name relative to the SQL::Translator::Filter namespace, a module
+name and function name together or a reference to an anonymous subroutine.
+When using a module name a function called C<filter> will be invoked in
+that package to do the work.
+
+To pass args to the filter set it as an array ref with the 1st value giving
+the filter (name or sub) and the rest its args. e.g.
+
+ $tr->filters(
+     sub {
+        my $schema = shift;
+        # Do stuff to schema here!
+     },
+     DropFKeys,
+     [ "Names", table => 'lc' ],
+     [ "Foo",   foo => "bar", hello => "world" ],
+     [ "Filter5" ],
+ );
+
+Although you normally set them in the constructor, which calls
+through to filters. i.e.
+
+  my $translator  = SQL::Translator->new(
+      ...
+      filters => [
+          sub { ... },
+          [ "Names", table => 'lc' ],
+      ],
+      ...
+  );
+
+See F<t/36-filters.t> for more examples.
+
+Multiple set calls to filters are cumulative with new filters added to
+the end of the current list.
+
+Returns the filters as a list of array refs, the 1st value being a
+reference to the filter sub and the rest its args.
+
 =head2 show_warnings
 
 Toggles whether to print warnings of name conflicts, identifier
@@ -1033,11 +1126,12 @@ current value.
 
 =head2 translate
 
-The C<translate> method calls the subroutines referenced by the
-C<parser> and C<producer> data members (described above).  It accepts
-as arguments a number of things, in key => value format, including
-(potentially) a parser and a producer (they are passed directly to the
-C<parser> and C<producer> methods).
+The C<translate> method calls the subroutine referenced by the
+C<parser> data member, then calls any C<filters> and finally calls
+the C<producer> sub routine (these members are described above).
+It accepts as arguments a number of things, in key => value format,
+including (potentially) a parser and a producer (they are passed
+directly to the C<parser> and C<producer> methods).
 
 Here is how the parameter list to C<translate> is parsed:
 

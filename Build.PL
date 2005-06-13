@@ -1,4 +1,4 @@
-# $Id: Build.PL,v 1.1 2004/07/30 15:27:36 kycl4rk Exp $
+# $Id: Build.PL,v 1.6 2005/05/26 19:45:43 mwz444 Exp $
 
 use strict;
 use Module::Build;
@@ -19,11 +19,14 @@ my $builder           =  Module::Build->new(
         'bin/sqlt',
     ],
     requires          => {
-        'Class::Base'             => 0,
-        'IO::Dir'                 => 0,
-        'Template'                => 2.10,
-        'Parse::RecDescent'       => 1.94,
-        'Pod::Usage'              => 0,
+        'Class::Base'              => 0,
+        'Class::Data::Inheritable' => 0.02,
+        'Class::MakeMethods'       => 0,
+        'IO::Dir'                  => 0,
+        'Log::Log4perl'            => 0,
+        'Template'                 => 2.10,
+        'Parse::RecDescent'        => 1.94,
+        'Pod::Usage'               => 0,
     },
     recommends        => {
         'GD'                      => 0,
@@ -35,12 +38,12 @@ my $builder           =  Module::Build->new(
         'Text::RecordParser'      => 0.02,
         'XML::Writer'             => 0.500,
         'XML::XPath'              => 1.13,
-        'YAML'                    => 0,
+        'YAML'                    => 0.39,
     },
     build_requires    => {
         'File::Basename'          => 0,
         'File::Spec'              => 0,
-        'Test::More'              => 0,
+        'Test::More'              => 0.6,
         'Test::Exception'         => 0,
         'Test::Differences'       => 0,
     }

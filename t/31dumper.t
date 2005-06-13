@@ -16,6 +16,7 @@ use Symbol qw(gensym);
 BEGIN {
     maybe_plan(
         5, 
+        'DBI',
         'SQL::Translator::Parser::SQLite',
         'SQL::Translator::Producer::Dumper'
     );
@@ -48,7 +49,7 @@ close $fh or die "Can't close file '$filename': $!";
 
 my $perl = $Config{'perlpath'};
 open( NULL, ">", File::Spec->devnull );
-my $pid = open3( gensym, ">&NULL", \*PH, "$perl -cw $filename" );
+my $pid = open3( gensym, \*NULL, \*PH, "$perl -cw $filename" );
 my $res;
 while( <PH> ) { $res .= $_;  }
 waitpid($pid, 0);

@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Index;
 
 # ----------------------------------------------------------------------
-# $Id: Index.pm,v 1.8 2004/02/09 22:15:15 kycl4rk Exp $
+# $Id: Index.pm,v 1.10 2004/11/05 13:19:31 grommit Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -46,14 +46,14 @@ Primary and unique keys are table constraints, not indices.
 =cut
 
 use strict;
-use Class::Base;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils 'parse_list_arg';
 
-use base 'Class::Base';
+use base 'SQL::Translator::Schema::Object';
+
 use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/;
 
 my %VALID_INDEX_TYPE = (
     UNIQUE,    1,
@@ -62,7 +62,10 @@ my %VALID_INDEX_TYPE = (
 );
 
 # ----------------------------------------------------------------------
-sub init {
+
+__PACKAGE__->_attributes( qw/
+    name type fields table
+/);
 
 =pod
 
@@ -73,16 +76,6 @@ Object constructor.
   my $schema = SQL::Translator::Schema::Index->new;
 
 =cut
-
-    my ( $self, $config ) = @_;
-
-    for my $arg ( qw[ name type fields table ] ) {
-        next unless $config->{ $arg };
-        defined $self->$arg( $config->{ $arg } ) or return;
-    }
-
-    return $self;
-}
 
 # ----------------------------------------------------------------------
 sub fields {

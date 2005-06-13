@@ -1,4 +1,35 @@
 # -----------------------------------------------------------
+# 0.7    2005-06-10
+# -----------------------------------------------------------
+*   YAML parser supports extra attributes on tables.
+
+*   All schema objects now support the extra attribute, so can
+    have arbitary name/value data attached to them.
+
+*   Refactoring: Added SQL::Translator::Schema::Object - base 
+    class for all Schema objects.
+
+*   Changes to MySQL Parser (Dave Howorth)
+    - ignore INSERT statements
+    - permit ALTER TABLE ADD FOREIGN KEY
+    - allow trailing comma on last field in CREATE statements
+    - collect the database name
+
+*   TTSchema Producer
+    - Can pass extra variables using tt_vars producer arg.
+    - Can pass extra config using tt_conf producer arg.
+    - Variables and config can be passed on the command line
+      with --tt-var and --tt-conf options to sqlt.
+
+*   Added schema filters.
+
+*   MySQL Producer
+    - Added 'mysql_table_type' extra attribute on tables.
+    - Works out InnoDB tables from constraints.
+    - mysql_charset and mysql_collate extra attributes for tables and fiels.
+
+
+# -----------------------------------------------------------
 # 0.06    2004-05-13
 # -----------------------------------------------------------
 *   Added SQL::Translator::Manual

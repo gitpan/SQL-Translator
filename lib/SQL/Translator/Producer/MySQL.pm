@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm,v 1.37 2004/08/11 21:55:34 kycl4rk Exp $
+# $Id: MySQL.pm,v 1.43 2005/06/08 14:44:07 grommit Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -40,11 +40,50 @@ There are still some issues to be worked out with syntax differences
 between MySQL versions 3 and 4 ("SET foreign_key_checks," character sets
 for fields, etc.).
 
+=head2 Table Types
+
+Normally the tables will be created without any explicit table type given and
+so will use the MySQL default.
+
+Any tables involved in foreign key constraints automatically get a table type
+of InnoDB, unless this is overridden by setting the C<mysql_table_type> extra
+attribute explicitly on the table.
+
+=head2 Extra attributes.
+
+The producer recognises the following extra attributes on the Schema objects.
+
+=over 4
+
+=item field.list
+
+Set the list of allowed values for Enum fields.
+
+=item field.binary field.unsigned field.zerofill
+
+Set the MySQL field options of the same name.
+
+=item table.mysql_table_type
+
+Set the type of the table e.g. 'InnoDB', 'MyISAM'. This will be
+automatically set for tables involved in foreign key constraints if it is
+not already set explicitly. See L<"Table Types">.
+
+=item table.mysql_charset table.mysql_collate
+
+Set the tables default charater set and collation order.
+
+=item field.mysql_charset field.mysql_collate
+
+Set the fields charater set and collation order.
+
+=back
+
 =cut
 
 use strict;
 use vars qw[ $VERSION $DEBUG ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.37 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.43 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -85,6 +124,7 @@ sub produce {
     my $no_comments    = $translator->no_comments;
     my $add_drop_table = $translator->add_drop_table;
     my $schema         = $translator->schema;
+    my $show_warnings  = $translator->show_warnings || 0;
 
     debug("PKG: Beginning production\n");
 
@@ -93,6 +133,21 @@ sub produce {
     # \todo Don't set if MySQL 3.x is set on command line
     $create .= "SET foreign_key_checks=0;\n\n";
 
+    #
+    # Work out which tables need to be InnoDB to support foreign key
+    # constraints. We do this first as we need InnoDB at both ends.
+    #
+    foreach ( map { $_->get_constraints } $schema->get_tables ) {
+        foreach my $meth (qw/table reference_table/) {
+            my $table = $schema->get_table($_->$meth) || next;
+            next if $table->extra('mysql_table_type');
+            $table->extra( 'mysql_table_type' => 'InnoDB');
+        }
+    }
+
+    #
+    # Generate sql
+    #
     for my $table ( $schema->get_tables ) {
         my $table_name = $table->name;
         debug("PKG: Looking at table '$table_name'\n");
@@ -120,6 +175,8 @@ sub produce {
             my $list      = $extra{'list'} || [];
             # \todo deal with embedded quotes
             my $commalist = join( ', ', map { qq['$_'] } @$list );
+            my $charset = $extra{'mysql_charset'};
+            my $collate = $extra{'mysql_collate'};
 
             #
             # Oracle "number" type -- figure best MySQL type
@@ -129,10 +186,10 @@ sub produce {
                 if ( scalar @size > 1 ) {
                     $data_type = 'double';
                 }
-                elsif ( $size[0] >= 12 ) {
+                elsif ( $size[0] && $size[0] >= 12 ) {
                     $data_type = 'bigint';
                 }
-                elsif ( $size[0] <= 1 ) {
+                elsif ( $size[0] && $size[0] <= 1 ) {
                     $data_type = 'tinyint';
                 }
                 else {
@@ -164,13 +221,17 @@ sub produce {
             }
 
             $field_def .= " $data_type";
-            
+
             if ( lc $data_type eq 'enum' ) {
                 $field_def .= '(' . $commalist . ')';
 			} 
             elsif ( defined $size[0] && $size[0] > 0 ) {
                 $field_def .= '(' . join( ', ', @size ) . ')';
             }
+
+            # char sets
+            $field_def .= " CHARACTER SET $charset" if $charset;
+            $field_def .= " COLLATE $collate" if $collate;
 
             # MySQL qualifiers
             for my $qual ( qw[ binary unsigned zerofill ] ) {
@@ -214,8 +275,8 @@ sub produce {
         # Constraints -- need to handle more than just FK. -ky
         #
         my @constraint_defs;
-        my $has_fk;
-        for my $c ( $table->get_constraints ) {
+        my @constraints = $table->get_constraints;
+        for my $c ( @constraints ) {
             my @fields = $c->fields or next;
 
             if ( $c->type eq PRIMARY_KEY ) {
@@ -227,13 +288,12 @@ sub produce {
                     'UNIQUE (' . join(', ', @fields). ')';
             }
             elsif ( $c->type eq FOREIGN_KEY ) {
-                $has_fk = 1;
-                
                 #
                 # Make sure FK field is indexed or MySQL complains.
                 #
                 unless ( $indexed_fields{ $fields[0] } ) {
                     push @index_defs, "INDEX ($fields[0])";
+                    $indexed_fields{ $fields[0] } = 1;
                 }
 
                 my $def = join(' ', 
@@ -244,8 +304,25 @@ sub produce {
 
                 $def .= ' REFERENCES ' . $c->reference_table;
 
-                if ( my @rfields = $c->reference_fields ) {
+                my @rfields = map { $_ || () } $c->reference_fields;
+                unless ( @rfields ) {
+                    my $rtable_name = $c->reference_table;
+                    if ( my $ref_table = $schema->get_table( $rtable_name ) ) {
+                        push @rfields, $ref_table->primary_key;
+                    }
+                    else {
+                        warn "Can't find reference table '$rtable_name' " .
+                            "in schema\n" if $show_warnings;
+                    }
+                }
+
+                if ( @rfields ) {
                     $def .= ' (' . join( ', ', @rfields ) . ')';
+                }
+                else {
+                    warn "FK constraint on " . $table->name . '.' .
+                        join('', @fields) . " has no reference fields\n" 
+                        if $show_warnings;
                 }
 
                 if ( $c->match_type ) {
@@ -273,9 +350,12 @@ sub produce {
         # Footer
         #
         $create .= "\n)";
-        if ( $has_fk ) {
-            $create .= " Type=InnoDB";
-        }
+        my $mysql_table_type = $table->extra('mysql_table_type');
+        my $charset          = $table->extra('mysql_charset');
+        my $collate          = $table->extra('mysql_collate');
+        $create .= " Type=$mysql_table_type" if $mysql_table_type;
+        $create .= " DEFAULT CHARACTER SET $charset" if $charset;
+        $create .= " COLLATE $collate" if $collate;
         $create .= ";\n\n";
     }
 
