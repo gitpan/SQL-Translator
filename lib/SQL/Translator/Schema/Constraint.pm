@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Constraint;
 
 # ----------------------------------------------------------------------
-# $Id: Constraint.pm,v 1.15 2004/11/05 13:19:31 grommit Exp $
+# $Id: Constraint.pm,v 1.19 2005/08/10 16:42:47 duality72 Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -51,7 +51,7 @@ use base 'SQL::Translator::Schema::Object';
 
 use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.15 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.19 $ =~ /(\d+)\.(\d+)/;
 
 my %VALID_CONSTRAINT_TYPE = (
     PRIMARY_KEY, 1,
@@ -276,7 +276,7 @@ avoid the overload magic of the Field objects returned by the fields method.
 =cut
 
     my $self = shift;
-    return wantarray ? @{ $self->{'fields'} } : $self->{'fields'};
+    return wantarray ? @{ $self->{'fields'} || [] } : ($self->{'fields'} || '');
 }
 
 # ----------------------------------------------------------------------
@@ -522,6 +522,47 @@ Get or set the constraint's type.
 
     return $self->{'type'} || '';
 }
+
+# ----------------------------------------------------------------------
+sub equals {
+
+=pod
+
+=head2 equals
+
+Determines if this constraint is the same as another
+
+  my $isIdentical = $constraint1->equals( $constraint2 );
+
+=cut
+
+    my $self = shift;
+    my $other = shift;
+    my $case_insensitive = shift;
+    
+    return 0 unless $self->SUPER::equals($other);
+    return 0 unless $self->type eq $other->type;
+    return 0 unless $case_insensitive ? uc($self->name) eq uc($other->name) : $self->name eq $other->name;
+    return 0 unless $self->deferrable eq $other->deferrable;
+    #return 0 unless $self->is_valid eq $other->is_valid;
+    return 0 unless $case_insensitive ? uc($self->table->name) eq uc($other->table->name)
+    	: $self->table->name eq $other->table->name;
+    return 0 unless $self->expression eq $other->expression;
+    my $selfFields = join(":", $self->fields);
+    my $otherFields = join(":", $other->fields);
+    return 0 unless $case_insensitive ? uc($selfFields) eq uc($otherFields) : $selfFields eq $otherFields;
+    return 0 unless $case_insensitive ? uc($self->reference_table) eq uc($other->reference_table) : $self->reference_table eq $other->reference_table;
+    my $selfRefFields = join(":", $self->reference_fields);
+    my $otherRefFields = join(":", $other->reference_fields);
+    return 0 unless $case_insensitive ? uc($selfRefFields) eq uc($otherRefFields) : $selfRefFields eq $otherRefFields;
+    return 0 unless $self->match_type eq $other->match_type;
+    return 0 unless $self->on_delete eq $other->on_delete;
+    return 0 unless $self->on_update eq $other->on_update;
+    return 0 unless $self->_compare_objects(scalar $self->options, scalar $other->options);
+    return 0 unless $self->_compare_objects(scalar $self->extra, scalar $other->extra);
+    return 1;
+}
+
 # ----------------------------------------------------------------------
 sub DESTROY {
     my $self = shift;

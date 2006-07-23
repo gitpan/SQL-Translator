@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::XML::SQLFairy;
 
 # -------------------------------------------------------------------
-# $Id: SQLFairy.pm,v 1.13 2004/12/21 01:29:23 grommit Exp $
+# $Id: SQLFairy.pm,v 1.15 2005/07/05 16:20:42 mwz444 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Mark Addison <mark.addison@itn.co.uk>,
 #
@@ -100,7 +100,7 @@ To convert your old format files simply pass them through the translator :)
 use strict;
 
 use vars qw[ $DEBUG $VERSION @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.15 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -186,7 +186,7 @@ sub parse {
         foreach (@nodes) {
             my %data = get_tagfields($xp, $_, "sqlf:",
                 qw/name type table fields reference_fields reference_table
-                match_type on_delete_do on_update_do extra/
+                match_type on_delete on_update extra/
             );
             $table->add_constraint( %data ) or die $table->error;
         }
@@ -199,6 +199,16 @@ sub parse {
             my %data = get_tagfields($xp, $_, "sqlf:",
                 qw/name type fields options extra/);
             $table->add_index( %data ) or die $table->error;
+        }
+
+        
+        #
+        # Comments
+        #
+        @nodes = $xp->findnodes('sqlf:comments/sqlf:comment',$tblnode);
+        foreach (@nodes) {
+            my $data = $_->string_value;
+            $table->comments( $data );
         }
 
     } # tables loop

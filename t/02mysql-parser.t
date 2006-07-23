@@ -10,7 +10,7 @@ use SQL::Translator::Schema::Constants;
 use Test::SQL::Translator qw(maybe_plan);
 
 BEGIN {
-    maybe_plan(199, "SQL::Translator::Parser::MySQL");
+    maybe_plan(218, "SQL::Translator::Parser::MySQL");
     SQL::Translator::Parser::MySQL->import('parse');
 }
 
@@ -18,11 +18,12 @@ BEGIN {
     my $tr = SQL::Translator->new;
     my $data = q|create table sessions (
         id char(32) not null default '0' primary key,
-        a_session text
+        a_session text,
+        ssn varchar(12) unique key,
+        age int key
     );|;
 
     my $val = parse($tr, $data);
-
     my $schema = $tr->schema;
     is( $schema->is_valid, 1, 'Schema is valid' );
     my @tables = $schema->get_tables;
@@ -31,7 +32,7 @@ BEGIN {
     is( $table->name, 'sessions', 'Found "sessions" table' );
 
     my @fields = $table->get_fields;
-    is( scalar @fields, 2, 'Right number of fields (2)' );
+    is( scalar @fields, 4, 'Right number of fields (4)' );
     my $f1 = shift @fields;
     my $f2 = shift @fields;
     is( $f1->name, 'id', 'First field name is "id"' );
@@ -49,13 +50,16 @@ BEGIN {
     is( $f2->is_primary_key, 0, 'Field is not PK' );
 
     my @indices = $table->get_indices;
-    is( scalar @indices, 0, 'Right number of indices (0)' );
+    is( scalar @indices, 1, 'Right number of indices (1)' );
 
     my @constraints = $table->get_constraints;
-    is( scalar @constraints, 1, 'Right number of constraints (1)' );
+    is( scalar @constraints, 2, 'Right number of constraints (2)' );
     my $c = shift @constraints;
     is( $c->type, PRIMARY_KEY, 'Constraint is a PK' );
     is( join(',', $c->fields), 'id', 'Constraint is on "id"' );
+    my $c2 = shift @constraints;
+    is( $c2->type, UNIQUE, 'Constraint is UNIQUE' );
+    is( join(',', $c2->fields), 'ssn', 'Constraint is on "ssn"' );
 }
 
 {
@@ -217,7 +221,7 @@ BEGIN {
         q[
             CREATE TABLE orders (
               order_id                  integer NOT NULL auto_increment,
-              member_id                 varchar(255),
+              member_id                 varchar(255) comment 'fk to member',
               billing_address_id        int,
               shipping_address_id       int,
               credit_card_id            int,
@@ -234,7 +238,7 @@ BEGIN {
               FOREIGN KEY (status)              REFERENCES order_status(id) MATCH FULL ON DELETE CASCADE ON UPDATE CASCADE,
               FOREIGN KEY (billing_address_id)  REFERENCES address(address_id),
               FOREIGN KEY (shipping_address_id) REFERENCES address(address_id)
-            ) TYPE=INNODB;
+            ) TYPE=INNODB COMMENT = 'orders table comment';
 
             CREATE TABLE address (
               address_id                int NOT NULL auto_increment,
@@ -257,6 +261,7 @@ BEGIN {
 
     my $t1  = shift @tables;
     is( $t1->name, 'orders', 'Found "orders" table' );
+    is( $t1->comments, 'orders table comment', 'Table comment OK' );
 
     my @fields = $t1->get_fields;
     is( scalar @fields, 10, 'Right number of fields (10)' );
@@ -275,6 +280,7 @@ BEGIN {
     is( $f2->data_type, 'varchar', 'Type is "varchar"' );
     is( $f2->size, 255, 'Size is "255"' );
     is( $f2->is_nullable, 1, 'Field can be null' );
+    is( $f2->comments, 'fk to member', 'Field comment OK' );
     is( $f2->default_value, undef, 'Default value is undefined' );
 
     my $f3 = shift @fields;
@@ -421,7 +427,7 @@ BEGIN {
 
             ALTER TABLE one ADD FOREIGN KEY (two_id) REFERENCES two (id);
 
-            INSERT absolutely *#! any old $£ ? rubbish ;
+            INSERT absolutely *#! any old $£ ? rubbish, even "quoted; semi-what""sits";
         ]
     ) or die $tr->error;
 
@@ -461,5 +467,62 @@ BEGIN {
     is( join(',', $t2c2->fields), 'one_id', 'Constraint is on "one_id"' );
     is( $t2c2->reference_table, 'one', 'To table "one"' );
     is( join(',', $t2c2->reference_fields), 'id', 'To field "id"' );
+}
+
+# cch Tests for:
+#    comments like: /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+#    char fields with character set and collate qualifiers
+#    timestamp fields with on update qualifier
+#    charset table option
+#
+{
+    my $tr = SQL::Translator->new;
+    my $data = parse($tr, 
+        q[
+            /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+
+            CREATE TABLE one (
+              `op` varchar(255) character set latin1 collate latin1_bin default NULL,
+              `last_modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+            ) TYPE=INNODB DEFAULT CHARSET=latin1;
+        ]
+    ) or die $tr->error;
+
+    my $schema = $tr->schema;
+    is( $schema->is_valid, 1, 'Schema is valid' );
+    my @tables = $schema->get_tables;
+    is( scalar @tables, 1, 'Right number of tables (1)' );
+    my $table1 = shift @tables;
+    is( $table1->name, 'one', 'Found "one" table' );
+
+    my @fields = $table1->get_fields;
+    is(scalar @fields, 2, 'Right number of fields (2) on table one');
+    my $tableTypeFound = 0;
+    my $charsetFound = 0;
+	for my $t1_option_ref ( $table1->options ) {
+		my($key, $value) = %{$t1_option_ref};
+		if ( $key eq 'TYPE' ) {
+			is($value, 'INNODB', 'Table has right table type option' );
+			$tableTypeFound = 1;
+		} elsif ( $key eq 'CHARACTER SET' ) {
+			is($value, 'latin1', 'Table has right character set option' );
+			$charsetFound = 1;
+		}
+	}
+	fail('Table did not have a type option') unless $tableTypeFound;
+	fail('Table did not have a character set option') unless $charsetFound;
+
+    my $t1f1 = shift @fields;
+    is( $t1f1->data_type, 'varchar', 'Field is a varchar' );
+    is( $t1f1->size, 255, 'Field is right size' );
+    is( $t1f1->extra('character set'), 'latin1', 'Field has right character set qualifier' );
+    is( $t1f1->extra('collate'), 'latin1_bin', 'Field has right collate qualifier' );
+    is( $t1f1->default_value, 'NULL', 'Field has right default value' );
+
+    my $t1f2 = shift @fields;
+    is( $t1f2->data_type, 'timestamp', 'Field is a timestamp' );
+    ok( !$t1f2->is_nullable, 'Field is not nullable' );
+    is( $t1f2->default_value, 'CURRENT_TIMESTAMP', 'Field has right default value' );
+    is( $t1f2->extra('on update'), 'CURRENT_TIMESTAMP', 'Field has right on update qualifier' );
 }
 

@@ -18,11 +18,11 @@ delegates to DBD::DB2.
 use strict;
 use DBI;
 use Data::Dumper;
-use SQL::Translator::Parser::DB2;
+use SQL::Translator::Parser::DB2::Grammar;
 use SQL::Translator::Schema::Constants;
 
 use vars qw[ $DEBUG $VERSION @EXPORT_OK ];
-# $VERSION = sprintf "%d.%02d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/;
+# $VERSION = sprintf "%d.%02d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 # -------------------------------------------------------------------
@@ -42,8 +42,11 @@ sub parse {
         $dbh->{ChopBlanks} = 1;
     }
 
+    my $parser = SQL::Translator::Parser::DB2::Grammar->new();
+
     my $tabsth = $dbh->prepare(<<SQL);
 SELECT t.TABSCHEMA,
+       t.TABLEID,
        t.TABNAME,
        t.TYPE,
       ts.TBSPACE
@@ -105,6 +108,7 @@ SQL
 SELECT t.TRIGSCHEMA,
        t.TRIGNAME,
        t.TABSCHEMA, 
+       t.TABNAME,
        t.TRIGTIME,
        t.TRIGEVENT,
        t.GRANULARITY,
@@ -112,6 +116,15 @@ SELECT t.TRIGSCHEMA,
 FROM SYSCAT.TRIGGERS t
 WHERE t.TABSCHEMA NOT LIKE 'SYS%' AND
       t.TABNAME = ?
+SQL
+
+    my $viewsth = $dbh->prepare(<<SQL);
+SELECT v.VIEWSCHEMA,
+       v.VIEWNAME,
+       v.TEXT 
+FROM SYSCAT.VIEWS v
+WHERE v.VIEWSCHEMA NOT LIKE 'SYS%'
+ORDER BY v.VIEWNAME ASC
 SQL
 
     $tabsth->execute();
@@ -131,12 +144,13 @@ SQL
                                            name => $table_info->{TABNAME},
                                            type => 'TABLE',
                                           ) || die $schema->error;
-            $table->options("TABLESPACE", $table_info->{TBSPACE});
+            $table->extra("TABLESPACE" => $table_info->{TBSPACE});
 
             $colsth->execute($table_info->{TABNAME});
             my $cols = $colsth->fetchall_hashref("COLNAME");
       
-            foreach my $c (values %{$cols}) {
+            foreach my $c (sort {$a->{COLNO} <=> $b->{COLNO}} 
+                           values %{$cols}) {
                 print Dumper($c) if $DEBUG;
                 print $c->{COLNAME} if($DEBUG);
                 my $f = $table->add_field(
@@ -153,42 +167,48 @@ SQL
 
             $consth->execute($table_info->{TABNAME});
             my $cons = $consth->fetchall_hashref("COLNAME");
-            next if(!%$cons);
 
-            my @fields = map { $_->{COLNAME} } (values %{$cons});
-            my $c = $cons->{$fields[0]};
-            
-            print  $c->{CONSTNAME} if($DEBUG);
-            my $con = $table->add_constraint(
-                                           name   => $c->{CONSTNAME},
-                                           fields => \@fields,
-                                           type   => $c->{TYPE} eq 'P' ?
-                                           PRIMARY_KEY : $c->{TYPE} eq 'F' ?
-                                           FOREIGN_KEY : UNIQUE
-                                         ) || die $table->error;
+            if(%$cons)
+            {
+                my @fields = map { $_->{COLNAME} } (values %{$cons});
+                my $c = $cons->{$fields[0]};
+                
+                print  $c->{CONSTNAME} if($DEBUG);
+                my $con = $table->add_constraint(
+                                                 name   => $c->{CONSTNAME},
+                                                 fields => \@fields,
+                                                 type   => $c->{TYPE} eq 'P' ?
+                                                 PRIMARY_KEY : $c->{TYPE} eq 'F' ?
+                                                 FOREIGN_KEY : UNIQUE
+                                                 ) || die $table->error;
 
             
-            $con->deferrable($c->{CHECKEXISTINGDATA} eq 'D');
-            
+                $con->deferrable($c->{CHECKEXISTINGDATA} eq 'D');
+            }
+
             $indsth->execute($table_info->{TABNAME});
             my $inds = $indsth->fetchall_hashref("INDNAME");
             print Dumper($inds) if($DEBUG);
-            next if(!%$inds);
 
+#            if(%$inds)
             foreach my $ind (keys %$inds)
             {
-                print $ind if($DEBUG);
+                print $ind, "\n" if($DEBUG);
                 $indsth->execute($table_info->{TABNAME});
                 my $indcols = $indsth->fetchall_hashref("COLNAME");
                 next if($inds->{$ind}{UNIQUERULE} eq 'P');
-
-                print Dumper($indcols) if($DEBUG);
-
+                
+#                print Dumper($indcols) if($DEBUG);
+                
                 my @fields = map { $_->{INDNAME} eq $ind ? $_->{COLNAME} : () }
-                   (values %{$indcols});
+                (values %{$indcols});
 
+                print "$fields[0] ", 
+                  Dumper($indcols->{$fields[0]}), "\n" if($DEBUG);
                 my $index = $indcols->{$fields[0]};
 
+# print "Indices :", join(',', map {$_->name} $table->get_indices()), "\n";
+                
                 my $inew = $table->add_index(
                                              name   => $index->{INDNAME},
                                              fields => \@fields,
@@ -196,17 +216,21 @@ SQL
                                              UNIQUE : NORMAL
                                              ) || die $table->error;
                 
-            
+                
             }
+        
 
             $trigsth->execute($table_info->{TABNAME});
             my $trigs = $trigsth->fetchall_hashref("TRIGNAME");
-            print Dumper($trigs);
-            next if(!%$trigs);
+            print Dumper($trigs) if($DEBUG);
+#            next if(!%$trigs);
 
             foreach my $t (values %$trigs)
             {         
                 print  $t->{TRIGNAME} if($DEBUG);
+                my $ptrigger = $parser->create($t->{TEXT});
+                return $tr->error( "Parse failed." ) unless defined $ptrigger;
+                print Dumper($ptrigger) if($DEBUG);
                 my $trig = $schema->add_trigger(
                      name                  => $t->{TRIGNAME},
  #                      fields => \@fields,
@@ -216,16 +240,43 @@ SQL
                      database_event        => $t->{TRIGEVENT} eq 'I' ? 'insert'
                                             : $t->{TRIGEVENT} eq 'D' ? 'delete' 
                                             : 'update',
-                     action                => $t->{TEXT},
+                     action                => $ptrigger->{action},
                      on_table              => $t->{TABNAME} 
                                               ) || die $schema->error;
             
-#             $trig->extra( reference => $def->{'reference'},
-#                           condition => $def->{'condition'},
-#                           granularity => $def->{'granularity'} );
+                $trig->extra( reference => $ptrigger->{'reference'},
+                              condition => $ptrigger->{'condition'},
+                              granularity => $ptrigger->{'granularity'},
+                              schema => $ptrigger->{'schema'});
+                
+#                print  Dumper($trig);
             }
 
         }
+    }
+
+    $viewsth->execute();
+    my @views = @{$viewsth->fetchall_arrayref({})};
+
+    foreach my $view (@views) {
+        print Dumper($view) if($DEBUG);
+        my $pview = $parser->create($view->{TEXT});
+        return $tr->error( "Parse failed." ) unless defined $pview;
+        print Dumper($pview) if($DEBUG);
+
+        my $v;
+        foreach (@{$pview->{with}})
+        {
+            $v = $schema->add_view( name => $_->{name},
+                                    sql  => $_->{query} );
+        }
+
+        my $v = $schema->add_view(name => $view->{VIEWNAME},
+                                  sql  => $pview->{sql},
+                                  tempview => $v);
+
+        $v->fields($pview->{fields} || ());
+#        { local $v->{schema}='hidden'; print Dumper($v); }
     }
 
     return 1;

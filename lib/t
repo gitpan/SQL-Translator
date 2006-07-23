@@ -1,0 +1,3161 @@
+    Parse::RecDescent: Treating "{ my ( %tables, $table_order,
+                       @table_comments, @views, @triggers ); }" as an action
+    Parse::RecDescent: Treating "#" as a comment
+    Parse::RecDescent: Treating "# The "eofile" rule makes the parser fail if
+                       any "statement" rule" as a comment
+    Parse::RecDescent: Treating "# fails. Otherwise, the first successful
+                       match by a "statement"" as a comment
+    Parse::RecDescent: Treating "# won't cause the failure needed to know that
+                       the parse, as a whole," as a comment
+    Parse::RecDescent: Treating "# failed. -ky" as a comment
+    Parse::RecDescent: Treating "#" as a comment
+    Parse::RecDescent: Treating "startrule :" as a rule declaration
+    Parse::RecDescent: Treating "statement(s)" as a one-or-more subrule match
+    Parse::RecDescent: Treating "eofile" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { tables => \%tables, views =>
+                       \@views, triggers => \@triggers, } }" as an action
+    Parse::RecDescent: Treating "eofile :" as a rule declaration
+    Parse::RecDescent: Treating "/^\Z/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "statement :" as a rule declaration
+    Parse::RecDescent: Treating "comment" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "create" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "drop" as a subrule match
+    Parse::RecDescent: Treating "| <error" as a new (error) production
+    Parse::RecDescent: Treating "<error>" as an error marker
+    Parse::RecDescent: Treating "comment :" as a rule declaration
+    Parse::RecDescent: Treating "/^\s*--.*\n/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "{ my $comment = $item[1]; $comment =~
+                       s/^\s*(--)\s*//; $comment =~ s/\s*$//; $return =
+                       $comment; }" as an action
+    Parse::RecDescent: Treating "drop :" as a rule declaration
+    Parse::RecDescent: Treating "/drop/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "table_name" as a subrule match
+    Parse::RecDescent: Treating "end_statement" as a subrule match
+    Parse::RecDescent: Treating "create:" as a rule declaration
+    Parse::RecDescent: Treating "CREATE" as a subrule match
+    Parse::RecDescent: Treating "TRIGGER" as a subrule match
+    Parse::RecDescent: Treating "trigger_name" as a subrule match
+    Parse::RecDescent: Treating "before" as a subrule match
+    Parse::RecDescent: Treating "type" as a subrule match
+    Parse::RecDescent: Treating "/ON/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "table_name" as a subrule match
+    Parse::RecDescent: Treating "reference_b(?)" as an zero-or-one subrule
+                       match
+    Parse::RecDescent: Treating "/FOR EACH ROW/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "MODE DB2SQL" as a literal terminal
+    Parse::RecDescent: Treating "triggered_action" as a subrule match
+    Parse::RecDescent: Treating "{ my $table_name =
+                       $item{'table_name'}{'name'}; $return = { table =>
+                       $table_name, schema => $item{'trigger_name'}{'schema'},
+                       name => $item{'trigger_name'}{'name'}, when =>
+                       'before', db_event => $item{'type'}->{'event'}, fields
+                       => $item{'type'}{'fields'}, condition =>
+                       $item{'triggered_action'}{'condition'}, reference =>
+                       $item{'reference_b'}, granularity => $item[9], action
+                       => $item{'triggered_action'}{'statement'} }; push
+                       @triggers, $return; }" as an action
+    Parse::RecDescent: Treating "create:" as a rule declaration
+    Parse::RecDescent: Treating "CREATE" as a subrule match
+    Parse::RecDescent: Treating "TRIGGER" as a subrule match
+    Parse::RecDescent: Treating "trigger_name" as a subrule match
+    Parse::RecDescent: Treating "after" as a subrule match
+    Parse::RecDescent: Treating "type" as a subrule match
+    Parse::RecDescent: Treating "/ON/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "table_name" as a subrule match
+    Parse::RecDescent: Treating "reference_a(?)" as an zero-or-one subrule
+                       match
+    Parse::RecDescent: Treating "/FOR EACH ROW|FOR EACH STATEMENT/i" as a /../
+                       pattern terminal
+    Parse::RecDescent: Treating "MODE DB2SQL" as a literal terminal
+    Parse::RecDescent: Treating "triggered_action" as a subrule match
+    Parse::RecDescent: Treating "{ my $table_name =
+                       $item{'table_name'}{'name'}; $return = { table =>
+                       $table_name, schema => $item{'trigger_name'}{'schema'},
+                       name => $item{'trigger_name'}{'name'}, when => 'after',
+                       db_event => $item{'type'}{'event'}, fields =>
+                       $item{'type'}{'fields'}, condition =>
+                       $item{'triggered_action'}{'condition'}, reference =>
+                       $item{'reference_a'}, granularity => $item[9], action
+                       => $item{'triggered_action'}{'statement'} }; push
+                       @triggers, $return; }" as an action
+    Parse::RecDescent: Treating "create:" as a rule declaration
+    Parse::RecDescent: Treating "CREATE" as a subrule match
+    Parse::RecDescent: Treating "/FEDERATED|/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "VIEW" as a subrule match
+    Parse::RecDescent: Treating "view_name" as a subrule match
+    Parse::RecDescent: Treating "column_list(?)" as an zero-or-one subrule
+                       match
+    Parse::RecDescent: Treating "/AS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "with_expression(?)" as an zero-or-one subrule
+                       match
+    Parse::RecDescent: Treating "SQL_procedure_statement" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { name => $item{view_name}{name},
+                       sql => $item{SQL_procedure_statement}, with =>
+                       $item{'with_expression(?)'}, fields =>
+                       $item{'column_list(?)'} }; push @views, $return; }" as
+                       an action
+    Parse::RecDescent: Treating "# create: CREATE /FEDERATED/i VIEW view_name
+                       col_list_or_of(?) /AS/i with_expression(?) fullselect
+                       options(?)" as a comment
+    Parse::RecDescent: Treating "# col_list_or_of: column_list | /OF/i (
+                       root_view_definition | subview_definition )" as a
+                       comment
+    Parse::RecDescent: Treating "create:" as a rule declaration
+    Parse::RecDescent: Treating "CREATE" as a subrule match
+    Parse::RecDescent: Treating "TABLE" as a subrule match
+    Parse::RecDescent: Treating "table_name" as a subrule match
+    Parse::RecDescent: Treating "element_list" as a subrule match
+    Parse::RecDescent: Treating "IN" as a subrule match
+    Parse::RecDescent: Treating "tablespace_name" as a subrule match
+    Parse::RecDescent: Treating "end_statement" as a subrule match
+    Parse::RecDescent: Treating "element_list:" as a rule declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "( column_definition | unique_constraint |
+                       referential_constraint | check_constraint )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_element_list :"
+                       as a rule declaration
+    Parse::RecDescent: Treating "column_definition" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "unique_constraint" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "referential_constraint" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "check_constraint" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_element_list(s)
+                       " as a one-or-more subrule match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_element_list"
+                       as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_element_list"
+                       as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "column_definition:" as a rule declaration
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating "data_type" as a subrule match
+    Parse::RecDescent: Treating "column_options" as a subrule match
+    Parse::RecDescent: Treating "column_options:" as a rule declaration
+    Parse::RecDescent: Treating "( /NOT NULL/i | ( CONSTRAINT constraint_name
+                       )(?) ( /PRIMARY KEY/i | /UNIQUE/i | references_clause |
+                       /CHECK/i '(' check_condition ')' constraint_attributes
+                       ) | generated_column_spec )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_column_options
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "/NOT NULL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( CONSTRAINT constraint_name )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_column_options :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "CONSTRAINT" as a subrule match
+    Parse::RecDescent: Treating "constraint_name" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_column_options(?)" as an zero-
+                       or-one subrule match
+    Parse::RecDescent: Treating "( /PRIMARY KEY/i | /UNIQUE/i |
+                       references_clause | /CHECK/i '(' check_condition ')'
+                       constraint_attributes )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_column_options :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "/PRIMARY KEY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/UNIQUE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "references_clause" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CHECK/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "check_condition" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "constraint_attributes" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_column_options" as a subrule
+                       match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "generated_column_spec" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_column_options"
+                       as a subrule match
+    Parse::RecDescent: Treating "generated_column_spec:" as a rule declaration
+    Parse::RecDescent: Treating "default_clause" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/GENERATED/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( /ALWAYS/i | /BY\sDEFAULT/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule_generated_colum
+                       n_spec :" as a rule declaration
+    Parse::RecDescent: Treating "/ALWAYS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/BY\sDEFAULT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule_generated_colum
+                       n_spec" as a subrule match
+    Parse::RecDescent: Treating "/AS\sIDENTITY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "identity_options(?)" as an zero-or-one
+                       subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/GENERATED\sALWAYS\sAS/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "generation_expression" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "generation_expression:" as a rule declaration
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "identity_options:" as a rule declaration
+    Parse::RecDescent: Treating "default_clause:" as a rule declaration
+    Parse::RecDescent: Treating "WITH(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating "/DEFAULT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "default_values(?)" as an zero-or-one subrule
+                       match
+    Parse::RecDescent: Treating "default_values:" as a rule declaration
+    Parse::RecDescent: Treating "constant" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "datetime_special_register" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/USER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NULL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "cast_function" as a subrule match
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "( constant | datetime_special_register |
+                       /USER/i )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_5_of_rule_default_values
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "constant" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "datetime_special_register" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/USER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_5_of_rule_default_values"
+                       as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "datetime" as a subrule match
+
+     ERROR (line 131): Untranslatable item encountered: "-special-register:"
+                (Hint: Did you misspell "-special-register:" or forget to
+                       comment it out?)
+    Parse::RecDescent: Treating "/CURRENT DATE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CURRENT TIMESTAMP/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CURRENT TIME/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "references_clause:" as a rule declaration
+    Parse::RecDescent: Treating "/REFERENCES/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( table_name | nickname )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_references_clau
+                       se :" as a rule declaration
+    Parse::RecDescent: Treating "table_name" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "nickname" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_references_clau
+                       se" as a subrule match
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "column_name(s)" as a one-or-more subrule
+                       match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "rule_clause" as a subrule match
+    Parse::RecDescent: Treating "constraint_attributes" as a subrule match
+    Parse::RecDescent: Treating "rule_clause:" as a rule declaration
+    Parse::RecDescent: Treating "( ( /ON\sDELETE\sNO\sACTION/i | /ON\sDELETE/i
+                       ( /RESTRICT/i | /CASCADE/i | /SET\sNULL/i ) ) | (
+                       /ON\sUPDATE\sNO\sACTION/i | /ON\sUPDATE\sRESTRICT/i )
+                       )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_rule_clause :"
+                       as a rule declaration
+    Parse::RecDescent: Treating "( /ON\sDELETE\sNO\sACTION/i | /ON\sDELETE/i (
+                       /RESTRICT/i | /CASCADE/i | /SET\sNULL/i ) )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_rule_clause :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "/ON\sDELETE\sNO\sACTION/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ON\sDELETE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( /RESTRICT/i | /CASCADE/i | /SET\sNULL/i )"
+                       as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule__alternation_1_of_production_1_
+                       of_rule_rule_clause :" as a rule declaration
+    Parse::RecDescent: Treating "/RESTRICT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CASCADE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SET\sNULL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule__alternation_1_of_production_1_
+                       of_rule_rule_clause" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_rule_clause" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /ON\sUPDATE\sNO\sACTION/i |
+                       /ON\sUPDATE\sRESTRICT/i )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_rule_clause :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "/ON\sUPDATE\sNO\sACTION/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ON\sUPDATE\sRESTRICT/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_rule_clause" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_rule_clause(s)"
+                       as a one-or-more subrule match
+    Parse::RecDescent: Treating "constraint_attributes:" as a rule declaration
+    Parse::RecDescent: Treating "( ( /ENFORCED/i | /NOT\sENFORCED/i ) | (
+                       /ENABLE\sQUERY\sOPTIMIZATION/i |
+                       /DISABLE\sQUERY\sOPTIMIZATION/i ) )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_constraint_attr
+                       ibutes :" as a rule declaration
+    Parse::RecDescent: Treating "( /ENFORCED/i | /NOT\sENFORCED/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_constraint_attributes :" as a
+                       rule declaration
+    Parse::RecDescent: Treating "/ENFORCED/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NOT\sENFORCED/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_constraint_attributes" as a
+                       subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /ENABLE\sQUERY\sOPTIMIZATION/i |
+                       /DISABLE\sQUERY\sOPTIMIZATION/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_constraint_attributes :" as a
+                       rule declaration
+    Parse::RecDescent: Treating "/ENABLE\sQUERY\sOPTIMIZATION/i" as a /../
+                       pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DISABLE\sQUERY\sOPTIMIZATION/i" as a /../
+                       pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_constraint_attributes" as a
+                       subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_constraint_attr
+                       ibutes(s)" as a one-or-more subrule match
+    Parse::RecDescent: Treating "unique_constraint:" as a rule declaration
+    Parse::RecDescent: Treating "( CONSTRAINT constraint_name )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_unique_constrai
+                       nt :" as a rule declaration
+    Parse::RecDescent: Treating "CONSTRAINT" as a subrule match
+    Parse::RecDescent: Treating "constraint_name" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_unique_constrai
+                       nt(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating "( /UNIQUE/ | /PRIMARY\sKEY/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_unique_constrai
+                       nt :" as a rule declaration
+    Parse::RecDescent: Treating "/UNIQUE/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/PRIMARY\sKEY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_unique_constrai
+                       nt" as a subrule match
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "column_name(s)" as a one-or-more subrule
+                       match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "referential_constraint:" as a rule
+                       declaration
+    Parse::RecDescent: Treating "( CONSTRAINT constraint_name )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_referential_con
+                       straint :" as a rule declaration
+    Parse::RecDescent: Treating "CONSTRAINT" as a subrule match
+    Parse::RecDescent: Treating "constraint_name" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_referential_con
+                       straint(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating "/FOREIGN\sKEY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "column_name(s)" as a one-or-more subrule
+                       match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "references_clause" as a subrule match
+    Parse::RecDescent: Treating "check_constraint:" as a rule declaration
+    Parse::RecDescent: Treating "( CONSTRAINT constraint_name )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_check_constrain
+                       t :" as a rule declaration
+    Parse::RecDescent: Treating "CONSTRAINT" as a subrule match
+    Parse::RecDescent: Treating "constraint_name" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_check_constrain
+                       t(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating "/CHECK/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "check_condition" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "constraint_attributes" as a subrule match
+    Parse::RecDescent: Treating "check_condition:" as a rule declaration
+    Parse::RecDescent: Treating "( search_condition | functional_dependency )"
+                       as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_check_condition
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "search_condition" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "functional_dependency" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_check_condition
+                       " as a subrule match
+    Parse::RecDescent: Treating "functional_dependency:" as a rule declaration
+    Parse::RecDescent: Treating "#functional_dependency: ( column_name " as a
+                       comment
+    Parse::RecDescent: Treating "# | '(' column_name(s /,/) ')' " as a comment
+    Parse::RecDescent: Treating "# ) /DETERMINED\sBY/i " as a comment
+    Parse::RecDescent: Treating "# ( column_name " as a comment
+    Parse::RecDescent: Treating "# | '(' column_name(s /,/) ')' " as a comment
+    Parse::RecDescent: Treating "# )" as a comment
+    Parse::RecDescent: Treating "with_expression:" as a rule declaration
+    Parse::RecDescent: Treating "/WITH/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "common_table_expression(s)" as a one-or-more
+                       subrule match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating "common_table_expression" as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "common_table_expression" as a subrule match
+    Parse::RecDescent: Treating "{ $return = $item{'common_table_expression'};
+                       }" as an action
+    Parse::RecDescent: Treating "SQL_procedure_statement:" as a rule
+                       declaration
+    Parse::RecDescent: Treating "/[^;]*/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "end_statement" as a subrule match
+    Parse::RecDescent: Treating "{ $return = $item[1] . $item[2] }" as an
+                       action
+    Parse::RecDescent: Treating "end_statement:" as a rule declaration
+    Parse::RecDescent: Treating "/(;|\z)/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "column_list:" as a rule declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "column_name(s)" as a one-or-more subrule
+                       match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "{ $return = join(' ', '(', @{$item[2]}, ')');
+                       }" as an action
+    Parse::RecDescent: Treating "CREATE:" as a rule declaration
+    Parse::RecDescent: Treating "/create/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "TRIGGER:" as a rule declaration
+    Parse::RecDescent: Treating "/trigger/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "VIEW:" as a rule declaration
+    Parse::RecDescent: Treating "/view/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "TABLE:" as a rule declaration
+    Parse::RecDescent: Treating "/table/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "INNER:" as a rule declaration
+    Parse::RecDescent: Treating "/inner/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "LEFT:" as a rule declaration
+    Parse::RecDescent: Treating "/left/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "RIGHT:" as a rule declaration
+    Parse::RecDescent: Treating "/right/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "FULL:" as a rule declaration
+    Parse::RecDescent: Treating "/full/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "OUTER:" as a rule declaration
+    Parse::RecDescent: Treating "/outer/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "WHERE:" as a rule declaration
+    Parse::RecDescent: Treating "/where/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "CONSTRAINT:" as a rule declaration
+    Parse::RecDescent: Treating "/constraint/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "WITH:" as a rule declaration
+    Parse::RecDescent: Treating "/with/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "trigger_name:" as a rule declaration
+    Parse::RecDescent: Treating "SCHEMA" as a subrule match
+    Parse::RecDescent: Treating "." as a literal terminal
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { schema => $item[1], name =>
+                       $item[3] } }" as an action
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { name => $item[1] } }" as an
+                       action
+    Parse::RecDescent: Treating "table_name:" as a rule declaration
+    Parse::RecDescent: Treating "SCHEMA" as a subrule match
+    Parse::RecDescent: Treating "." as a literal terminal
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { schema => $item[1], name =>
+                       $item[3] } }" as an action
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { name => $item[1] } }" as an
+                       action
+    Parse::RecDescent: Treating "view_name:" as a rule declaration
+    Parse::RecDescent: Treating "SCHEMA" as a subrule match
+    Parse::RecDescent: Treating "." as a literal terminal
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { schema => $item[1], name =>
+                       $item[3] } }" as an action
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { name => $item[1] } }" as an
+                       action
+    Parse::RecDescent: Treating "column_name:" as a rule declaration
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "identifier:" as a rule declaration
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "correlation_name:" as a rule declaration
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "constraint_name:" as a rule declaration
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "nickname:" as a rule declaration
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "numeric_constant:" as a rule declaration
+    Parse::RecDescent: Treating "/\d+/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "SCHEMA:" as a rule declaration
+    Parse::RecDescent: Treating "/\w+/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "SCHEMA:" as a rule declaration
+    Parse::RecDescent: Treating "/\w{1,128}/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "NAME:" as a rule declaration
+    Parse::RecDescent: Treating "/\w+/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "NAME:" as a rule declaration
+    Parse::RecDescent: Treating "/\w{1,18}/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "options:" as a rule declaration
+    Parse::RecDescent: Treating "/WITH/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( /CASCADED/i | /LOCAL/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_options :" as a
+                       rule declaration
+    Parse::RecDescent: Treating "/CASCADED/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LOCAL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_options" as a
+                       subrule match
+    Parse::RecDescent: Treating "/CHECK\s+OPTION/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "data_type:" as a rule declaration
+    Parse::RecDescent: Treating "( /SMALLINT/i | ( /INTEGER/i | /INT/i ) |
+                       /BIGINT/i | ( /FLOAT/i '(' integer ')' | /REAL/i |
+                       /DOUBLE/i /PRECISION/i(?) ) | ( /DECIMAL/i | /DEC/i |
+                       /NUMERIC/i | /NUM/i ) ( '(' integer ( ',' integer)(?)
+                       ')' )(?) | ( ( /CHARACTER/i | /CHAR/i | ( '(' integer
+                       ')' )(?) ) | ( /VARCHAR/i | ( /CHARACTER/i | /CHAR/i )
+                       /VARYING/i ) '(' integer ')' | /LONG\sVARCHAR/i ) | ( (
+                       /BLOB/i | /BINARY\sLARGE\sOBJECT/i ) | ( /CLOB/i | (
+                       /CHARACTER/i | /CHAR/i ) /LARGE\sOBJECT/i ) | /DBCLOB/i
+                       ) ( '(' integer ( /K/i | /M/i | /G/i )(?) ')' )(?) |
+                       /GRAPHIC/i ( '(' integer ')' ) (?) | /VARGRAPHIC/i '('
+                       integer ')' | /LONG\sVARGRAPHIC/i | /DATE/i | /TIME/i |
+                       /TIMESTAMP/i | /DATALINK/i ( '(' integer ')' ) (?) )"
+                       as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_data_type :" as
+                       a rule declaration
+    Parse::RecDescent: Treating "/SMALLINT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /INTEGER/i | /INT/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "/INTEGER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/INT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/BIGINT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /FLOAT/i '(' integer ')' | /REAL/i |
+                       /DOUBLE/i /PRECISION/i(?) )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_4_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "/FLOAT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "integer" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REAL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DOUBLE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "/PRECISION/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( ? )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_3_of_rule__alternation_1_
+                       of_production_4_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type :" as a rule declaration
+
+     ERROR (line 781): Untranslatable item encountered: "?"
+                (Hint: Did you misspell "?" or forget to comment it out?)
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_3_of_rule__alternation_1_
+                       of_production_4_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_4_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /DECIMAL/i | /DEC/i | /NUMERIC/i | /NUM/i
+                       )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_5_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "/DECIMAL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DEC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NUMERIC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NUM/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_5_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "( '(' integer ( ',' integer)(?) ')' )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_5_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "integer" as a subrule match
+    Parse::RecDescent: Treating "( ',' integer )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_2_
+                       of_production_5_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type :" as a rule declaration
+    Parse::RecDescent: Treating "," as a literal terminal
+    Parse::RecDescent: Treating "integer" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_2_
+                       of_production_5_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_5_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type(?)" as an zero-or-one
+                       subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( ( /CHARACTER/i | /CHAR/i | ( '(' integer
+                       ')' )(?) ) | ( /VARCHAR/i | ( /CHARACTER/i | /CHAR/i )
+                       /VARYING/i ) '(' integer ')' | /LONG\sVARCHAR/i )" as
+                       an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_6_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "( /CHARACTER/i | /CHAR/i | ( '(' integer ')'
+                       )(?) )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_6_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type :" as a rule declaration
+    Parse::RecDescent: Treating "/CHARACTER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( '(' integer ')' )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_3_of_rule__alternation_1_
+                       of_production_1_of_rule__alternation_1_of_production_6_
+                       of_rule__alternation_1_of_production_1_of_rule_data_typ
+                       e :" as a rule declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "integer" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_3_of_rule__alternation_1_
+                       of_production_1_of_rule__alternation_1_of_production_6_
+                       of_rule__alternation_1_of_production_1_of_rule_data_typ
+                       e(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_6_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /VARCHAR/i | ( /CHARACTER/i | /CHAR/i )
+                       /VARYING/i )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_6_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type :" as a rule declaration
+    Parse::RecDescent: Treating "/VARCHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /CHARACTER/i | /CHAR/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_2_of_rule__alternation_1_of_production_6_
+                       of_rule__alternation_1_of_production_1_of_rule_data_typ
+                       e :" as a rule declaration
+    Parse::RecDescent: Treating "/CHARACTER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_2_of_rule__alternation_1_of_production_6_
+                       of_rule__alternation_1_of_production_1_of_rule_data_typ
+                       e" as a subrule match
+    Parse::RecDescent: Treating "/VARYING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_6_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "integer" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LONG\sVARCHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_6_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( ( /BLOB/i | /BINARY\sLARGE\sOBJECT/i ) | (
+                       /CLOB/i | ( /CHARACTER/i | /CHAR/i ) /LARGE\sOBJECT/i )
+                       | /DBCLOB/i )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_7_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "( /BLOB/i | /BINARY\sLARGE\sOBJECT/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_7_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type :" as a rule declaration
+    Parse::RecDescent: Treating "/BLOB/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/BINARY\sLARGE\sOBJECT/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_7_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /CLOB/i | ( /CHARACTER/i | /CHAR/i )
+                       /LARGE\sOBJECT/i )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_7_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type :" as a rule declaration
+    Parse::RecDescent: Treating "/CLOB/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /CHARACTER/i | /CHAR/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_2_of_rule__alternation_1_of_production_7_
+                       of_rule__alternation_1_of_production_1_of_rule_data_typ
+                       e :" as a rule declaration
+    Parse::RecDescent: Treating "/CHARACTER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_2_of_rule__alternation_1_of_production_7_
+                       of_rule__alternation_1_of_production_1_of_rule_data_typ
+                       e" as a subrule match
+    Parse::RecDescent: Treating "/LARGE\sOBJECT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule__alternation_1_
+                       of_production_7_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DBCLOB/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_7_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "( '(' integer ( /K/i | /M/i | /G/i )(?) ')'
+                       )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_7_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "integer" as a subrule match
+    Parse::RecDescent: Treating "( /K/i | /M/i | /G/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_2_
+                       of_production_7_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type :" as a rule declaration
+    Parse::RecDescent: Treating "/K/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/M/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/G/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_2_
+                       of_production_7_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_7_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type(?)" as an zero-or-one
+                       subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/GRAPHIC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( '(' integer ')' )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_8_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "integer" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_8_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating "( ?) | /VARGRAPHIC/i '(' integer ')' |
+                       /LONG\sVARGRAPHIC/i | /DATE/i | /TIME/i | /TIMESTAMP/i
+                       | /DATALINK/i ( '(' integer ')' ) (? )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_8_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type :" as a rule
+                       declaration
+
+     ERROR (line 775): Untranslatable item encountered: "?)"
+                (Hint: Did you misspell "?)" or forget to comment it out?)
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/VARGRAPHIC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "integer" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LONG\sVARGRAPHIC/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DATE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TIME/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TIMESTAMP/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DATALINK/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( '(' integer ')' )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_7_of_rule__alternation_2_
+                       of_production_8_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type :" as a rule declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "integer" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_7_of_rule__alternation_2_
+                       of_production_8_of_rule__alternation_1_of_production_1_
+                       of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_8_of_rule__alternation_1_
+                       of_production_1_of_rule_data_type" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_data_type" as a
+                       subrule match
+    Parse::RecDescent: Treating "# root_view_definition: /MODE\s+DB2SQL/i '('
+                       oid_column ( /,/ with_options )(?) ')'" as a comment
+    Parse::RecDescent: Treating "# subview_definition: /MODE\s+DB2SQL/i
+                       under_clause ( '(' with_options ')' )(?) /EXTEND/i(?)"
+                       as a comment
+    Parse::RecDescent: Treating "# oid_column: /REF\s+IS/i oid_column_name
+                       /USER\s+GENERATED\s+UNCHECKED/i(?)" as a comment
+    Parse::RecDescent: Treating "# with_options: ( column_name
+                       /WITH\s+OPTIONS/i ( /SCOPE/i ( typed_table_name |
+                       typed_view_name ) | /READ\s+ONLY/i )(s /,/) )(s /,/)"
+                       as a comment
+    Parse::RecDescent: Treating "# under_clause: /UNDER/i superview_name
+                       /INHERIT\s+SELECT\s+PRIVILEGES/i" as a comment
+    Parse::RecDescent: Treating "common_table_expression:" as a rule
+                       declaration
+    Parse::RecDescent: Treating "table_name" as a subrule match
+    Parse::RecDescent: Treating "column_list" as a subrule match
+    Parse::RecDescent: Treating "/AS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "get_bracketed" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { name =>
+                       $item{table_name}{name}, query => $item[4] }; }" as an
+                       action
+    Parse::RecDescent: Treating "get_bracketed:" as a rule declaration
+    Parse::RecDescent: Treating "{ extract_bracketed($text, '('); }" as an
+                       action
+    Parse::RecDescent: Treating "common_table_expression:" as a rule
+                       declaration
+    Parse::RecDescent: Treating "table_name" as a subrule match
+    Parse::RecDescent: Treating "column_list" as a subrule match
+    Parse::RecDescent: Treating "/AS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "fullselect" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "# fullselect: ( subselect | '(' fullselect
+                       ')' | values_clause ) ( ( /UNION/i | /UNION/i /ALL/i |
+                       /EXCEPT/i | /EXCEPT/i /ALL/i | /INTERSECT/i |
+                       /INTERSECT/i /ALL/i ) ( subselect | '(' fullselect ')'
+                       | values_clause ) )(s)" as a comment
+    Parse::RecDescent: Treating "# values_clause: /VALUES/i values_row(s /,/)
+                       " as a comment
+    Parse::RecDescent: Treating "# values_row: ( expression | /NULL/i ) | '('
+                       ( expression | /NULL/i )(s /,/) ')'" as a comment
+    Parse::RecDescent: Treating "# subselect: select_clause from_clause
+                       where_clause(?) group_by_clause(?) having_clause(?)" as
+                       a comment
+    Parse::RecDescent: Treating "# select_clause: SELECT ( /ALL/i | /DISTINCT
+                       )(?) ( '*' | ( expression ( /AS|/i new_column_name )(?)
+                       | exposed_name '.*' )(s /,/) )" as a comment
+    Parse::RecDescent: Treating "# from_clause: /FROM/i table_name(s /,/)" as
+                       a comment
+    Parse::RecDescent: Treating "# from_clause: /FROM/i table_reference(s
+                       /,/)" as a comment
+    Parse::RecDescent: Treating "# table_reference: " as a comment
+    Parse::RecDescent: Treating "# ( " as a comment
+    Parse::RecDescent: Treating "# ( nickname " as a comment
+    Parse::RecDescent: Treating "# | table_name " as a comment
+    Parse::RecDescent: Treating "# | view_name " as a comment
+    Parse::RecDescent: Treating "# ) " as a comment
+    Parse::RecDescent: Treating "# | ( /ONLY/i" as a comment
+    Parse::RecDescent: Treating "# | /OUTER/i " as a comment
+    Parse::RecDescent: Treating "# ) '(' " as a comment
+    Parse::RecDescent: Treating "# ( table_name " as a comment
+    Parse::RecDescent: Treating "# | view_name " as a comment
+    Parse::RecDescent: Treating "# ) ')' " as a comment
+    Parse::RecDescent: Treating "# ) correlation_clause(?) " as a comment
+    Parse::RecDescent: Treating "# | TABLE '(' function_name '(' expression(s?
+                       /,/) ')' ')' correlation_clause " as a comment
+    Parse::RecDescent: Treating "# | TABLE(?) '(' fullselect ')'
+                       correlation_clause " as a comment
+    Parse::RecDescent: Treating "# | joined_table " as a comment
+    Parse::RecDescent: Treating "# correlation_clause: /AS/i(?)
+                       correlation_name column_list(?)" as a comment
+    Parse::RecDescent: Treating "# joined_table: " as a comment
+    Parse::RecDescent: Treating "# table_reference ( INNER " as a comment
+    Parse::RecDescent: Treating "# | outer " as a comment
+    Parse::RecDescent: Treating "# )(?) JOIN table_reference ON
+                       join_condition" as a comment
+    Parse::RecDescent: Treating "# | '(' joined_table ')'" as a comment
+    Parse::RecDescent: Treating "# outer: ( LEFT | RIGHT | FULL ) OUTER(?)" as
+                       a comment
+    Parse::RecDescent: Treating "where_clause:" as a rule declaration
+    Parse::RecDescent: Treating "WHERE" as a subrule match
+    Parse::RecDescent: Treating "search_condition" as a subrule match
+    Parse::RecDescent: Treating "# group_by_clause: /GROUP\s+BY/i (
+                       grouping_expression " as a comment
+    Parse::RecDescent: Treating "# | grouping_sets" as a comment
+    Parse::RecDescent: Treating "# | super_groups" as a comment
+    Parse::RecDescent: Treating "# )(s /,/)" as a comment
+    Parse::RecDescent: Treating "# grouping_expression: expression" as a
+                       comment
+    Parse::RecDescent: Treating "# orderby_clause: /ORDER\s+BY/i ( sort_key (
+                       /ASC/i | /DESC/i)(?) )(s /,/)" as a comment
+    Parse::RecDescent: Treating "# sort_key: simple_column_name |
+                       simple_integer | sort_key_expression" as a comment
+    Parse::RecDescent: Treating "# # Name of one of the selected columns!" as
+                       a comment
+    Parse::RecDescent: Treating "# simple_column_name: NAME" as a comment
+    Parse::RecDescent: Treating "# simple_integer: /\d+/ " as a comment
+    Parse::RecDescent: Treating "# { $item[1] <= $numberofcolumns && $item[1]
+                       > 1 }" as a comment
+    Parse::RecDescent: Treating "# sort_key_expression: expression" as a
+                       comment
+    Parse::RecDescent: Treating "# { expression from select columns list,
+                       grouping_expression, column function.. }" as a comment
+    Parse::RecDescent: Treating "# grouping_sets: /GROUPING\s+SETS/i '(' ( "
+                       as a comment
+    Parse::RecDescent: Treating "# ( grouping_expression " as a comment
+    Parse::RecDescent: Treating "# | super_groups " as a comment
+    Parse::RecDescent: Treating "# ) " as a comment
+    Parse::RecDescent: Treating "# | '(' ( grouping_expression " as a comment
+    Parse::RecDescent: Treating "# | super_groups " as a comment
+    Parse::RecDescent: Treating "# )(s /,/) ')' " as a comment
+    Parse::RecDescent: Treating "# )(s /,/) ')' " as a comment
+    Parse::RecDescent: Treating "# super_groups: /ROLLUP/i '('
+                       grouping_expression_list ')' " as a comment
+    Parse::RecDescent: Treating "# | /CUBE/i '(' grouping_expression_list ')'"
+                       as a comment
+    Parse::RecDescent: Treating "# | grand_total" as a comment
+    Parse::RecDescent: Treating "# grouping_expression_list: (
+                       grouping_expression " as a comment
+    Parse::RecDescent: Treating "# | '(' grouping_expression(s /,/) ')' " as a
+                       comment
+    Parse::RecDescent: Treating "# )(s /,/)" as a comment
+    Parse::RecDescent: Treating "# grand_total: '(' ')'" as a comment
+    Parse::RecDescent: Treating "# having_clause: /HAVING/i search_condition"
+                       as a comment
+    Parse::RecDescent: Treating "when_clause:" as a rule declaration
+    Parse::RecDescent: Treating "/WHEN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "search_condition" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "{$return = $item[3]}" as an action
+    Parse::RecDescent: Treating "triggered_action:" as a rule declaration
+    Parse::RecDescent: Treating "when_clause(?)" as an zero-or-one subrule
+                       match
+    Parse::RecDescent: Treating "SQL_procedure_statement" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { 'condition' => $item[1][0],
+                       'statement' => $item{'SQL_procedure_statement'} }; }"
+                       as an action
+    Parse::RecDescent: Treating "before:" as a rule declaration
+    Parse::RecDescent: Treating "/NO CASCADE BEFORE/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "after:" as a rule declaration
+    Parse::RecDescent: Treating "/AFTER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "type:" as a rule declaration
+    Parse::RecDescent: Treating "/UPDATE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "/OF/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "column_name(s)" as a one-or-more subrule
+                       match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating "{ $return = { event => 'update_on', fields =>
+                       $item[3] } }" as an action
+    Parse::RecDescent: Treating "type:" as a rule declaration
+    Parse::RecDescent: Treating "( /INSERT/i | /DELETE/i | /UPDATE/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating "_alternation_1_of_production_2_of_rule_type
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "/INSERT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DELETE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/UPDATE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "_alternation_1_of_production_2_of_rule_type"
+                       as a subrule match
+    Parse::RecDescent: Treating "{ $return = { event => $item[1] } }" as an
+                       action
+    Parse::RecDescent: Treating "reference_b:" as a rule declaration
+    Parse::RecDescent: Treating "/REFERENCING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "old_new_corr(0..2)" as a 0-to-2 subrule match
+    Parse::RecDescent: Treating "{ $return = join(' ', $item[1], join(' ',
+                       @{$item[2]}) ) }" as an action
+    Parse::RecDescent: Treating "reference_a:" as a rule declaration
+    Parse::RecDescent: Treating "/REFERENCING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "old_new_corr(0..2)" as a 0-to-2 subrule match
+    Parse::RecDescent: Treating "old_new_table(0..2)" as a 0-to-2 subrule
+                       match
+    Parse::RecDescent: Treating "{ $return = join(' ', $item[1], join(' ',
+                       @{$item[2]}), join(' ', @{$item[3]}) ) }" as an action
+    Parse::RecDescent: Treating "old_new_corr:" as a rule declaration
+    Parse::RecDescent: Treating "/OLD/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "/(AS)?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "correlation_name" as a subrule match
+    Parse::RecDescent: Treating "{ $return = join(' ', @item[1..3] ) }" as an
+                       action
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NEW/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "/(AS)?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "correlation_name" as a subrule match
+    Parse::RecDescent: Treating "{ $return = join(' ', @item[1..3] ) }" as an
+                       action
+    Parse::RecDescent: Treating "old_new_table:" as a rule declaration
+    Parse::RecDescent: Treating "/OLD_TABLE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "/(AS)?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "identifier" as a subrule match
+    Parse::RecDescent: Treating "{ $return = join(' ', @item[1..3] ) }" as an
+                       action
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NEW_TABLE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "/(AS)?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "identifier" as a subrule match
+    Parse::RecDescent: Treating "{ $return = join(' ', @item[1..3] ) }" as an
+                       action
+    Parse::RecDescent: Treating "# Just parsing simple search conditions for
+                       now." as a comment
+    Parse::RecDescent: Treating "search_condition:" as a rule declaration
+    Parse::RecDescent: Treating "/[^)]+/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "expression:" as a rule declaration
+    Parse::RecDescent: Treating "( ( '+' | '-' )(?) ( function | '('
+                       expression ')' | constant | column_name | host_variable
+                       | special_register | '(' scalar_fullselect ')' |
+                       labeled_duration | case_expression | cast_specification
+                       # | dereference_operation # | OLAP_function |
+                       method_invocation | subtype_treatment |
+                       sequence_reference ) )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_expression :"
+                       as a rule declaration
+    Parse::RecDescent: Treating "( '+' | '-' )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_expression :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "+" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "-" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_expression(?)" as an zero-or-
+                       one subrule match
+    Parse::RecDescent: Treating "( function | '(' expression ')' | constant |
+                       column_name | host_variable | special_register | '('
+                       scalar_fullselect ')' | labeled_duration |
+                       case_expression | cast_specification # |
+                       dereference_operation # | OLAP_function |
+                       method_invocation | subtype_treatment |
+                       sequence_reference )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_expression :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "function" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "constant" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "host_variable" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "special_register" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "scalar_fullselect" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "labeled_duration" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "case_expression" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "cast_specification" as a subrule match
+    Parse::RecDescent: Treating "# | dereference_operation" as a comment
+    Parse::RecDescent: Treating "# | OLAP_function" as a comment
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "method_invocation" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "subtype_treatment" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "sequence_reference" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_expression" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_expression(s)"
+                       as a one-or-more subrule match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_expression" as
+                       a subrule match
+    Parse::RecDescent: Treating "/operator/" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_expression" as
+                       a subrule match
+    Parse::RecDescent: Treating "operator:" as a rule declaration
+    Parse::RecDescent: Treating "( /CONCAT/i | '||' )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_operator :" as
+                       a rule declaration
+    Parse::RecDescent: Treating "/CONCAT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "||" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_operator" as a
+                       subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "*" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "+" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "-" as a literal terminal
+    Parse::RecDescent: Treating "function:" as a rule declaration
+    Parse::RecDescent: Treating "( /SYSIBM\.|/i sysibm_function | /SYSFUN\.|/i
+                       sysfun_function | userdefined_function )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_function :" as
+                       a rule declaration
+    Parse::RecDescent: Treating "/SYSIBM\.|/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "sysibm_function" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SYSFUN\.|/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "sysfun_function" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "userdefined_function" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_function" as a
+                       subrule match
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "func_args(s)" as a one-or-more subrule match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating "func_args" as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "func_args" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "constant:" as a rule declaration
+    Parse::RecDescent: Treating "int_const" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "float_const" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "dec_const" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "char_const" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "hex_const" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "grastr_const" as a subrule match
+    Parse::RecDescent: Treating "integer:" as a rule declaration
+    Parse::RecDescent: Treating "/\d+/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "int_const:" as a rule declaration
+    Parse::RecDescent: Treating "/^([+-]?\d+)$/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "float_const:" as a rule declaration
+    Parse::RecDescent: Treating "/^([+-]?[\d\.]+E[+-]?\d+)$/" as a /../
+                       pattern terminal
+    Parse::RecDescent: Treating "dec_const:" as a rule declaration
+    Parse::RecDescent: Treating "/^([+-]?[\d\.]+)$/" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "char_const:" as a rule declaration
+    Parse::RecDescent: Treating "/^'(.*)'$/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "hex_const:" as a rule declaration
+    Parse::RecDescent: Treating "/^X'([0-9A-F])+'$/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "grastr_const:" as a rule declaration
+    Parse::RecDescent: Treating "/^[NG]'(.*)'$/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "unsigned_constant:" as a rule declaration
+    Parse::RecDescent: Treating "constant" as a subrule match
+    Parse::RecDescent: Treating "func_args:" as a rule declaration
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "sysibm_function:" as a rule declaration
+    Parse::RecDescent: Treating "( /ABS/i | /ABSVAL/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_sysibm_function
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "/ABS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ABSVAL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_sysibm_function
+                       " as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/AVG/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/BIGINT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/BLOB/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CLOB/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/COALESCE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /CONCAT/ | '||' )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_8_of_rule_sysibm_function
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "/CONCAT/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "||" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_8_of_rule_sysibm_function
+                       " as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /CORRELATION/i | /CORR/ )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_9_of_rule_sysibm_function
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "/CORRELATION/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CORR/" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_9_of_rule_sysibm_function
+                       " as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/COUNT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/COUNT_BIG/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /COVARIANCE/i | /COVAR/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_12_of_rule_sysibm_functio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "/COVARIANCE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/COVAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_12_of_rule_sysibm_functio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DATE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DAY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DAYS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DBCLOB/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /DECIMAL/i | /DEC/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_17_of_rule_sysibm_functio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "/DECIMAL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DEC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_17_of_rule_sysibm_functio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DECRYPT_BIN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DECRYPT_CHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DEREF/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DIGITS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DLCOMMENT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DLLINKTYPE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DLURLCOMPLETE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DLURLPATH/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DLURLPATHONLY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DLURLSCHEME/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DLURLSERVER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DLVALUE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /DOUBLE/i | /DOUBLE_PRECISION/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_30_of_rule_sysibm_functio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "/DOUBLE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DOUBLE_PRECISION/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_30_of_rule_sysibm_functio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ENCRYPT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/EVENT_MON_STATE/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/FLOAT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/GETHINT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/GENERATE_UNIQUE/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/GRAPHIC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/GROUPING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/HEX/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/HOUR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/IDENTITY_VAL_LOCAL/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /INTEGER/i | /INT/ )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_41_of_rule_sysibm_functio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "/INTEGER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/INT/" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_41_of_rule_sysibm_functio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /LCASE/i | /LOWER/ )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_42_of_rule_sysibm_functio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "/LCASE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LOWER/" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_42_of_rule_sysibm_functio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LENGTH/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LONG_VARCHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LONG_VARGRAPHIC/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LTRIM/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MAX/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MICROSECOND/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MIN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MINUTE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MONTH/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MULTIPLY_ACT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NODENUMBER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NULLIF/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/PARTITON/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/POSSTR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/RAISE_ERROR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REAL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REC2XML/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REGR_AVGX/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REGR_AVGY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REGR_COUNT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /REGR_INTERCEPT/i | /REGR_ICPT/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_63_of_rule_sysibm_functio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "/REGR_INTERCEPT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REGR_ICPT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_63_of_rule_sysibm_functio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REGR_R2/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REGR_SLOPE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REGR_SXX/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REGR_SXY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REGR_SYY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/RTRIM/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SECOND/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SMALLINT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/STDDEV/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SUBSTR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SUM/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TABLE_NAME/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TABLE_SCHEMA/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TIME/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TIMESTAMP/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TRANSLATE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TYPE_ID/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TYPE_NAME/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TYPE_SCHEMA/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /UCASE/i | /UPPER/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_83_of_rule_sysibm_functio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "/UCASE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/UPPER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_83_of_rule_sysibm_functio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/VALUE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/VARCHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/VARGRAPHIC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /VARIANCE/i | /VAR/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_87_of_rule_sysibm_functio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "/VARIANCE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/VAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_87_of_rule_sysibm_functio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/YEAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "sysfun:" as a rule declaration
+    Parse::RecDescent: Treating "( /ABS/i | /ABSVAL/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating "_alternation_1_of_production_1_of_rule_sysfun
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "/ABS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ABSVAL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_sysfun" as a
+                       subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ACOS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ASCII/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ASIN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ATAN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ATAN2/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /CEIL/i | /CEILING/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating "_alternation_1_of_production_7_of_rule_sysfun
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "/CEIL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CEILING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_7_of_rule_sysfun" as a
+                       subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CHAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CHR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/COS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/COT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DAYNAME/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DAYOFWEEK/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DAYOFWEEK_ISO/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DAYOFYEAR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DEGREES/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DIFFERENCE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DOUBLE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/EXP/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/FLOOR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/GET_ROUTINE_SAR/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/INSERT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/JULIAN_DAY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LCASE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LEFT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LOCATE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LOG/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LOG10/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/LTRIM/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MIDNIGHT_SECONDS/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MOD/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MONTHNAME/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/POWER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/PUT_ROUTINE_SAR/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/QUARTER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/RADIANS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/RAND/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REPEAT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/REPLACE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/RIGHT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ROUND/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/RTRIM/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "I" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SIGN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SIN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SOUNDEX/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SPACE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SQLCACHE_SNAPSHOT/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SQRT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TAN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TIMESTAMP_ISO/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TIMESTAMPDIFF/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "( /TRUNCATE/i | /TRUNC/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_53_of_rule_sysfun :" as a
+                       rule declaration
+    Parse::RecDescent: Treating "/TRUNCATE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/TRUNC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_53_of_rule_sysfun" as a
+                       subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/UCASE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/WEEK/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/WEEK_ISO/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "scalar_fullselect:" as a rule declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "fullselect" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "labeled_duration:" as a rule declaration
+    Parse::RecDescent: Treating "ld_type" as a subrule match
+    Parse::RecDescent: Treating "ld_duration" as a subrule match
+    Parse::RecDescent: Treating "ld_type:" as a rule declaration
+    Parse::RecDescent: Treating "function" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "constant" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "column_name" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "host_variable" as a subrule match
+    Parse::RecDescent: Treating "ld_duration:" as a rule declaration
+    Parse::RecDescent: Treating "/YEARS?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MONTHS?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DAYS?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/HOURS?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MINUTES?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/SECONDS?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/MICROSECONDS?/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "case_expression:" as a rule declaration
+    Parse::RecDescent: Treating "/CASE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( searched_when_clause | simple_when_clause
+                       )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_case_expression
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "searched_when_clause" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "simple_when_clause" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_case_expression
+                       " as a subrule match
+    Parse::RecDescent: Treating "( /ELSE\s+NULL/i | /ELSE/i result_expression
+                       )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_case_expression
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "/ELSE\s+NULL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/ELSE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "result_expression" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_case_expression
+                       (?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating "/END/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "searched_when_clause:" as a rule declaration
+    Parse::RecDescent: Treating "( /WHEN/i search_condition /THEN/i (
+                       result_expression | /NULL/i ) )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_searched_when_c
+                       lause :" as a rule declaration
+    Parse::RecDescent: Treating "/WHEN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "search_condition" as a subrule match
+    Parse::RecDescent: Treating "/THEN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( result_expression | /NULL/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_searched_when_clause :" as a
+                       rule declaration
+    Parse::RecDescent: Treating "result_expression" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NULL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_searched_when_clause" as a
+                       subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_searched_when_c
+                       lause(s)" as a one-or-more subrule match
+    Parse::RecDescent: Treating "simple_when_clause:" as a rule declaration
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "( /WHEN/i search_condition /THEN/i (
+                       result_expression | /NULL/i ) )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_simple_when_cla
+                       use :" as a rule declaration
+    Parse::RecDescent: Treating "/WHEN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "search_condition" as a subrule match
+    Parse::RecDescent: Treating "/THEN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( result_expression | /NULL/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_simple_when_clause :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "result_expression" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NULL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_simple_when_clause" as a
+                       subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_simple_when_cla
+                       use(s)" as a one-or-more subrule match
+    Parse::RecDescent: Treating "result_expression:" as a rule declaration
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "cast_specification:" as a rule declaration
+    Parse::RecDescent: Treating "/CAST/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "( expression | /NULL/i | parameter_marker )"
+                       as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_cast_specificat
+                       ion :" as a rule declaration
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NULL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "parameter_marker" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_cast_specificat
+                       ion" as a subrule match
+    Parse::RecDescent: Treating "/AS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "data_type" as a subrule match
+    Parse::RecDescent: Treating "( /SCOPE/ ( typed_table_name |
+                       typed_view_name ) )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_cast_specificat
+                       ion :" as a rule declaration
+    Parse::RecDescent: Treating "/SCOPE/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( typed_table_name | typed_view_name )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_2_
+                       of_production_1_of_rule_cast_specification :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "typed_table_name" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "typed_view_name" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_2_
+                       of_production_1_of_rule_cast_specification" as a
+                       subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_cast_specificat
+                       ion(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "dereference_operation:" as a rule declaration
+    Parse::RecDescent: Treating "scoped_reference_expression" as a subrule
+                       match
+    Parse::RecDescent: Treating "->" as a literal terminal
+    Parse::RecDescent: Treating "name1" as a subrule match
+    Parse::RecDescent: Treating "( '(' expression(s) ')' )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_dereference_ope
+                       ration :" as a rule declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "expression(s)" as a one-or-more subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_dereference_ope
+                       ration(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating "# ( '(' expression(s /,/) ')' )(?)" as a
+                       comment
+    Parse::RecDescent: Treating "scoped_reference_expression:" as a rule
+                       declaration
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "{ # scoped, reference }" as an action
+    Parse::RecDescent: Treating "name1:" as a rule declaration
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "OLAP_function:" as a rule declaration
+    Parse::RecDescent: Treating "ranking_function" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "numbering_function" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "aggregation_function" as a subrule match
+    Parse::RecDescent: Treating "ranking_function:" as a rule declaration
+    Parse::RecDescent: Treating "( /RANK/ '()' | /DENSE_RANK|DENSERANK/i '()'
+                       )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_ranking_functio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "/RANK/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "()" as a literal terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/DENSE_RANK|DENSERANK/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "()" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_ranking_functio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "/OVER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "window_partition_clause(?)" as an zero-or-one
+                       subrule match
+    Parse::RecDescent: Treating "window_order_clause" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "numbering_function:" as a rule declaration
+    Parse::RecDescent: Treating "/ROW_NUMBER|ROWNUMBER/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "()" as a literal terminal
+    Parse::RecDescent: Treating "/OVER/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "window_partition_clause(?)" as an zero-or-one
+                       subrule match
+    Parse::RecDescent: Treating "( window_order_clause
+                       window_aggregation_group_clause(?) )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_numbering_funct
+                       ion :" as a rule declaration
+    Parse::RecDescent: Treating "window_order_clause" as a subrule match
+    Parse::RecDescent: Treating "window_aggregation_group_clause(?)" as an
+                       zero-or-one subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_numbering_funct
+                       ion(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating "(
+                       /RANGE\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+UNBBOU
+                       NDED\s+FOLLOWING/i | window_aggregation_group_clause )"
+                       as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_numbering_funct
+                       ion :" as a rule declaration
+    Parse::RecDescent: Treating
+                       "/RANGE\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+UNBBO
+                       UNDED\s+FOLLOWING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "window_aggregation_group_clause" as a subrule
+                       match
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_numbering_funct
+                       ion(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "window_partition_clause:" as a rule
+                       declaration
+    Parse::RecDescent: Treating "/PARTITION\s+BY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "partitioning_expression(s)" as a one-or-more
+                       subrule match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating "partitioning_expression" as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating "partitioning_expression" as a subrule match
+    Parse::RecDescent: Treating "window_order_clause:" as a rule declaration
+    Parse::RecDescent: Treating "/ORDER\s+BY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( sort_key_expression ( asc_option |
+                       desc_option )(?) )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_window_order_cl
+                       ause :" as a rule declaration
+    Parse::RecDescent: Treating "sort_key_expression" as a subrule match
+    Parse::RecDescent: Treating "( asc_option | desc_option )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_window_order_clause :" as a
+                       rule declaration
+    Parse::RecDescent: Treating "asc_option" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "desc_option" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_1_of_rule_window_order_clause(?)" as an
+                       zero-or-one subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_window_order_cl
+                       ause(s)" as a one-or-more subrule match
+    Parse::RecDescent: Treating "<leftop:...>" as a left-associative operator
+                       directive
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_window_order_cl
+                       ause" as a subrule match
+    Parse::RecDescent: Treating "/,/" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_window_order_cl
+                       ause" as a subrule match
+    Parse::RecDescent: Treating "asc_option:" as a rule declaration
+    Parse::RecDescent: Treating "/ASC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( /NULLS\s+FIRST/i | /NULLS\s+LAST/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_asc_option :"
+                       as a rule declaration
+    Parse::RecDescent: Treating "/NULLS\s+FIRST/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NULLS\s+LAST/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_asc_option(?)"
+                       as an zero-or-one subrule match
+    Parse::RecDescent: Treating "desc_option:" as a rule declaration
+    Parse::RecDescent: Treating "/DESC/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( /NULLS\s+FIRST/i | /NULLS\s+LAST/i )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_desc_option :"
+                       as a rule declaration
+    Parse::RecDescent: Treating "/NULLS\s+FIRST/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/NULLS\s+LAST/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_desc_option(?)"
+                       as an zero-or-one subrule match
+    Parse::RecDescent: Treating "window_aggregation_group_clause:" as a rule
+                       declaration
+    Parse::RecDescent: Treating "( /ROWS/i | /RANGE/i )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_window_aggregat
+                       ion_group_clause :" as a rule declaration
+    Parse::RecDescent: Treating "/ROWS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/RANGE/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_window_aggregat
+                       ion_group_clause" as a subrule match
+    Parse::RecDescent: Treating "( group_start | group_between | group_end )"
+                       as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_window_aggregat
+                       ion_group_clause :" as a rule declaration
+    Parse::RecDescent: Treating "group_start" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "group_between" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "group_end" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_2_of_production_1_of_rule_window_aggregat
+                       ion_group_clause" as a subrule match
+    Parse::RecDescent: Treating "group_start:" as a rule declaration
+    Parse::RecDescent: Treating "/UNBOUNDED\s+PRECEDING/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "unsigned_constant" as a subrule match
+    Parse::RecDescent: Treating "/PRECEDING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CURRENT\s+ROW/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "group_between:" as a rule declaration
+    Parse::RecDescent: Treating "/BETWEEN/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "group_bound1" as a subrule match
+    Parse::RecDescent: Treating "/AND/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "group_bound2" as a subrule match
+    Parse::RecDescent: Treating "group_bound1:" as a rule declaration
+    Parse::RecDescent: Treating "/UNBOUNDED\s+PRECEDING/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "unsigned_constant" as a subrule match
+    Parse::RecDescent: Treating "/PRECEDING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "unsigned_constant" as a subrule match
+    Parse::RecDescent: Treating "/FOLLOWING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CURRENT\s+ROW/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "group_bound2:" as a rule declaration
+    Parse::RecDescent: Treating "/UNBOUNDED\s+PRECEDING/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "unsigned_constant" as a subrule match
+    Parse::RecDescent: Treating "/PRECEDING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "unsigned_constant" as a subrule match
+    Parse::RecDescent: Treating "/FOLLOWING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/CURRENT\s+ROW/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "group_end:" as a rule declaration
+    Parse::RecDescent: Treating "/UNBOUNDED\s+PRECEDING/i" as a /../ pattern
+                       terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "unsigned_constant" as a subrule match
+    Parse::RecDescent: Treating "/FOLLOWING/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "method_invocation:" as a rule declaration
+    Parse::RecDescent: Treating "subject_expression" as a subrule match
+    Parse::RecDescent: Treating ".." as a literal terminal
+    Parse::RecDescent: Treating "method_name" as a subrule match
+    Parse::RecDescent: Treating "( '(' expression(s) ')' # ( '(' expression(s
+                       /,/) ')' )" as an implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_method_invocati
+                       on :" as a rule declaration
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "expression(s)" as a one-or-more subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "# ( '(' expression(s /,/) ')' " as a comment
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule_method_invocati
+                       on(?)" as an zero-or-one subrule match
+    Parse::RecDescent: Treating "subject_expression:" as a rule declaration
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "{ # with static result type that is a used-
+                       defined struct type }" as an action
+    Parse::RecDescent: Treating "method_name:" as a rule declaration
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "{ # must be a method of subject_expression }"
+                       as an action
+    Parse::RecDescent: Treating "subtype_treatment:" as a rule declaration
+    Parse::RecDescent: Treating "/TREAT/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "/AS/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "data_type" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "sequence_reference:" as a rule declaration
+    Parse::RecDescent: Treating "nextval_expression" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "prevval_expression" as a subrule match
+    Parse::RecDescent: Treating "nextval_expression:" as a rule declaration
+    Parse::RecDescent: Treating "/NEXTVAL\s+FOR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "sequence_name" as a subrule match
+    Parse::RecDescent: Treating "prevval_expression:" as a rule declaration
+    Parse::RecDescent: Treating "/PREVVAL\s+FOR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "sequence_name" as a subrule match
+    Parse::RecDescent: Treating "sequence_name:" as a rule declaration
+    Parse::RecDescent: Treating "NAME" as a subrule match
+    Parse::RecDescent: Treating "search_condition:" as a rule declaration
+    Parse::RecDescent: Treating "/NOT|/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( predicate ( /SELECTIVITY/i numeric_constant
+                       )(?) | '(' search_condition ')' )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule_search_conditio
+                       n :" as a rule declaration
+    Parse::RecDescent: Treating "predicate" as a subrule match
+    Parse::RecDescent: Treating "( /SELECTIVITY/i numeric_constant )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_2_of_rule_search_condition :" as a rule
+                       declaration
+    Parse::RecDescent: Treating "/SELECTIVITY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "numeric_constant" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_1_
+                       of_production_2_of_rule_search_condition(?)" as an
+                       zero-or-one subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "search_condition" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_2_of_rule_search_conditio
+                       n" as a subrule match
+    Parse::RecDescent: Treating "cond(s?)" as a zero-or-more subrule match
+    Parse::RecDescent: Treating "cond:" as a rule declaration
+    Parse::RecDescent: Treating "( /AND/i | /OR/i )" as an implicit subrule
+    Parse::RecDescent: Treating "_alternation_1_of_production_1_of_rule_cond
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "/AND/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "/OR/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "_alternation_1_of_production_1_of_rule_cond"
+                       as a subrule match
+    Parse::RecDescent: Treating "/NOT|/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "( predicate ( /SELECTIVITY/i numeric_constant
+                       )(?) | '(' search_condition ')' )" as an implicit
+                       subrule
+    Parse::RecDescent: Treating "_alternation_2_of_production_1_of_rule_cond
+                       :" as a rule declaration
+    Parse::RecDescent: Treating "predicate" as a subrule match
+    Parse::RecDescent: Treating "( /SELECTIVITY/i numeric_constant )" as an
+                       implicit subrule
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_2_
+                       of_production_1_of_rule_cond :" as a rule declaration
+    Parse::RecDescent: Treating "/SELECTIVITY/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "numeric_constant" as a subrule match
+    Parse::RecDescent: Treating
+                       "_alternation_1_of_production_1_of_rule__alternation_2_
+                       of_production_1_of_rule_cond(?)" as an zero-or-one
+                       subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "search_condition" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+    Parse::RecDescent: Treating "_alternation_2_of_production_1_of_rule_cond"
+                       as a subrule match
+    Parse::RecDescent: Treating "predicate:" as a rule declaration
+    Parse::RecDescent: Treating "basic_p" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "quantified_p" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "between_p" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "exists_p" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "in_p" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "like_p" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "null_p" as a subrule match
+    Parse::RecDescent: Treating "|" as a new production
+    Parse::RecDescent: Treating "type_p" as a subrule match
+    Parse::RecDescent: Treating "basic_p:" as a rule declaration
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "/(=|<>|<|>|<=|=>|\^=|\^<|\^>|\!=)/" as a /../
+                       pattern terminal
+    Parse::RecDescent: Treating "expression" as a subrule match
+    Parse::RecDescent: Treating "quantified_p:" as a rule declaration
+    Parse::RecDescent: Treating "expression1" as a subrule match
+    Parse::RecDescent: Treating "/(=|<>|<|>|<=|=>|\^=|\^<|\^>|\!=)/" as a /../
+                       pattern terminal
+    Parse::RecDescent: Treating "/SOME|ANY|ALL/i" as a /../ pattern terminal
+    Parse::RecDescent: Treating "(" as a literal terminal
+    Parse::RecDescent: Treating "fullselect" as a subrule match
+    Parse::RecDescent: Treating ")" as a literal terminal
+
+              Warning: Undefined (sub)rule "aggregation_function" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "aggregation_function"? Otherwise it
+                       will be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "partitioning_expression" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "partitioning_expression"? Otherwise
+                       it will be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "sysfun_function" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "sysfun_function"? Otherwise it will
+                       be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "userdefined_function" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "userdefined_function"? Otherwise it
+                       will be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "typed_table_name" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "typed_table_name"? Otherwise it will
+                       be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "typed_view_name" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "typed_view_name"? Otherwise it will
+                       be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "datetime_special_register" used in
+                       a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "datetime_special_register"? Otherwise
+                       it will be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "cast_function" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "cast_function"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "datetime" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "datetime"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "fullselect" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "fullselect"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "expression1" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "expression1"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "fullselect" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "fullselect"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "fullselect" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "fullselect"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "between_p" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "between_p"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "exists_p" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "exists_p"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "in_p" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "in_p"? Otherwise it will be treated
+                       as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "like_p" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "like_p"? Otherwise it will be treated
+                       as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "null_p" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "null_p"? Otherwise it will be treated
+                       as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "type_p" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "type_p"? Otherwise it will be treated
+                       as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "host_variable" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "host_variable"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "datetime_special_register" used in
+                       a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "datetime_special_register"? Otherwise
+                       it will be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "sort_key_expression" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "sort_key_expression"? Otherwise it
+                       will be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "I" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "I"? Otherwise it will be treated as
+                       an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "IN" used in a production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "IN"? Otherwise it will be treated as
+                       an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "tablespace_name" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "tablespace_name"? Otherwise it will
+                       be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "parameter_marker" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "parameter_marker"? Otherwise it will
+                       be treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "host_variable" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "host_variable"? Otherwise it will be
+                       treated as an immediate <reject>.)
+
+              Warning: Undefined (sub)rule "special_register" used in a
+                       production.
+                (Hint: Will you be providing this rule later, or did you
+                       perhaps misspell "special_register"? Otherwise it will
+                       be treated as an immediate <reject>.)
+printing code (1555589) to RD_TRACE
+
+{
+    my ( %tables, $table_order, @table_comments, @views, @triggers );
+}
+
+#
+# The "eofile" rule makes the parser fail if any "statement" rule
+# fails.  Otherwise, the first successful match by a "statement"
+# won't cause the failure needed to know that the parse, as a whole,
+# failed. -ky
+#
+startrule : statement(s) eofile {
+    $return      = {
+        tables   => \%tables,
+        views    => \@views,
+        triggers => \@triggers,
+    }
+}
+
+eofile : /^\Z/
+
+statement : 
+    comment
+    | create
+    | drop
+    | <error>
+
+comment : /^\s*--.*\n/
+    {
+        my $comment =  $item[1];
+        $comment    =~ s/^\s*(--)\s*//;
+        $comment    =~ s/\s*$//;
+        $return     = $comment;
+    }
+
+drop : /drop/i table_name end_statement
+
+create: CREATE TRIGGER trigger_name before type /ON/i table_name reference_b(?) /FOR EACH ROW/i 'MODE DB2SQL' triggered_action
+{
+    my $table_name = $item{'table_name'}{'name'};
+    $return =  {
+        table      => $table_name,
+        schema     => $item{'trigger_name'}{'schema'},
+        name       => $item{'trigger_name'}{'name'},
+        when       => 'before',
+        db_event   => $item{'type'}->{'event'},
+        fields     => $item{'type'}{'fields'},
+        condition  => $item{'triggered_action'}{'condition'},
+        reference  => $item{'reference_b'},
+        granularity => $item[9],
+        action     => $item{'triggered_action'}{'statement'}
+    };
+
+    push @triggers, $return;
+}
+
+create: CREATE TRIGGER trigger_name after type /ON/i table_name reference_a(?) /FOR EACH ROW|FOR EACH STATEMENT/i 'MODE DB2SQL' triggered_action
+{
+    my $table_name = $item{'table_name'}{'name'};
+    $return = {
+        table      => $table_name,
+        schema     => $item{'trigger_name'}{'schema'},
+        name       => $item{'trigger_name'}{'name'},
+        when       => 'after',
+        db_event   => $item{'type'}{'event'},
+        fields     => $item{'type'}{'fields'},
+        condition  => $item{'triggered_action'}{'condition'},
+        reference  => $item{'reference_a'},
+        granularity => $item[9],
+        action     => $item{'triggered_action'}{'statement'}
+    };
+
+    push @triggers, $return;
+}
+
+create: CREATE /FEDERATED|/i VIEW view_name column_list(?) /AS/i with_expression(?) SQL_procedure_statement
+{
+    $return = {
+        name   => $item{view_name}{name},
+        sql    => $item{SQL_procedure_statement},
+        with   => $item{'with_expression(?)'},
+        fields => $item{'column_list(?)'}
+    };
+    push @views, $return;
+}
+
+# create: CREATE /FEDERATED/i VIEW view_name col_list_or_of(?) /AS/i with_expression(?) fullselect options(?)
+
+# col_list_or_of: column_list | /OF/i ( root_view_definition | subview_definition )
+
+create: CREATE TABLE table_name element_list IN tablespace_name end_statement
+
+element_list: '(' ( column_definition
+                  | unique_constraint
+                  | referential_constraint
+                  | check_constraint 
+                  )(s /,/) ')'
+
+column_definition: column_name data_type column_options
+
+column_options: ( /NOT NULL/i
+                | ( CONSTRAINT constraint_name )(?) 
+                    ( /PRIMARY KEY/i
+                    | /UNIQUE/i
+                    | references_clause
+                    | /CHECK/i '(' check_condition ')' constraint_attributes
+                    )
+                | generated_column_spec
+                )
+
+generated_column_spec: default_clause 
+              | /GENERATED/i ( /ALWAYS/i | /BY\sDEFAULT/i ) /AS\sIDENTITY/i identity_options(?)
+              | /GENERATED\sALWAYS\sAS/i '(' generation_expression ')'
+
+generation_expression: expression
+
+identity_options: 
+
+default_clause: WITH(?) /DEFAULT/i default_values(?)
+
+default_values: constant
+              | datetime_special_register
+              | /USER/i
+              | /NULL/i
+              | cast_function '(' ( constant
+                                  | datetime_special_register
+                                  | /USER/i
+                                  )
+                               ')'
+
+datetime-special-register: /CURRENT DATE/i | /CURRENT TIMESTAMP/i | /CURRENT TIME/i
+
+references_clause: /REFERENCES/i ( table_name | nickname ) '(' column_name(s /,/) ')' rule_clause constraint_attributes
+
+rule_clause: ( ( /ON\sDELETE\sNO\sACTION/i 
+               | /ON\sDELETE/i
+                 ( /RESTRICT/i 
+                 | /CASCADE/i
+                 | /SET\sNULL/i
+                 )
+               )
+             | ( /ON\sUPDATE\sNO\sACTION/i
+               | /ON\sUPDATE\sRESTRICT/i
+               )
+             )(s)
+
+constraint_attributes: ( ( /ENFORCED/i
+                         | /NOT\sENFORCED/i
+                         ) 
+                       | ( /ENABLE\sQUERY\sOPTIMIZATION/i
+                         | /DISABLE\sQUERY\sOPTIMIZATION/i
+                         )
+                       )(s)
+
+unique_constraint: ( CONSTRAINT constraint_name )(?) 
+                   ( /UNIQUE/ 
+                   | /PRIMARY\sKEY/i) '(' column_name(s /,/) ')'
+
+
+referential_constraint: ( CONSTRAINT constraint_name )(?) /FOREIGN\sKEY/i '(' column_name(s /,/) ')' references_clause
+
+check_constraint: ( CONSTRAINT constraint_name )(?) /CHECK/i '(' check_condition ')' constraint_attributes
+
+check_condition: ( search_condition | functional_dependency )
+
+functional_dependency:
+
+#functional_dependency: ( column_name 
+#                       | '(' column_name(s /,/) ')' 
+#                       ) /DETERMINED\sBY/i 
+#                       ( column_name 
+#                       | '(' column_name(s /,/) ')' 
+#                       )
+
+with_expression: /WITH/i common_table_expression(s /,/)
+{
+    $return = $item{'common_table_expression'};
+}
+
+SQL_procedure_statement: /[^;]*/ end_statement { $return = $item[1] . $item[2] }
+
+end_statement: /(;|\z)/
+
+column_list: '(' column_name(s /,/) ')'
+{
+    $return = join(' ', '(', @{$item[2]}, ')');
+}
+
+CREATE: /create/i
+
+TRIGGER: /trigger/i
+
+VIEW: /view/i
+
+TABLE: /table/i
+
+INNER: /inner/i
+
+LEFT: /left/i
+
+RIGHT: /right/i
+
+FULL: /full/i
+
+OUTER: /outer/i
+
+WHERE: /where/i
+
+CONSTRAINT: /constraint/i
+
+WITH: /with/i
+ 
+trigger_name: SCHEMA '.' NAME
+    { $return = { schema => $item[1], name => $item[3] } }
+  | NAME
+    { $return = { name => $item[1] } } 
+
+table_name: SCHEMA '.' NAME
+    { $return = { schema => $item[1], name => $item[3] } }
+  | NAME
+    { $return = { name => $item[1] } } 
+
+view_name: SCHEMA '.' NAME
+    { $return = { schema => $item[1], name => $item[3] } }
+  | NAME
+    { $return = { name => $item[1] } } 
+
+column_name: NAME
+
+identifier: NAME
+
+correlation_name: NAME
+
+constraint_name: NAME
+
+nickname: NAME
+
+numeric_constant: /\d+/
+
+SCHEMA: /\w+/
+
+SCHEMA: /\w{1,128}/
+
+NAME: /\w+/
+
+NAME: /\w{1,18}/
+ 
+options: /WITH/i ( /CASCADED/i | /LOCAL/i ) /CHECK\s+OPTION/i
+
+data_type: ( /SMALLINT/i
+           | ( /INTEGER/i | /INT/i )
+           | /BIGINT/i
+           | ( /FLOAT/i '(' integer ')'
+             | /REAL/i
+             | /DOUBLE/i /PRECISION/i(?)
+             )
+           | ( /DECIMAL/i 
+             | /DEC/i
+             | /NUMERIC/i
+             | /NUM/i
+             ) ( '(' integer ( ',' integer)(?) ')' )(?)
+           | ( ( /CHARACTER/i
+               | /CHAR/i
+               | ( '(' integer ')' )(?)
+               )
+             | ( /VARCHAR/i
+               | ( /CHARACTER/i | /CHAR/i ) /VARYING/i
+               ) '(' integer ')'
+             | /LONG\sVARCHAR/i
+             )
+           | ( ( /BLOB/i
+               | /BINARY\sLARGE\sOBJECT/i
+               )
+             | ( /CLOB/i
+               | ( /CHARACTER/i | /CHAR/i ) /LARGE\sOBJECT/i
+               )
+             | /DBCLOB/i
+             ) ( '(' integer ( /K/i | /M/i | /G/i )(?) ')' )(?)
+           | /GRAPHIC/i ( '(' integer ')' ) (?)
+           | /VARGRAPHIC/i '(' integer ')'
+           | /LONG\sVARGRAPHIC/i
+           | /DATE/i
+           | /TIME/i
+           | /TIMESTAMP/i
+           | /DATALINK/i ( '(' integer ')' ) (?)
+           )
+           
+
+# root_view_definition: /MODE\s+DB2SQL/i '(' oid_column ( /,/ with_options )(?) ')'
+
+# subview_definition: /MODE\s+DB2SQL/i under_clause ( '(' with_options ')' )(?) /EXTEND/i(?)
+
+# oid_column: /REF\s+IS/i oid_column_name /USER\s+GENERATED\s+UNCHECKED/i(?)
+
+# with_options: ( column_name /WITH\s+OPTIONS/i ( /SCOPE/i ( typed_table_name | typed_view_name ) | /READ\s+ONLY/i )(s /,/) )(s /,/)
+
+# under_clause: /UNDER/i superview_name /INHERIT\s+SELECT\s+PRIVILEGES/i
+
+common_table_expression: table_name column_list /AS/i get_bracketed
+{
+    $return = { name  => $item{table_name}{name}, 
+                query => $item[4]
+                };
+}
+
+get_bracketed:  
+{ 
+    extract_bracketed($text, '(');
+}
+
+common_table_expression: table_name column_list /AS/i '(' fullselect ')'
+
+# fullselect: ( subselect | '(' fullselect ')' | values_clause ) ( ( /UNION/i | /UNION/i /ALL/i | /EXCEPT/i | /EXCEPT/i /ALL/i | /INTERSECT/i | /INTERSECT/i /ALL/i ) ( subselect | '(' fullselect ')' | values_clause ) )(s)
+
+# values_clause: /VALUES/i values_row(s /,/) 
+
+# values_row: ( expression | /NULL/i ) | '(' ( expression | /NULL/i )(s /,/) ')'
+
+# subselect:  select_clause from_clause where_clause(?) group_by_clause(?) having_clause(?)
+
+# select_clause: SELECT ( /ALL/i | /DISTINCT )(?) ( '*' | ( expression ( /AS|/i new_column_name )(?) | exposed_name '.*' )(s /,/) )
+
+# from_clause: /FROM/i table_name(s /,/)
+
+# from_clause: /FROM/i table_reference(s /,/)
+
+# table_reference:  
+#     ( 
+#       ( nickname 
+#       | table_name 
+#       | view_name 
+#       ) 
+#     | ( /ONLY/i
+#       | /OUTER/i 
+#       ) '(' 
+#       ( table_name 
+#       | view_name 
+#       ) ')' 
+#     ) correlation_clause(?) 
+#   | TABLE '(' function_name '(' expression(s? /,/) ')' ')'  correlation_clause 
+#   | TABLE(?) '(' fullselect ')' correlation_clause 
+#   | joined_table 
+  
+
+# correlation_clause: /AS/i(?) correlation_name column_list(?)
+
+# joined_table: 
+#    table_reference ( INNER 
+#                     | outer 
+#                     )(?) JOIN table_reference ON join_condition
+#   | '(' joined_table ')'
+  
+# outer: ( LEFT | RIGHT | FULL ) OUTER(?)
+
+where_clause: WHERE search_condition
+
+# group_by_clause: /GROUP\s+BY/i ( grouping_expression 
+#                                | grouping_sets
+#                                | super_groups
+#                                )(s /,/)
+
+# grouping_expression: expression
+
+# orderby_clause: /ORDER\s+BY/i ( sort_key ( /ASC/i | /DESC/i)(?) )(s /,/)
+
+# sort_key: simple_column_name | simple_integer | sort_key_expression
+
+# # Name of one of the selected columns!
+# simple_column_name: NAME
+
+# simple_integer: /\d+/ 
+#   { $item[1] <= $numberofcolumns && $item[1] > 1 }
+
+# sort_key_expression: expression
+#   { expression from select columns list, grouping_expression, column function.. }
+
+# grouping_sets: /GROUPING\s+SETS/i '(' ( 
+#                                         ( grouping_expression 
+#                                         | super_groups 
+#                                         ) 
+#                                       | '(' ( grouping_expression 
+#                                             | super_groups 
+#                                             )(s /,/) ')' 
+#                                       )(s /,/) ')' 
+
+# super_groups: /ROLLUP/i '(' grouping_expression_list ')' 
+#            | /CUBE/i '(' grouping_expression_list ')'
+#            | grand_total
+
+# grouping_expression_list:  ( grouping_expression 
+#                            | '(' grouping_expression(s /,/) ')' 
+#                            )(s /,/)
+
+# grand_total: '(' ')'
+
+# having_clause: /HAVING/i search_condition
+
+when_clause: /WHEN/i '(' search_condition ')' {$return = $item[3]}
+
+triggered_action: when_clause(?) SQL_procedure_statement
+{ $return = { 'condition' => $item[1][0],
+              'statement' => $item{'SQL_procedure_statement'} };
+}
+
+before: /NO CASCADE BEFORE/i
+
+after: /AFTER/i
+
+type: /UPDATE/i /OF/i column_name(s /,/) 
+{ $return = { event  => 'update_on',
+              fields => $item[3] }
+}
+
+type: ( /INSERT/i | /DELETE/i | /UPDATE/i )
+{ $return = { event => $item[1] } }
+
+reference_b: /REFERENCING/i old_new_corr(0..2)
+{ $return = join(' ', $item[1], join(' ', @{$item[2]}) ) }
+
+reference_a: /REFERENCING/i old_new_corr(0..2) old_new_table(0..2) 
+{ $return = join(' ', $item[1], join(' ', @{$item[2]}), join(' ', @{$item[3]})  ) }
+
+old_new_corr: /OLD/i /(AS)?/i correlation_name 
+{ $return = join(' ', @item[1..3] ) }
+| /NEW/i /(AS)?/i correlation_name
+{ $return = join(' ', @item[1..3] ) }
+
+old_new_table: /OLD_TABLE/i /(AS)?/i identifier
+{ $return = join(' ', @item[1..3] ) }
+| /NEW_TABLE/i /(AS)?/i identifier
+{ $return = join(' ', @item[1..3] ) }
+
+# Just parsing simple search conditions for now.
+search_condition: /[^)]+/
+
+expression: ( 
+              ( '+' 
+              | '-' 
+              )(?) 
+              ( function
+              | '(' expression ')'
+              | constant
+              | column_name
+              | host_variable
+              | special_register
+              | '(' scalar_fullselect ')' 
+              | labeled_duration
+              | case_expression
+              | cast_specification
+#              | dereference_operation
+#              | OLAP_function
+              | method_invocation
+              | subtype_treatment
+              | sequence_reference 
+              )
+            )(s /operator/)
+
+operator: ( /CONCAT/i | '||' ) | '/' | '*' | '+' | '-' 
+
+function: ( /SYSIBM\.|/i sysibm_function 
+          | /SYSFUN\.|/i sysfun_function
+          | userdefined_function 
+          ) '(' func_args(s /,/)  ')'
+
+constant: int_const | float_const | dec_const | char_const | hex_const | grastr_const
+
+integer: /\d+/
+
+int_const: /^([+-]?\d+)$/
+
+float_const: /^([+-]?[\d\.]+E[+-]?\d+)$/
+
+dec_const: /^([+-]?[\d\.]+)$/
+
+char_const: /^'(.*)'$/
+
+hex_const: /^X'([0-9A-F])+'$/i
+
+grastr_const: /^[NG]'(.*)'$/
+
+unsigned_constant: constant
+
+func_args: expression
+
+sysibm_function: ( /ABS/i | /ABSVAL/i )
+                | /AVG/i
+                | /BIGINT/i
+                | /BLOB/i
+                | /CHAR/i
+                | /CLOB/i
+                | /COALESCE/i
+                | ( /CONCAT/ | '||' )
+                | ( /CORRELATION/i | /CORR/ )
+                | /COUNT/i
+                | /COUNT_BIG/i
+                | (/COVARIANCE/i | /COVAR/i )
+                | /DATE/i
+                | /DAY/i
+                | /DAYS/i
+                | /DBCLOB/i
+                | ( /DECIMAL/i | /DEC/i )
+                | /DECRYPT_BIN/i
+                | /DECRYPT_CHAR/i
+                | /DEREF/i
+                | /DIGITS/i
+                | /DLCOMMENT/i
+                | /DLLINKTYPE/i
+                | /DLURLCOMPLETE/i
+                | /DLURLPATH/i
+                | /DLURLPATHONLY/i
+                | /DLURLSCHEME/i
+                | /DLURLSERVER/i
+                | /DLVALUE/i
+                | ( /DOUBLE/i | /DOUBLE_PRECISION/i )
+                | /ENCRYPT/i
+                | /EVENT_MON_STATE/i
+                | /FLOAT/i
+                | /GETHINT/i
+                | /GENERATE_UNIQUE/i
+                | /GRAPHIC/i
+                | /GROUPING/i
+                | /HEX/i
+                | /HOUR/i
+                | /IDENTITY_VAL_LOCAL/i
+                | ( /INTEGER/i | /INT/ )
+                | ( /LCASE/i | /LOWER/ )
+                | /LENGTH/i
+                | /LONG_VARCHAR/i
+                | /LONG_VARGRAPHIC/i
+                | /LTRIM/i
+                | /MAX/i
+                | /MICROSECOND/i
+                | /MIN/i
+                | /MINUTE/i
+                | /MONTH/i
+                | /MULTIPLY_ACT/i
+                | /NODENUMBER/i
+                | /NULLIF/i
+                | /PARTITON/i
+                | /POSSTR/i
+                | /RAISE_ERROR/i
+                | /REAL/i
+                | /REC2XML/i
+                | /REGR_AVGX/i
+                | /REGR_AVGY/i
+                | /REGR_COUNT/i
+                | ( /REGR_INTERCEPT/i | /REGR_ICPT/i )
+                | /REGR_R2/i
+                | /REGR_SLOPE/i
+                | /REGR_SXX/i
+                | /REGR_SXY/i
+                | /REGR_SYY/i
+                | /RTRIM/i
+                | /SECOND/i
+                | /SMALLINT/i
+                | /STDDEV/i
+                | /SUBSTR/i
+                | /SUM/i
+                | /TABLE_NAME/i
+                | /TABLE_SCHEMA/i
+                | /TIME/i
+                | /TIMESTAMP/i
+                | /TRANSLATE/i
+                | /TYPE_ID/i
+                | /TYPE_NAME/i
+                | /TYPE_SCHEMA/i
+                | ( /UCASE/i | /UPPER/i )
+                | /VALUE/i
+                | /VARCHAR/i
+                | /VARGRAPHIC/i
+                | ( /VARIANCE/i | /VAR/i )
+                | /YEAR/i
+
+sysfun: ( /ABS/i | /ABSVAL/i )
+                | /ACOS/i
+                | /ASCII/i
+                | /ASIN/i
+                | /ATAN/i
+                | /ATAN2/i
+                | ( /CEIL/i | /CEILING/i )
+                | /CHAR/i
+                | /CHR/i
+                | /COS/i
+                | /COT/i
+                | /DAYNAME/i
+                | /DAYOFWEEK/i
+                | /DAYOFWEEK_ISO/i
+                | /DAYOFYEAR/i
+                | /DEGREES/i
+                | /DIFFERENCE/i
+                | /DOUBLE/i
+                | /EXP/i
+                | /FLOOR/i
+                | /GET_ROUTINE_SAR/i
+                | /INSERT/i
+                | /JULIAN_DAY/i
+                | /LCASE/i
+                | /LEFT/i
+                | /LN/i
+                | /LOCATE/i
+                | /LOG/i
+                | /LOG10/i
+                | /LTRIM/i
+                | /MIDNIGHT_SECONDS/i
+                | /MOD/i
+                | /MONTHNAME/i
+                | /POWER/i
+                | /PUT_ROUTINE_SAR/i
+                | /QUARTER/i
+                | /RADIANS/i
+                | /RAND/i
+                | /REPEAT/i
+                | /REPLACE/i
+                | /RIGHT/i
+                | /ROUND/i
+                | /RTRIM/I
+                | /SIGN/i
+                | /SIN/i
+                | /SOUNDEX/i
+                | /SPACE/i
+                | /SQLCACHE_SNAPSHOT/i
+                | /SQRT/i
+                | /TAN/i
+                | /TIMESTAMP_ISO/i
+                | /TIMESTAMPDIFF/i
+                | ( /TRUNCATE/i | /TRUNC/i )
+                | /UCASE/i
+                | /WEEK/i
+                | /WEEK_ISO/i
+
+scalar_fullselect: '(' fullselect ')'
+
+labeled_duration: ld_type ld_duration
+
+ld_type: function 
+       | '(' expression ')' 
+       | constant 
+       | column_name 
+       | host_variable
+
+ld_duration: /YEARS?/i 
+           | /MONTHS?/i 
+           | /DAYS?/i 
+           | /HOURS?/i 
+           | /MINUTES?/i
+           | /SECONDS?/i
+           | /MICROSECONDS?/i
+
+case_expression: /CASE/i ( searched_when_clause 
+                         | simple_when_clause 
+                         ) 
+                         ( /ELSE\s+NULL/i 
+                         | /ELSE/i result_expression 
+                         )(?) /END/i
+
+searched_when_clause: ( /WHEN/i search_condition /THEN/i 
+                        ( result_expression 
+                        | /NULL/i
+                        )
+                      )(s)
+
+simple_when_clause: expression ( /WHEN/i search_condition /THEN/i 
+                                 ( result_expression 
+                                 | /NULL/i
+                                 )
+                               )(s)
+
+result_expression: expression 
+
+cast_specification: /CAST/i '(' ( expression 
+                                | /NULL/i
+                                | parameter_marker
+                                ) /AS/i data_type 
+                                  ( /SCOPE/ ( typed_table_name 
+                                            | typed_view_name
+                                            )
+                                  )(?) ')'
+
+dereference_operation: scoped_reference_expression '->' name1 
+                      (  '(' expression(s) ')' )(?)
+#                         ( '(' expression(s /,/) ')' )(?)
+
+
+
+scoped_reference_expression: expression 
+{ # scoped, reference 
+}
+
+name1: NAME
+
+OLAP_function: ranking_function 
+             | numbering_function
+             | aggregation_function
+
+ranking_function: ( /RANK/ '()' 
+                  | /DENSE_RANK|DENSERANK/i '()' 
+                  ) /OVER/i '(' window_partition_clause(?) window_order_clause ')'
+
+numbering_function: /ROW_NUMBER|ROWNUMBER/i '()' /OVER/i '(' window_partition_clause(?) 
+                      ( window_order_clause window_aggregation_group_clause(?) 
+                      )(?) 
+                      ( /RANGE\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+UNBBOUNDED\s+FOLLOWING/i 
+                      | window_aggregation_group_clause
+                      )(?) ')'
+
+window_partition_clause: /PARTITION\s+BY/i partitioning_expression(s /,/)
+
+window_order_clause: /ORDER\s+BY/i 
+                      ( sort_key_expression 
+                        ( asc_option 
+                        | desc_option 
+                        )(?)
+                      )(s /,/)
+
+asc_option: /ASC/i ( /NULLS\s+FIRST/i | /NULLS\s+LAST/i )(?)
+
+desc_option: /DESC/i ( /NULLS\s+FIRST/i | /NULLS\s+LAST/i )(?)
+
+window_aggregation_group_clause: ( /ROWS/i
+                                 | /RANGE/i
+                                 ) 
+                                 ( group_start
+                                 | group_between
+                                 | group_end
+                                 )
+
+group_start: /UNBOUNDED\s+PRECEDING/i 
+           | unsigned_constant /PRECEDING/i
+           | /CURRENT\s+ROW/i
+
+group_between: /BETWEEN/i group_bound1 /AND/i group_bound2
+
+group_bound1: /UNBOUNDED\s+PRECEDING/i 
+           | unsigned_constant /PRECEDING/i
+           | unsigned_constant /FOLLOWING/i
+           | /CURRENT\s+ROW/i
+
+group_bound2: /UNBOUNDED\s+PRECEDING/i 
+           | unsigned_constant /PRECEDING/i
+           | unsigned_constant /FOLLOWING/i
+           | /CURRENT\s+ROW/i
+
+group_end: /UNBOUNDED\s+PRECEDING/i 
+           | unsigned_constant /FOLLOWING/i 
+
+method_invocation: subject_expression '..' method_name
+                    ( '(' expression(s) ')' 
+#                    ( '(' expression(s /,/) ')' 
+                    )(?)
+
+subject_expression: expression
+{ # with static result type that is a used-defined struct type 
+}
+
+method_name: NAME
+{ # must be a method of subject_expression 
+}
+
+subtype_treatment: /TREAT/i '(' expression /AS/i data_type ')'
+
+sequence_reference: nextval_expression
+                  | prevval_expression
+
+nextval_expression: /NEXTVAL\s+FOR/i sequence_name
+
+prevval_expression: /PREVVAL\s+FOR/i sequence_name
+
+sequence_name: NAME
+
+
+search_condition: /NOT|/i ( predicate ( /SELECTIVITY/i numeric_constant )(?) | '(' search_condition ')' ) cond(s?)
+
+cond: ( /AND/i | /OR/i ) /NOT|/i ( predicate ( /SELECTIVITY/i numeric_constant )(?) | '(' search_condition ')' )
+
+predicate: basic_p | quantified_p | between_p | exists_p | in_p | like_p | null_p | type_p 
+
+basic_p: expression /(=|<>|<|>|<=|=>|\^=|\^<|\^>|\!=)/ expression
+
+quantified_p: expression1 /(=|<>|<|>|<=|=>|\^=|\^<|\^>|\!=)/ /SOME|ANY|ALL/i '(' fullselect ')'
+

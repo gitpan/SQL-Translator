@@ -2,7 +2,7 @@
 # vim: set ft=perl:
 
 # -------------------------------------------------------------------
-# $Id: sqlt-diff,v 1.6 2004/02/27 18:26:38 kycl4rk Exp $
+# $Id: sqlt-diff,v 1.13 2006/05/20 09:02:47 schiffbruechige Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 The SQLFairy Authors
 #
@@ -42,6 +42,8 @@ To diff two schemas:
 Options:
 
   -d|--debug   Show debugging info
+  -t|--trace   Turn on tracing for Parse::RecDescent
+  -c|--case-insensitive   Compare tables/columns case-insenstiviely
 
 =head1 DESCRIPTION
 
@@ -94,12 +96,13 @@ use strict;
 use Pod::Usage;
 use Data::Dumper;
 use SQL::Translator;
+use SQL::Translator::Diff;
 use SQL::Translator::Schema::Constants;
 
 use vars qw( $VERSION );
-$VERSION = sprintf "%d.%02d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/;
 
-my ( @input, $list, $help, $debug );
+my ( @input, $list, $help, $debug, $trace, $caseopt );
 for my $arg ( @ARGV ) {
     if ( $arg =~ m/^-?-l(ist)?$/ ) {
         $list = 1;
@@ -110,6 +113,12 @@ for my $arg ( @ARGV ) {
     elsif ( $arg =~ m/^-?-d(ebug)?$/ ) {
         $debug = 1; 
     }
+    elsif ( $arg =~ m/^-?-t(race)?$/ ) {
+        $trace = 1; 
+    }
+    elsif ( $arg =~ m/^-?-c(ase-insenstive)?$/ ) {
+        $caseopt = 1; 
+    }
     elsif ( $arg =~ m/^([^=]+)=(.+)$/ ) {
         push @input, { file => $1, parser => $2 };
     }
@@ -118,7 +127,7 @@ for my $arg ( @ARGV ) {
     }
 }
 
-pod2usage(1) if $help;
+pod2usage(1) if $help || !@ARGV;
 pod2usage('Please specify only two schemas to diff') if scalar @input > 2;
 
 my $tr            = SQL::Translator->new;
@@ -133,181 +142,38 @@ if ( $list ) {
 
 pod2usage( msg => 'Too many file args' ) if @input > 2;
 
-my ( $source_schema, $source_db, $target_schema, $target_db );
-my $i = 2;
-for my $in ( @input ) {
-    my $file   = $in->{'file'};
-    my $parser = $in->{'parser'};
+my ( $source_schema, $source_db, $target_schema, $target_db ) = map {
+    my $file   = $_->{'file'};
+    my $parser = $_->{'parser'};
 
     die "Unable to read file '$file'\n" unless -r $file;
     die "'$parser' is an invalid parser\n" unless $valid_parsers{ $parser };
 
     my $t = SQL::Translator->new;
     $t->debug( $debug );
+    $t->trace( $trace );
     $t->parser( $parser )            or die $tr->error;
-    $t->producer( 'YAML' )           or die $tr->error;
     my $out = $t->translate( $file ) or die $tr->error;
     my $schema = $t->schema;
     unless ( $schema->name ) {
         $schema->name( $file );
     }
 
-    if ( $i == 1 ) {
-        $source_schema = $schema;
-        $source_db     = $parser;
-    }
-    else {
-        $target_schema = $schema;
-        $target_db     = $parser;
-    }
-    $i--;
+    ($schema, $parser);
+} @input;
+
+my $result = SQL::Translator::Diff::schema_diff($source_schema, $source_db, 
+                                                $target_schema, $target_db,
+                                                { caseopt => $caseopt,
+                                                  debug   => $debug,
+                                                  trace   => $trace });
+if($result)
+{
+    print $result;
 }
-
-my $s1_name  = $source_schema->name;
-my $s2_name  = $target_schema->name;
-my ( @new_tables, @diffs );
-for my $t1 ( $source_schema->get_tables ) {
-    my $t1_name = $t1->name;
-    my $t2      = $target_schema->get_table( $t1_name );
-
-    warn "TABLE '$s1_name.$t1_name'\n" if $debug;
-    unless ( $t2 ) {
-        warn "Couldn't find table '$s1_name.$t1_name' in '$s2_name'\n" 
-            if $debug;
-        push @new_tables, $t1;
-        next;
-    }
-
-    my $t2_name = $t2->name;
-    for my $t1_field ( $t1->get_fields ) {
-        my $f1_type      = $t1_field->data_type;
-        my $f1_size      = $t1_field->size;
-        my $f1_name      = $t1_field->name;
-        my $t2_field     = $t2->get_field( $f1_name );
-        my $f1_full_name = "$s1_name.$t1_name.$t1_name";
-        warn "FIELD '$f1_full_name'\n" if $debug;
-
-        my $f2_full_name = "$s2_name.$t2_name.$f1_name";
-
-        unless ( $t2_field ) {
-            warn "Couldn't find field '$f2_full_name' in '$t2_name'\n" 
-                if $debug;
-            push @diffs, sprintf( "ALTER TABLE %s ADD %s %s%s;",
-                $t1_name, $f1_name, $f1_type,
-                $f1_size ? "($f1_size)" : ''
-            );
-            next;
-        }
-
-        my $f2_type = $t2_field->data_type;
-        my $f2_size = $t2_field->size;
-
-        if ( lc $f1_type ne lc $f2_type ||
-           ( defined $f1_size && ( $f1_size ne $f2_size ) )
-        ) {
-            push @diffs, sprintf( "ALTER TABLE %s CHANGE %s %s%s;",
-                $t1_name, $f1_name, $f1_type,
-                $f1_size ? "($f1_size)" : ''
-            );
-        }
-    }
-
-    my ( %t1_indices, %t2_indices );
-    for my $rec ( [ $t1, \%t1_indices ], [ $t2, \%t2_indices ] ) {
-        my ( $table, $indices ) = @$rec;
-        for my $index ( $table->get_indices ) {
-            my $name   = $index->name;
-            my $type   = $index->type;
-            my $fields = join( ',', sort $index->fields );
-
-            $indices->{'type'}{ $type }{ $fields } = $name;
-
-            if ( $name ) {
-                $indices->{'name'}{ $name } = { 
-                    type   => $type, 
-                    fields => $fields,
-                };
-            }
-        }
-    }
-
-    for my $type ( keys %{ $t2_indices{'type'} } ) {
-        while ( my ($fields, $iname) = each %{$t2_indices{'type'}{ $type } } ) {
-            if ( $iname ) {
-                if ( my $i1 = $t1_indices{'name'}{ $iname } ) {
-                    my $i1_type   = $i1->{'type'};
-                    my $i1_fields = $i1->{'fields'};
-                    if ( $i1_type eq $type && $i1_fields eq $fields ) {
-                        next;
-                    }
-                }
-            }
-            elsif ( my $i1 = $t1_indices{'type'}{ $type }{ $fields } ) {
-                next; 
-            }
-
-            push @diffs, "DROP INDEX $iname on $t1_name;";
-        }
-    }
-
-    for my $type ( keys %{ $t1_indices{'type'} } ) {
-        while ( my ($fields, $iname) = each %{$t1_indices{'type'}{ $type } } ) {
-            if ( $iname ) {
-                if ( my $i2 = $t2_indices{'name'}{ $iname } ) {
-                    my $i2_type   = $i2->{'type'};
-                    my $i2_fields = $i2->{'fields'};
-                    if ( $i2_type eq $type && $i2_fields eq $fields ) {
-                        next;
-                    }
-                }
-            }
-            elsif ( my $i2 = $t2_indices{'type'}{ $type }{ $fields } ) {
-                next; 
-            }
-
-            push @diffs, sprintf(
-                "CREATE %sINDEX%s ON %s (%s);",
-                $type eq NORMAL ? '' : "$type ",
-                $iname ? " $iname" : '',
-                $t1_name,
-                $fields,
-            );
-        }
-    }
-}
-
-for my $t2 ( $target_schema->get_tables ) {
-    my $t2_name = $t2->name;
-    my $t1      = $source_schema->get_table( $t2_name );
-
-    unless ( $t1 ) {
-        push @diffs, "DROP TABLE $t2_name;";
-        next;
-    }
-
-    for my $t2_field ( $t2->get_fields ) {
-        my $f2_name      = $t2_field->name;
-        my $t1_field     = $t1->get_field( $f2_name );
-        unless ( $t1_field ) {
-            push @diffs, "ALTER TABLE $t2_name DROP $f2_name;";
-        }
-    }
-}
-
-if ( @new_tables ) {
-    my $dummy_tr = SQL::Translator->new;
-    $dummy_tr->schema->add_table( $_ ) for @new_tables;
-    my $producer = $dummy_tr->producer( $target_db );
-    unshift @diffs, $producer->( $dummy_tr );
-}
-
-if ( @diffs ) {
-    print join( "\n", 
-        "-- Convert schema '$s2_name' to '$s1_name':\n", @diffs, '' 
-    );
-}
-else {
-    print "There were no differences.\n";
+else
+{
+    print "No differences found.";
 }
 
 # -------------------------------------------------------------------

@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::SQLite;
 
 # -------------------------------------------------------------------
-# $Id: SQLite.pm,v 1.6 2004/02/09 22:23:40 kycl4rk Exp $
+# $Id: SQLite.pm,v 1.11 2006/06/22 19:06:35 mwz444 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -152,7 +152,7 @@ like-op::=
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.11 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -191,6 +191,7 @@ eofile : /^\Z/
 
 statement : begin_transaction
     | commit
+    | drop
     | comment
     | create
     | <error>
@@ -198,6 +199,8 @@ statement : begin_transaction
 begin_transaction : /begin transaction/i SEMICOLON
 
 commit : /commit/i SEMICOLON
+
+drop : /drop/i TABLE <commit> table_name SEMICOLON
 
 comment : /^\s*(?:#|-{2}).*\n/
     {
@@ -418,6 +421,7 @@ create : CREATE TEMPORARY(?) TRIGGER NAME before_or_after(?) database_event ON t
             instead_of   => 0,
             db_event     => $item[6],
             action       => $item[9],
+            on_table     => $table_name,
         }
     }
 
@@ -431,6 +435,7 @@ create : CREATE TEMPORARY(?) TRIGGER NAME instead_of database_event ON view_name
             instead_of   => 1,
             db_event     => $item[6],
             action       => $item[9],
+            on_table     => $table_name,
         }
     }
 
@@ -451,9 +456,16 @@ for_each : /FOR EACH ROW/i | /FOR EACH STATEMENT/i
 
 when : WHEN expr { $item[2] }
 
-trigger_step : /(select|delete|insert|update)/i /[^;]+/ SEMICOLON
+string :
+   /'(\\.|''|[^\\\'])*'/ 
+
+nonstring : /[^;\'"]+/
+
+statement_body : (string | nonstring)(s?)
+
+trigger_step : /(select|delete|insert|update)/i statement_body SEMICOLON
     {
-        $return = join( ' ', $item[1], $item[2] )
+        $return = join( ' ', $item[1], join ' ', @{ $item[2] || [] } )
     }   
 
 before_or_after : /(before|after)/i { $return = lc $1 }
@@ -533,6 +545,8 @@ VALUE : /[-+]?\.?\d+(?:[eE]\d+)?/
     }
     | /NULL/
     { 'NULL' }
+    | /CURRENT_TIMESTAMP/i
+    { 'CURRENT_TIMESTAMP' }
 
 !;
 
@@ -604,8 +618,8 @@ sub parse {
                 reference_table  => $cdata->{'reference_table'},
                 reference_fields => $cdata->{'reference_fields'},
                 match_type       => $cdata->{'match_type'} || '',
-                on_delete        => $cdata->{'on_delete_do'},
-                on_update        => $cdata->{'on_update_do'},
+                on_delete        => $cdata->{'on_delete'} || $cdata->{'on_delete_do'},
+                on_update        => $cdata->{'on_update'} || $cdata->{'on_update_do'},
             ) or die $table->error;
         }
     }
@@ -623,6 +637,7 @@ sub parse {
             perform_action_when => $def->{'when'},
             database_event      => $def->{'db_event'},
             action              => $def->{'action'},
+            on_table            => $def->{'on_table'},
         );
     }
 

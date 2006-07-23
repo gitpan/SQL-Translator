@@ -7,7 +7,7 @@ use SQL::Translator;
 use SQL::Translator::Schema::Constants;
 use Test::SQL::Translator qw(maybe_plan);
 
-maybe_plan(76, 'SQL::Translator::Parser::Oracle');
+maybe_plan(85, 'SQL::Translator::Parser::Oracle');
 SQL::Translator::Parser::Oracle->import('parse');
 
 my $t   = SQL::Translator->new( trace => 0 );
@@ -29,8 +29,8 @@ my $sql = q[
     (
         qtl_trait_id            NUMBER(11)      NOT NULL    
             CONSTRAINT pk_qtl_trait PRIMARY KEY,
-        trait_symbol            VARCHAR2(100)   NOT NULL,
-        trait_name              VARCHAR2(200)   NOT NULL,
+        trait_symbol            VARCHAR2(100 BYTE)   NOT NULL,
+        trait_name              VARCHAR2(200 CHAR)   NOT NULL,
         qtl_trait_category_id   NUMBER(11)      NOT NULL,
         UNIQUE ( trait_symbol ),
         UNIQUE ( trait_name ),
@@ -54,6 +54,7 @@ my $sql = q[
     );
 
     CREATE UNIQUE INDEX qtl_accession ON qtl ( qtl_accession_id );
+    CREATE UNIQUE INDEX qtl_accession_upper ON qtl ( UPPER(qtl_accession_id) );
 
     CREATE TABLE qtl_trait_synonym
     (
@@ -62,7 +63,7 @@ my $sql = q[
         trait_synonym           VARCHAR2(200)   NOT NULL,
         qtl_trait_id            NUMBER(11)      NOT NULL,
         UNIQUE( qtl_trait_id, trait_synonym ),
-        FOREIGN KEY ( qtl_trait_id ) REFERENCES qtl_trait
+        FOREIGN KEY ( qtl_trait_id ) REFERENCES qtl_trait ON DELETE SET NULL
     );
 ];
 
@@ -206,7 +207,11 @@ my @t3_fields = $t3->get_fields;
 is( scalar @t3_fields, 8, '8 fields in table' );
 
 my @t3_constraints = $t3->get_constraints;
-is( scalar @t3_constraints, 3, '3 constraints on table' );
+is( scalar @t3_constraints, 4, '4 constraints on table' );
+my $t3_c4 = $t3_constraints[3];
+is( $t3_c4->type, UNIQUE, 'Fourth constraint is unique' );
+is( $t3_c4->name, 'qtl_accession_upper', 'Name = "qtl_accession_upper"' );
+is( join(',', $t3_c4->fields), 'UPPER(qtl_accession_id)', 'Fields = "UPPER(qtl_accession_id)"' );
 
 is( $t3->comments, 'qtl table comment', 'Comment "qtl table comment" exists' );
 
@@ -228,3 +233,14 @@ is( scalar @t4_fields, 3, '3 fields in table' );
 
 my @t4_constraints = $t4->get_constraints;
 is( scalar @t4_constraints, 3, '3 constraints on table' );
+my $t4_c3 = $t4_constraints[2];
+is( $t4_c3->type, FOREIGN_KEY, 'Third constraint is FK' );
+is( $t4_c3->name, '', 'No name' );
+is( join(',', $t4_c3->fields), 'qtl_trait_id', 
+    'Fields = "qtl_trait_id"' );
+is( $t4_c3->reference_table, 'qtl_trait', 
+    'Reference table = "qtl_trait"' );
+is( join(',', $t4_c3->reference_fields), 'qtl_trait_id', 
+    'Reference fields = "qtl_trait_id"' );
+is( $t4_c3->on_delete, 'SET NULL', 
+    'on_delete = "SET NULL"' );

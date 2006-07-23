@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Object;
 
 # ----------------------------------------------------------------------
-# $Id: Object.pm,v 1.4 2005/01/13 09:44:15 grommit Exp $
+# $Id: Object.pm,v 1.8 2006/06/07 16:43:41 schiffbruechige Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -39,15 +39,16 @@ use strict;
 use Class::Base;
 use base 'Class::Data::Inheritable';
 use base 'Class::Base';
+use Class::MakeMethods::Utility::Ref qw( ref_compare );
 
 use vars qw[ $VERSION ];
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.4 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/;
 
 
 =head1 Construction
 
-Derived classes should decalare their attributes using the C<_attributes>
+Derived classes should declare their attributes using the C<_attributes>
 method. They can then inherit the C<init> method from here which will call
 accessors of the same name for any values given in the hash passed to C<new>.
 Note that you will have to impliment the accessors your self and we expect perl
@@ -150,6 +151,46 @@ Returns a hash or a hashref.
     }
     
     return wantarray ? %$extra : $extra;
+}
+
+
+# ----------------------------------------------------------------------
+sub equals {
+
+=pod
+
+=head2 equals
+
+Determines if this object is the same as another.
+
+  my $isIdentical = $object1->equals( $object2 );
+
+=cut
+
+    my $self = shift;
+    my $other = shift;
+    
+    return 0 unless $other;
+    return 1 if overload::StrVal($self) eq overload::StrVal($other);
+    return 0 unless $other->isa( __PACKAGE__ );
+    return 1;
+}
+
+# ----------------------------------------------------------------------
+sub _compare_objects {
+	my $self = shift;
+	my $obj1 = shift;
+	my $obj2 = shift;
+	my $result = (ref_compare($obj1, $obj2) == 0);
+#	if ( !$result ) {
+#		use Carp qw(cluck);
+#		cluck("How did I get here?");
+#		use Data::Dumper;
+#		$Data::Dumper::Maxdepth = 1;
+#		print "obj1: ", Dumper($obj1), "\n";
+#		print "obj2: ", Dumper($obj2), "\n";
+#	}
+	return $result;
 }
 
 #=============================================================================

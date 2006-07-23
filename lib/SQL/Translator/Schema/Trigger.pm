@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Trigger;
 
 # ----------------------------------------------------------------------
-# $Id: Trigger.pm,v 1.5 2004/11/05 13:19:31 grommit Exp $
+# $Id: Trigger.pm,v 1.9 2006/06/07 16:37:33 schiffbruechige Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -54,12 +54,12 @@ use base 'SQL::Translator::Schema::Object';
 
 use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/;
 
 # ----------------------------------------------------------------------
 
 __PACKAGE__->_attributes( qw/
-    name perform_action_when database_event fields on_table action schema
+    name schema perform_action_when database_event fields table on_table action
     order
 /);
 
@@ -171,22 +171,47 @@ Gets and set which fields to monitor for C<database_event>.
 }
 
 # ----------------------------------------------------------------------
+sub table {
+
+=pod
+
+=head2 table
+
+Gets or set the table on which the trigger works, as a L<SQL::Translator::Schema::Table> object.
+  $trigger->table($triggered_table);
+
+=cut
+
+    my ($self, $arg) = @_;
+    if ( @_ == 2 ) {
+        $self->error("Table attribute of a ".__PACKAGE__.
+                     " must be a SQL::Translator::Schema::Table") 
+            unless ref $arg and $arg->isa('SQL::Translator::Schema::Table');
+        $self->{table} = $arg;
+    }
+    return $self->{table};
+}
+
+# ----------------------------------------------------------------------
 sub on_table {
 
 =pod
 
 =head2 on_table
 
-Gets or set the table name on which the trigger works.
-
-  $trigger->table('foo');
+Gets or set the table name on which the trigger works, as a string.
+  $trigger->on_table('foo');
 
 =cut
 
-    my $self = shift;
-    my $arg  = shift || '';
-    $self->{'on_table'} = $arg if $arg;
-    return $self->{'on_table'};
+    my ($self, $arg) = @_;
+    if ( @_ == 2 ) {
+        my $table = $self->schema->get_table($arg);
+        die "Table named $arg doesn't exist"
+            if !$table;
+        $self->table($table);
+    }
+    return $self->table->name;
 }
 
 # ----------------------------------------------------------------------
@@ -304,6 +329,34 @@ Get or set the trigger's schema object.
     }
 
     return $self->{'schema'};
+}
+
+# ----------------------------------------------------------------------
+sub equals {
+
+=pod
+
+=head2 equals
+
+Determines if this trigger is the same as another
+
+  my $isIdentical = $trigger1->equals( $trigger2 );
+
+=cut
+
+    my $self = shift;
+    my $other = shift;
+    my $case_insensitive = shift;
+    
+    return 0 unless $self->SUPER::equals($other);
+    return 0 unless $case_insensitive ? uc($self->name) eq uc($other->name) : $self->name eq $other->name;
+    #return 0 unless $self->is_valid eq $other->is_valid;
+    return 0 unless $self->perform_action_when eq $other->perform_action_when;
+    return 0 unless $self->database_event eq $other->database_event;
+    return 0 unless $self->on_table eq $other->on_table;
+    return 0 unless $self->action eq $other->action;
+    return 0 unless $self->_compare_objects(scalar $self->extra, scalar $other->extra);
+    return 1;
 }
 
 # ----------------------------------------------------------------------

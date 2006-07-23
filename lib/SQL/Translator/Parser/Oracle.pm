@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::Oracle;
 
 # -------------------------------------------------------------------
-# $Id: Oracle.pm,v 1.19 2004/09/17 21:52:46 kycl4rk Exp $
+# $Id: Oracle.pm,v 1.26 2006/06/29 19:24:14 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -97,7 +97,7 @@ was altered to better handle the syntax created by DDL::Oracle.
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.19 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.26 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -112,9 +112,7 @@ $::RD_ERRORS = 1; # Make sure the parser dies when it encounters an error
 $::RD_WARN   = 1; # Enable warnings. This will warn on unused rules &c.
 $::RD_HINT   = 1; # Give out hints to help fix problems.
 
-my $parser; 
-
-$GRAMMAR = q!
+$GRAMMAR = q`
 
 { my ( %tables, %indices, %constraints, $table_order, @table_comments ) }
 
@@ -136,6 +134,7 @@ startrule : statement(s) eofile
 eofile : /^\Z/
 
 statement : remark
+	| run
     | prompt
     | create
     | table_comment
@@ -195,28 +194,44 @@ create : create_table table_name '(' create_definition(s /,/) ')' table_option(s
         1;
     }
 
-create : /create/i UNIQUE(?) /index/i WORD /on/i table_name parens_word_list table_option(?) ';'
+create : create_index index_name /on/i table_name index_expr table_option(?) ';'
     {
-        my $table_name = $item[6];
-        if ( $item[2] ) {
+        my $table_name = $item[4];
+        if ( $item[1] ) {
             push @{ $constraints{ $table_name } }, {
-                name   => $item[4],
+                name   => $item[2],
                 type   => 'unique',
-                fields => $item[7][0],
+                fields => $item[5],
             };
         }
         else {
             push @{ $indices{ $table_name } }, {
-                name   => $item[4],
+                name   => $item[2],
                 type   => 'normal',
-                fields => $item[7][0],
+                fields => $item[5],
             };
         }
     }
 
+index_expr: parens_word_list
+	{ $item[1] }
+	| '(' WORD parens_word_list ')'
+	{
+		my $arg_list = join(",", @{$item[3]});
+		$return = "$item[2]($arg_list)";
+	}
+
 # Create anything else (e.g., domain, function, etc.)
-create : /create/i WORD /[^;]+/ ';'
+create : ...!create_table ...!create_index /create/i WORD /[^;]+/ ';'
     { @table_comments = () }
+
+create_index : /create/i UNIQUE(?) /index/i
+	{ $return = $item[2] }
+
+index_name : NAME '.' NAME
+    { $item[3] }
+    | NAME 
+    { $item[1] }
 
 global_temporary: /global/i /temporary/i
 
@@ -252,6 +267,8 @@ comment : /\/\*/ /[^\*]+/ /\*\//
     }
 
 remark : /^REM\s+.*\n/
+
+run : /^(RUN|\/)\s+.*\n/
 
 prompt : /prompt/i /(table|index|sequence|trigger)/i ';'
 
@@ -318,15 +335,21 @@ field : comment(s?) field_name data_type field_meta(s?) comment(s?)
 
 field_name : NAME
 
-data_type : ora_data_type parens_value_list(?)
+data_type : ora_data_type data_size(?)
     { 
         $return  = { 
             type => $item[1],
             size => $item[2][0] || '',
         } 
     }
+    
+data_size : '(' VALUE(s /,/) data_size_modifier(?) ')'
+    { $item[2] } 
 
-column_constraint : constraint_name(?) column_constraint_type 
+data_size_modifier: /byte/i
+	| /char/i
+
+column_constraint : constraint_name(?) column_constraint_type constraint_state(s?)
     {
         my $desc       = $item{'column_constraint_type'};
         my $type       = $desc->{'type'};
@@ -343,41 +366,39 @@ column_constraint : constraint_name(?) column_constraint_type
             reference_table  => $desc->{'reference_table'},
             reference_fields => $desc->{'reference_fields'},
 #            match_type       => $desc->{'match_type'},
-#            on_update_do     => $desc->{'on_update_do'},
+#            on_update        => $desc->{'on_update'},
         } 
     }
 
 constraint_name : /constraint/i NAME { $item[2] }
 
 column_constraint_type : /not\s+null/i { $return = { type => 'not_null' } }
-    | /null/ 
-        { $return = { type => 'null' } }
-    | /unique/ 
+    | /unique/i
         { $return = { type => 'unique' } }
     | /primary\s+key/i 
         { $return = { type => 'primary_key' } }
     | /check/i '(' /[^)]+/ ')' 
         { $return = { type => 'check', expression => $item[3] } }
-    | /references/i table_name parens_word_list(?) on_delete_do(?) 
+    | /references/i table_name parens_word_list(?) on_delete(?) 
     {
         $return              =  {
             type             => 'foreign_key',
             reference_table  => $item[2],
             reference_fields => $item[3][0],
 #            match_type       => $item[4][0],
-            on_delete_do     => $item[5][0],
+            on_delete     => $item[5][0],
         }
     }
 
-#constraint_state : deferrable { $return = { type => $item[1] } }
-#    | deferred { $return = { type => $item[1] } }
-#    | /(no)?rely/ { $return = { type => $item[1] } }
+constraint_state : deferrable { $return = { type => $item[1] } }
+    | deferred { $return = { type => $item[1] } }
+    | /(no)?rely/i { $return = { type => $item[1] } }
 #    | /using/i /index/i using_index_clause 
-#        { $return = { type => 'using_index', index => $item[3] }
-#    | (dis)?enable { $return = { type => $item[1] } }
-#    | (no)?validate { $return = { type => $item[1] } }
-#    | /exceptions/i /into/i table_name 
-#        { $return = { type => 'exceptions_into', table => $item[3] } }
+#        { $return = { type => 'using_index', index => $item[3] } }
+    | /(dis|en)able/i { $return = { type => $item[1] } }
+    | /(no)?validate/i { $return = { type => $item[1] } }
+    | /exceptions/i /into/i table_name 
+        { $return = { type => 'exceptions_into', table => $item[3] } }
 
 deferrable : /not/i /deferrable/i 
     { $return = 'not_deferrable' }
@@ -399,13 +420,13 @@ ora_data_type :
     |
     /(pls_integer|binary_integer)/i { $return = 'integer' }
     |
-    /interval\s+day/i { $return = 'interval_day' }
+    /interval\s+day/i { $return = 'interval day' }
     |
-    /interval\s+year/i { $return = 'interval_year' }
+    /interval\s+year/i { $return = 'interval year' }
     |
-    /long\s+raw/i { $return = 'long_raw' }
+    /long\s+raw/i { $return = 'long raw' }
     |
-    /(long|date|timestamp|raw|rowid|urowid|mlslabel|clob|nclob|blob|bfile)/i { $item[1] }
+    /(long|date|timestamp|raw|rowid|urowid|mlslabel|clob|nclob|blob|bfile|float)/i { $item[1] }
 
 parens_value_list : '(' VALUE(s /,/) ')'
     { $item[2] }
@@ -424,6 +445,14 @@ default_val  : /default/i /(?:')?[\w\d.-]*(?:')?/
             supertype => 'constraint',
             type      => 'default',
             value     => $val,
+        }
+    }
+    | /null/i
+    {
+        $return =  {
+            supertype => 'constraint',
+            type      => 'default',
+            value     => 'NULL',
         }
     }
 
@@ -451,7 +480,7 @@ key_value : WORD VALUE
 
 table_option : /[^;]+/
 
-table_constraint : comment(s?) constraint_name(?) table_constraint_type deferrable(?) deferred(?) comment(s?)
+table_constraint : comment(s?) constraint_name(?) table_constraint_type deferrable(?) deferred(?) constraint_state(s?) comment(s?)
     {
         my $desc       = $item{'table_constraint_type'};
         my $type       = $desc->{'type'};
@@ -470,13 +499,13 @@ table_constraint : comment(s?) constraint_name(?) table_constraint_type deferrab
             reference_table  => $desc->{'reference_table'},
             reference_fields => $desc->{'reference_fields'},
 #            match_type       => $desc->{'match_type'}[0],
-            on_delete_do     => $desc->{'on_delete_do'},
-            on_update_do     => $desc->{'on_update_do'},
+            on_delete        => $desc->{'on_delete'} || $desc->{'on_delete_do'},
+            on_update        => $desc->{'on_update'} || $desc->{'on_update_do'},
             comments         => [ @comments ],
         } 
     }
 
-table_constraint_type : /primary key/i '(' NAME(s /,/) ')' 
+table_constraint_type : /primary key/i '(' NAME(s /,/) ')'
     { 
         $return = {
             type   => 'primary_key',
@@ -500,21 +529,21 @@ table_constraint_type : /primary key/i '(' NAME(s /,/) ')'
         }
     }
     |
-    /foreign key/i '(' NAME(s /,/) ')' /references/i table_name parens_word_list(?) on_delete_do(?)
+    /foreign key/i '(' NAME(s /,/) ')' /references/i table_name parens_word_list(?) on_delete(?)
     {
         $return              =  {
             type             => 'foreign_key',
             fields           => $item[3],
             reference_table  => $item[6],
             reference_fields => $item[7][0],
-            match_type       => $item[8][0],
-            on_delete_do     => $item[9][0],
-            on_update_do     => $item[10][0],
+#            match_type       => $item[8][0],
+            on_delete     => $item[8][0],
+#            on_update     => $item[9][0],
         }
     }
 
-on_delete_do : /on delete/i WORD(s)
-    { $item[2] }
+on_delete : /on delete/i WORD(s)
+    { join(' ', @{$item[2]}) }
 
 UNIQUE : /unique/i { $return = 1 }
 
@@ -531,12 +560,12 @@ VALUE   : /[-+]?\.?\d+(?:[eE]\d+)?/
     | /NULL/
     { 'NULL' }
 
-!;
+`;
 
 # -------------------------------------------------------------------
 sub parse {
     my ( $translator, $data ) = @_;
-    $parser ||= Parse::RecDescent->new($GRAMMAR);
+    my $parser = Parse::RecDescent->new($GRAMMAR);
 
     local $::RD_TRACE = $translator->trace ? 1 : undef;
     local $DEBUG      = $translator->debug;
@@ -610,8 +639,8 @@ sub parse {
                 reference_table  => $cdata->{'reference_table'},
                 reference_fields => $cdata->{'reference_fields'},
                 match_type       => $cdata->{'match_type'} || '',
-                on_delete        => $cdata->{'on_delete_do'},
-                on_update        => $cdata->{'on_update_do'},
+                on_delete        => $cdata->{'on_delete'} || $cdata->{'on_delete_do'},
+                on_update        => $cdata->{'on_update'} || $cdata->{'on_update_do'},
             ) or die $table->error;
         }
     }

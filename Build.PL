@@ -1,9 +1,10 @@
-# $Id: Build.PL,v 1.6 2005/05/26 19:45:43 mwz444 Exp $
+# $Id: Build.PL,v 1.12 2006/07/23 14:14:56 schiffbruechige Exp $
 
 use strict;
+use lib './lib';
 use Module::Build;
 
-my $builder           =  Module::Build->new(
+my $builder = Module::Build->new(
     create_readme     => 0,
     dist_abstract     => 'SQL DDL transformations and more',
     dist_author       => 'Ken Y. Clark <kclark@cpan.org>',
@@ -24,11 +25,11 @@ my $builder           =  Module::Build->new(
         'Class::MakeMethods'       => 0,
         'IO::Dir'                  => 0,
         'Log::Log4perl'            => 0,
-        'Template'                 => 2.10,
         'Parse::RecDescent'        => 1.94,
         'Pod::Usage'               => 0,
     },
     recommends        => {
+        'Template'                 => 2.10,
         'GD'                      => 0,
         'GraphViz'                => 0,
         'IO::File'                => 0,
@@ -38,7 +39,6 @@ my $builder           =  Module::Build->new(
         'Text::RecordParser'      => 0.02,
         'XML::Writer'             => 0.500,
         'XML::XPath'              => 1.13,
-        'YAML'                    => 0.39,
     },
     build_requires    => {
         'File::Basename'          => 0,
@@ -46,7 +46,17 @@ my $builder           =  Module::Build->new(
         'Test::More'              => 0.6,
         'Test::Exception'         => 0,
         'Test::Differences'       => 0,
-    }
+        'YAML'                    => 0.39,
+    },
+    get_options => {
+        # Where to store additional files such as templates.
+        # TODO: Should be OS dependant. See Module::Build::os_type()
+        install_dir => { type=>'=s', default=>'/usr/local/share/sqlfairy' },
+    },
 );
+
+# Copy .tt2 files in lib into blib/lib
+$builder->add_build_element('tt2');
+
 $builder->create_build_script;
 print "Now run './Build', './Build test', and './Build install'\n";

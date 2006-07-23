@@ -3,7 +3,7 @@ package SQL::Translator::Schema;
 # vim: sw=4: ts=4:
 
 # ----------------------------------------------------------------------
-# $Id: Schema.pm,v 1.23 2005/06/08 15:31:06 mwz444 Exp $
+# $Id: Schema.pm,v 1.26 2006/06/07 16:43:41 schiffbruechige Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -60,7 +60,7 @@ use SQL::Translator::Utils 'parse_list_arg';
 use base 'SQL::Translator::Schema::Object';
 use vars qw[ $VERSION $TABLE_ORDER $VIEW_ORDER $TRIGGER_ORDER $PROC_ORDER ];
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.23 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.26 $ =~ /(\d+)\.(\d+)/;
 
 __PACKAGE__->_attributes(qw/name database translator/);
 
@@ -78,6 +78,36 @@ Returns the schema as an L<SQL::Translator::Schema::Graph> object.
     my $self = shift;
     return SQL::Translator::Schema::Graph->new(
         translator => $self->translator );
+}
+
+# ----------------------------------------------------------------------
+sub as_graph_pm {
+
+=pod
+
+=head2 as_grap_pmh
+
+Returns a Graph::Directed object with the table names for nodes.
+
+=cut
+
+    my $self = shift;
+    my $g    = Graph::Directed->new;
+    
+    for my $table ( $self->get_tables ) { 
+        my $tname  = $table->name;
+        $g->add_vertex( $tname );
+    
+        for my $field ( $table->get_fields ) {
+            if ( $field->is_foreign_key ) {
+                my $fktable = $field->foreign_key_reference->reference_table;
+
+                $g->add_edge( $fktable, $tname );
+            }
+        }
+    }
+
+    return $g;
 }
 
 # ----------------------------------------------------------------------
@@ -294,8 +324,8 @@ not be created.
     }
 
     $trigger->order( ++$TRIGGER_ORDER );
-    my $trigger_name = $trigger->name or return $self->error('No trigger name');
 
+    my $trigger_name = $trigger->name or return $self->error('No trigger name');
     if ( defined $self->{'triggers'}{$trigger_name} ) {
         return $self->error(qq[Can't create trigger: "$trigger_name" exists]);
     }
@@ -528,6 +558,14 @@ Returns a table by the name provided.
 
     my $self = shift;
     my $table_name = shift or return $self->error('No table name');
+    my $case_insensitive = shift;
+    if ( $case_insensitive ) {
+    	$table_name = uc($table_name);
+    	foreach my $table ( keys %{$self->{tables}} ) {
+    		return $self->{tables}{$table} if $table_name eq uc($table);
+    	}
+    	return $self->error(qq[Table "$table_name" does not exist]);
+    }
     return $self->error(qq[Table "$table_name" does not exist])
       unless exists $self->{'tables'}{$table_name};
     return $self->{'tables'}{$table_name};

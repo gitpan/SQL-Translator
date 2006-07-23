@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm,v 1.47 2005/06/10 18:12:37 kycl4rk Exp $
+# $Id: MySQL.pm,v 1.54 2006/06/09 13:56:58 schiffbruechige Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -134,7 +134,7 @@ A subset of INSERT that we ignore:
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.47 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.54 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -149,7 +149,7 @@ $::RD_ERRORS = 1; # Make sure the parser dies when it encounters an error
 $::RD_WARN   = 1; # Enable warnings. This will warn on unused rules &c.
 $::RD_HINT   = 1; # Give out hints to help fix problems.
 
-$GRAMMAR = q!
+$GRAMMAR = << 'END_OF_GRAMMAR';
 
 { 
     my ( $database_name, %tables, $table_order, @table_comments );
@@ -190,7 +190,20 @@ drop : /drop/i TABLE /[^;]+/ ';'
 drop : /drop/i WORD(s) ';'
     { @table_comments = () }
 
-insert : /insert/i  /[^;]+/ ';'
+string :
+  # MySQL strings, unlike common SQL strings, can be double-quoted or 
+  # single-quoted, and you can escape the delmiters by doubling (but only the 
+  # delimiter) or by backslashing.
+
+   /'(\\.|''|[^\\\'])*'/ |
+   /"(\\.|""|[^\\\"])*"/
+  # For reference, std sql str: /(?:(?:\')(?:[^\']*(?:(?:\'\')[^\']*)*)(?:\'))//
+
+nonstring : /[^;\'"]+/
+
+statement_body : (string | nonstring)(s?)
+
+insert : /insert/i  statement_body ';'
 
 alter : ALTER TABLE table_name alter_specification(s /,/) ';'
     {
@@ -246,7 +259,15 @@ create : CREATE TEMPORARY(?) TABLE opt_if_not_exists(?) table_name '(' create_de
         }
 
         if ( my @options = @{ $item{'table_option(s?)'} } ) {
-            $tables{ $table_name }{'table_options'} = \@options;
+            for my $option ( @options ) {
+                my ( $key, $value ) = each %$option;
+                if ( $key eq 'comment' ) {
+                    push @{ $tables{ $table_name }{'comments'} }, $value;
+                }
+                else {
+                    push @{ $tables{ $table_name }{'table_options'} }, $option;
+                }
+            }
         }
 
         1;
@@ -278,7 +299,6 @@ comment : /^\s*(?:#|-{2}).*\n/
         $comment    =~ s/^\s*(#|--)\s*//;
         $comment    =~ s/\s*$//;
         $return     = $comment;
-        push @table_comments, $comment;
     }
 
 comment : /\/\*/ /[^\*]+/ /\*\// ';'
@@ -296,9 +316,18 @@ field_comment : /^\s*(?:#|-{2}).*\n/
         $return     = $comment;
     }
 
+
+field_comment2 : /comment/i /'.*?'/
+    {
+        my $comment = $item[2];
+        $comment    =~ s/^'//;
+        $comment    =~ s/'$//;
+        $return     = $comment;
+    }
+
 blank : /\s*/
 
-field : field_comment(s?) field_name data_type field_qualifier(s?) reference_definition(?) on_update_do(?) field_comment(s?)
+field : field_comment(s?) field_name data_type field_qualifier(s?) field_comment2(?) reference_definition(?) on_update(?) field_comment(s?)
     { 
         my %qualifiers  = map { %$_ } @{ $item{'field_qualifier(s?)'} || [] };
         if ( my @type_quals = @{ $item{'data_type'}{'qualifiers'} || [] } ) {
@@ -309,7 +338,7 @@ field : field_comment(s?) field_name data_type field_qualifier(s?) reference_def
                    ? $qualifiers{'not_null'} : 1;
         delete $qualifiers{'not_null'};
 
-        my @comments = ( @{ $item[1] }, @{ $item[6] } );
+        my @comments = ( @{ $item[1] }, @{ $item[5] }, @{ $item[8] } );
 
         $return = { 
             supertype   => 'field',
@@ -360,22 +389,50 @@ field_qualifier : unsigned
         } 
     }
 
-field_qualifier : /character set/i WORD
+field_qualifier : /character set/i WORD 
     {
         $return = {
-            character_set => $item[2],
+            'CHARACTER SET' => $item[2],
         }
     }
 
-reference_definition : /references/i table_name parens_field_list(?) match_type(?) on_delete_do(?) on_update_do(?)
+field_qualifier : /collate/i WORD
+    {
+        $return = {
+            COLLATE => $item[2],
+        }
+    }
+
+field_qualifier : /on update/i CURRENT_TIMESTAMP
+    {
+        $return = {
+            'ON UPDATE' => $item[2],
+        }
+    }
+
+field_qualifier : /unique/i KEY(?)
+    {
+        $return = {
+            is_unique => 1,
+        }
+    }
+
+field_qualifier : KEY
+    {
+        $return = {
+            has_index => 1,
+        }
+    }
+
+reference_definition : /references/i table_name parens_field_list(?) match_type(?) on_delete(?) on_update(?)
     {
         $return = {
             type             => 'foreign_key',
             reference_table  => $item[2],
             reference_fields => $item[3][0],
             match_type       => $item[4][0],
-            on_delete_do     => $item[5][0],
-            on_update_do     => $item[6][0],
+            on_delete        => $item[5][0],
+            on_update        => $item[6][0],
         }
     }
 
@@ -383,10 +440,10 @@ match_type : /match full/i { 'full' }
     |
     /match partial/i { 'partial' }
 
-on_delete_do : /on delete/i reference_option
+on_delete : /on delete/i reference_option
     { $item[2] }
 
-on_update_do : 
+on_update : 
     /on update/i 'CURRENT_TIMESTAMP'
     { $item[2] }
     |
@@ -591,14 +648,23 @@ UNIQUE : /unique/i { 1 }
 
 KEY : /key/i | /index/i
 
-table_option : 'DEFAULT CHARSET' /\s*=\s*/ WORD
+table_option : /comment/i /=/ /'.*?'/
+    {
+        my $comment = $item[3];
+        $comment    =~ s/^'//;
+        $comment    =~ s/'$//;
+        $return     = { comment => $comment };
+    }
+    | /(default )?(charset|character set)/i /\s*=\s*/ WORD
     { 
-        $return = { $item[1] => $item[3] };
+        $return = { 'CHARACTER SET' => $item[3] };
     }
     | WORD /\s*=\s*/ WORD
     { 
         $return = { $item[1] => $item[3] };
     }
+    
+default : /default/i
 
 ADD : /add/i
 
@@ -633,7 +699,11 @@ VALUE   : /[-+]?\.?\d+(?:[eE]\d+)?/
     | /NULL/
     { 'NULL' }
 
-!;
+CURRENT_TIMESTAMP : /current_timestamp(\(\))?/i
+	| /now\(\)/i
+	{ 'CURRENT_TIMESTAMP' }
+	
+END_OF_GRAMMAR
 
 # -------------------------------------------------------------------
 sub parse {
@@ -689,11 +759,28 @@ sub parse {
 
             $table->primary_key( $field->name ) if $fdata->{'is_primary_key'};
 
-            for my $qual ( qw[ binary unsigned zerofill list ] ) {
+            for my $qual ( qw[ binary unsigned zerofill list collate ],
+            		'character set', 'on update' ) {
                 if ( my $val = $fdata->{ $qual } || $fdata->{ uc $qual } ) {
                     next if ref $val eq 'ARRAY' && !@$val;
                     $field->extra( $qual, $val );
                 }
+            }
+
+            if ( $fdata->{'has_index'} ) {
+                $table->add_index(
+                    name   => '',
+                    type   => 'NORMAL',
+                    fields => $fdata->{'name'},
+                ) or die $table->error;
+            }
+
+            if ( $fdata->{'is_unique'} ) {
+                $table->add_constraint(
+                    name   => '',
+                    type   => 'UNIQUE',
+                    fields => $fdata->{'name'},
+                ) or die $table->error;
             }
 
             if ( $field->data_type =~ /(set|enum)/i && !$field->size ) {
@@ -732,8 +819,8 @@ sub parse {
                 reference_table  => $cdata->{'reference_table'},
                 reference_fields => $cdata->{'reference_fields'},
                 match_type       => $cdata->{'match_type'} || '',
-                on_delete        => $cdata->{'on_delete_do'},
-                on_update        => $cdata->{'on_update_do'},
+                on_delete        => $cdata->{'on_delete'} || $cdata->{'on_delete_do'},
+                on_update        => $cdata->{'on_update'} || $cdata->{'on_update_do'},
             ) or die $table->error;
         }
     }
@@ -752,11 +839,11 @@ sub parse {
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>,
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>,
 Chris Mungall E<lt>cjm@fruitfly.orgE<gt>.
 
 =head1 SEE ALSO
 
-perl(1), Parse::RecDescent, SQL::Translator::Schema.
+Parse::RecDescent, SQL::Translator::Schema.
 
 =cut

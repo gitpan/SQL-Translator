@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::SQLServer;
 
 # -------------------------------------------------------------------
-# $Id: SQLServer.pm,v 1.1 2005/01/13 21:30:04 grommit Exp $
+# $Id: SQLServer.pm,v 1.5 2006/05/05 16:41:26 duality72 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -56,7 +56,7 @@ List of values for an enum field.
 
 use strict;
 use vars qw[ $DEBUG $WARN $VERSION ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.1 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/;
 $DEBUG = 1 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -106,9 +106,9 @@ my %reserved = map { $_, 1 } qw[
 ];
 
 # If these datatypes have size appended the sql fails.
-my @no_size = qw/int integer bigint text bit/;
+my @no_size = qw/tinyint smallint int integer bigint text bit image datetime/;
 
-my $max_id_length    = 30;
+my $max_id_length    = 128;
 my %used_identifiers = ();
 my %global_names;
 my %unreserve;
@@ -242,6 +242,16 @@ sub produce {
             $field_def .= ' IDENTITY' if $field->is_auto_increment;
 
             #
+            # Not null constraint
+            #
+            unless ( $field->is_nullable ) {
+                $field_def .= ' NOT NULL';
+            }
+            else {
+                $field_def .= ' NULL' if $data_type ne 'bit';
+            }
+
+            #
             # Default value
             #
             my $default = $field->default_value;
@@ -252,17 +262,8 @@ sub produce {
                     ( $default =~ m/null/i ) ? 'NULL' : "'$default'"
                 );
             }
-
-            #
-            # Not null constraint
-            #
-            unless ( $field->is_nullable ) {
-                $field_def .= ' NOT NULL';
-            }
-            else {
-                $field_def .= ' NULL' if $data_type ne 'bit';
-            }
-            push @field_defs, $field_def;
+            
+            push @field_defs, $field_def;            
         }
 
         #
@@ -281,30 +282,40 @@ sub produce {
                 $constraint->reference_fields;
             next unless @fields;
 
+			my $c_def;
             if ( $type eq PRIMARY_KEY ) {
                 $name ||= mk_name( $table_name, 'pk', undef,1 );
-                push @constraint_defs,
+                $c_def = 
                     "CONSTRAINT $name PRIMARY KEY ".
                     '(' . join( ', ', @fields ) . ')';
             }
             elsif ( $type eq FOREIGN_KEY ) {
                 $name ||= mk_name( $table_name, 'fk', undef,1 );
                 #$name = mk_name( ($name || $table_name), 'fk', undef,1 );
-                push @constraint_defs, 
+                $c_def = 
                     "CONSTRAINT $name FOREIGN KEY".
                     ' (' . join( ', ', @fields ) . ') REFERENCES '.
                     $constraint->reference_table.
                     ' (' . join( ', ', @rfields ) . ')';
+                 my $on_delete = $constraint->on_delete;
+                 if ( defined $on_delete && $on_delete ne "NO ACTION") {
+                 	$c_def .= " ON DELETE $on_delete";
+                 }
+                 my $on_update = $constraint->on_update;
+                 if ( defined $on_update && $on_update ne "NO ACTION") {
+                 	$c_def .= " ON UPDATE $on_update";
+                 }
             }
             elsif ( $type eq UNIQUE ) {
                 $name ||= mk_name(
                     $table_name,
                     $name || ++$c_name_default,undef, 1
                 );
-                push @constraint_defs, 
+                $c_def = 
                     "CONSTRAINT $name UNIQUE " .
                     '(' . join( ', ', @fields ) . ')';
             }
+            push @constraint_defs, $c_def;
         }
 
         #
@@ -339,7 +350,9 @@ sub produce {
         my $name = $_->name();
         $output .= "\n\n";
         $output .= "--\n-- View: $name\n--" unless $no_comments;
-        $output .= $_->sql();
+        my $text = $_->sql();
+		$text =~ s/\r//g;
+        $output .= $text;
     }
 
     # Text of procedure already has the 'create procedure' stuff
@@ -350,7 +363,9 @@ sub produce {
         my $name = $_->name();
         $output .= "\n\n";
         $output .= "--\n-- Procedure: $name\n--" unless $no_comments;
-        $output .= $_->sql();
+        my $text = $_->sql();
+		$text =~ s/\r//g;
+        $output .= $text;
     }
 
     # Warn out how we messed with the names.

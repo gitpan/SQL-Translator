@@ -2,7 +2,7 @@
 # vim: set ft=perl:
 
 # -------------------------------------------------------------------
-# $Id: sqlt,v 1.17 2004/11/26 00:34:09 grommit Exp $
+# $Id: sqlt,v 1.21 2006/06/07 16:04:12 schiffbruechige Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -53,6 +53,7 @@ To translate a schema:
   DBI Parser Options:
 
     --dsn              DSN for connecting to database
+                       (see also --use-same-auth below)
     --db-user          Database user
     --db-password      Database password
 
@@ -63,9 +64,18 @@ To translate a schema:
     --no-trim          Don't trim whitespace on fields
     --no-scan          Don't scan fields for data types and sizes
 
+  General Producer Options
+
+    --producer-db-user   Database user for producer
+    --producer-db-pass   Database password for producer
+    --producer-dsn       DSN for producer
+    --use-same-auth      Use these DSN, user, password for producer output
+
   DB Producer Options:
 
     --add-drop-table   Add 'DROP TABLE' statements before creates
+    --quote-table-names  Quote all table names in statements
+    --quote-field-names  Qjuote all field names in statements
     --no-comments      Don't include comments in SQL output
 
   Diagram Producer Options:
@@ -77,9 +87,6 @@ To translate a schema:
 
     --skip             Comma-separated list of tables to skip
     --skiplike         Regex for tables to skip
-    --dumper-db-user   Database user for dumper script
-    --dumper-db-pass   Database password for dumper script
-    --dumper-dsn       DSN for dumper script
     --add-truncate     Add "TRUNCATE TABLE" statements for each table
 
   HTML/POD Producer Options:
@@ -99,6 +106,10 @@ To translate a schema:
     --prefix=<p>       Use the namespace prefix given as argument.
     --no-newlines      Write the XML as a single line.
     --indent=<n>       Use <n> characters of whitespace to indent the XML.
+
+  ClassDBI Producer Options:
+
+    --package          Base package name for Class::DBI modules.
 
 =head1 DESCRIPTION
 
@@ -125,7 +136,7 @@ use Pod::Usage;
 use SQL::Translator;
 
 use vars qw( $VERSION );
-$VERSION = sprintf "%d.%02d", q$Revision: 1.17 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.21 $ =~ /(\d+)\.(\d+)/;
 
 my $from;             # the original database
 my $to;               # the destination database
@@ -133,7 +144,9 @@ my $help;             # show POD and bail
 my $stdin;            # whether to read STDIN for create script
 my $no_comments;      # whether to put comments in out file
 my $show_warnings;    # whether to show warnings from SQL::Translator
-my $add_drop_table;   # whether to show warnings from SQL::Translator
+my $add_drop_table;   # whether to add "DROP table" statements
+my $quote_table_names;  # whether to quote table names
+my $quote_field_names;  # whether to quote field names
 my $debug;            # whether to print debug info
 my $trace;            # whether to print parser trace
 my $list;             # list all parsers and producers
@@ -153,19 +166,23 @@ my $add_prefix;       # Use explicit namespace prefix (XML producer)
 my $prefix;           # Set explicit namespace prefix (XML producer)
 my $newlines;         # Add newlines around tags (XML producer)
 my $indent;           # Number of indent chars for XML
+my $package_name;     # Base class name for ClassDBI
+my $use_same_auth =0; # producer uses same DSN, user, password as parser
 my $dsn;              # DBI parser
 my $db_user;          # DBI parser
 my $db_password;      # DBI parser
 my $show_version;     # Show version and exit script
 my $skip;
 my $skiplike;
-my $dumper_db_user;
-my $dumper_db_pass;
-my $dumper_dsn;
+my $producer_db_user; # DSN     for producer (e.g. Dumper, ClassDBI)
+my $producer_db_password; # db_pass "
+my $producer_dsn;     # db_user "
 my $add_truncate;
 
 GetOptions(
     'add-drop-table'   => \$add_drop_table,
+    'quote_table_names'   => \$quote_table_names,
+    'quote_field_names'   => \$quote_field_names,
     'd|debug'          => \$debug,
     'f|from|parser:s'  => \$from,
     'fs:s'             => \$field_separator,
@@ -189,9 +206,9 @@ GetOptions(
     'dsn:s'            => \$dsn,
     'db-user:s'        => \$db_user,
     'db-password:s'    => \$db_password,
-    'dumper-dsn:s'     => \$dumper_dsn,
-    'dumper-db-user:s' => \$dumper_db_user,
-    'dumper-db-pass:s' => \$dumper_db_pass,
+    'producer-dsn:s'   => \$producer_dsn,
+    'producer-db-user:s'=> \$producer_db_user,
+    'producer-db-pass:s'=> \$producer_db_password,
     'skip:s'           => \$skip,
     'skiplike:s'       => \$skiplike,
     'add_truncate'     => \$add_truncate,
@@ -199,9 +216,18 @@ GetOptions(
     'prefix:s'         => \$prefix,
     'indent:s'         => \$indent,
     'newlines!'        => \$newlines,
+    'package=s'        => \$package_name,
+    'use-same-auth'    => \$use_same_auth,
     'version'          => \$show_version,
 ) or pod2usage(2);
 
+if ($use_same_auth) {
+	$producer_dsn = $dsn;
+	$producer_db_user = $db_user;
+	$producer_db_password = $db_password;
+}
+
+$from = 'DBI' if !defined $from && defined $dsn;
 my @files = @ARGV; # source files
 unless ( @files ) {
     if ( defined($from) && $from eq 'DBI' ) {
@@ -225,6 +251,8 @@ my $translator           =  SQL::Translator->new(
     no_comments          => $no_comments    ||  0,
     show_warnings        => $show_warnings  ||  0,
     add_drop_table       => $add_drop_table ||  0,
+    quote_table_names    => $quote_table_names ||  1,
+    quote_field_names    => $quote_field_names ||  1,
     validate             => $validate       ||  0,
     parser_args          => {
         trim_fields      => $no_trim ? 0 : 1,
@@ -243,9 +271,9 @@ my $translator           =  SQL::Translator->new(
         tt_vars          => \%tt_vars,
         tt_conf          => \%tt_conf,
         title            => $title,
-        dsn              => $dumper_dsn,
-        db_user          => $dumper_db_user,
-        db_password      => $dumper_db_pass,
+        dsn              => $producer_dsn,
+        db_user          => $producer_db_user,
+        db_password      => $producer_db_password,
         skip             => $skip,
         skiplike         => $skiplike,
         add_truncate     => $add_truncate,
@@ -253,6 +281,7 @@ my $translator           =  SQL::Translator->new(
         prefix           => $prefix,
         indent           => $indent,
         newlines         => $newlines,
+	    package_name     => $package_name,
     },
 );
 
@@ -299,7 +328,7 @@ for my $file (@files) {
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>,
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>,
 darren chamberlain E<lt>darren@cpan.orgE<gt>.
 
 =head1 SEE ALSO
