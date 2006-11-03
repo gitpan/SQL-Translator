@@ -38,6 +38,7 @@ use SQL::Translator::Producer::TTSchema;
         to             => "TTSchema",
         producer_args  => {
             ttfile  => "$Bin/data/template/basic.tt",
+#            ttfile  => "$Bin/data/template/test.tt",
             tt_vars => {
                 foo   => 'bar',
                 hello => 'world',
@@ -46,6 +47,7 @@ use SQL::Translator::Producer::TTSchema;
     );
     my $out;
     lives_ok { $out = $obj->translate; }  "Translate ran";
+#    print STDERR "Output: $out\n";
     ok $out ne ""                        ,"Produced something!";
     local $/ = undef; # slurp
     eq_or_diff $out, <DATA>              ,"Output looks right";
@@ -191,6 +193,20 @@ Fields
         foreign_key_reference: 
         is_valid:              1
         order:                 7
+        table:                 Basic
+    
+    timest
+        data_type:             timestamp
+        size:                  0
+        is_nullable:           1
+        default_value:         
+        is_primary_key:        0
+        is_unique:             0
+        is_auto_increment:     0
+        is_foreign_key:        0
+        foreign_key_reference: 
+        is_valid:              1
+        order:                 8
         table:                 Basic
     
 

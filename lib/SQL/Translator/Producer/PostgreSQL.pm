@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::PostgreSQL;
 
 # -------------------------------------------------------------------
-# $Id: PostgreSQL.pm,v 1.24 2006/07/23 14:03:52 schiffbruechige Exp $
+# $Id: PostgreSQL.pm,v 1.25 2006/08/04 21:38:20 schiffbruechige Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -39,7 +39,7 @@ producer.
 use strict;
 use warnings;
 use vars qw[ $DEBUG $WARN $VERSION ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.24 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.25 $ =~ /(\d+)\.(\d+)/;
 $DEBUG = 1 unless defined $DEBUG;
 
 use SQL::Translator::Schema::Constants;
@@ -634,6 +634,9 @@ sub convert_datatype
     undef @size if $data_type =~ m/(integer|smallint|bigint|text)/;
     
     if ( defined $size[0] && $size[0] > 0 ) {
+        $data_type .= '(' . join( ',', @size ) . ')';
+    }
+    elsif (defined $size[0] && $data_type eq 'timestamp' ) {
         $data_type .= '(' . join( ',', @size ) . ')';
     }
 
