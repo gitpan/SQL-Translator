@@ -16,7 +16,7 @@ use FindBin qw/$Bin/;
 #=============================================================================
 
 BEGIN {
-    maybe_plan(6, 
+    maybe_plan(7, 
         'XML::XPath', 
         'SQL::Translator::Parser::XML::SQLFairy',
         'Template', 
@@ -28,6 +28,11 @@ use Test::Differences;
 use SQL::Translator;
 use SQL::Translator::Producer::TTSchema;
 
+print STDERR $Template::VERSION, "\n";
+#use Data::Dumper;
+#print STDERR Dumper(\@INC, \%INC);
+my $tt = Template->new or die ;
+is(ref($tt->context->stash), 'Template::Stash::XS', 'Template::Stash::XS is the default Stash, good.');
 # Main test. Template whole schema and test tt_vars
 {
     my $obj;
@@ -37,8 +42,8 @@ use SQL::Translator::Producer::TTSchema;
         filename       => "$Bin/data/xml/schema.xml",
         to             => "TTSchema",
         producer_args  => {
-            ttfile  => "$Bin/data/template/basic.tt",
-#            ttfile  => "$Bin/data/template/test.tt",
+#           ttfile  => "$Bin/data/template/test.tt",
+           ttfile  => "$Bin/data/template/basic.tt",
             tt_vars => {
                 foo   => 'bar',
                 hello => 'world',
@@ -47,10 +52,9 @@ use SQL::Translator::Producer::TTSchema;
     );
     my $out;
     lives_ok { $out = $obj->translate; }  "Translate ran";
-#    print STDERR "Output: $out\n";
     ok $out ne ""                        ,"Produced something!";
     local $/ = undef; # slurp
-    eq_or_diff $out, <DATA>              ,"Output looks right";
+    eq_or_diff $out, <DATA>              ,"Output looks right", { context => 500000 };
 }
 
 # Test passing of Template config
@@ -81,7 +85,8 @@ use SQL::Translator::Producer::TTSchema;
     ok $out ne ""                        ,"Produced something!";
     local $/ = undef; # slurp
     eq_or_diff $out, q{
-    Table: Basic}              
+    Table: Basic
+    Table: Another}
     ,"Output looks right";
 }
 
@@ -195,6 +200,20 @@ Fields
         order:                 7
         table:                 Basic
     
+    another_id
+        data_type:             int
+        size:                  10
+        is_nullable:           1
+        default_value:         2
+        is_primary_key:        0
+        is_unique:             0
+        is_auto_increment:     0
+        is_foreign_key:        1
+        foreign_key_reference: Another
+        is_valid:              1
+        order:                 8
+        table:                 Basic
+    
     timest
         data_type:             timestamp
         size:                  0
@@ -206,7 +225,7 @@ Fields
         is_foreign_key:        0
         foreign_key_reference: 
         is_valid:              1
-        order:                 8
+        order:                 9
         table:                 Basic
     
 
@@ -236,6 +255,54 @@ Constraints
     emailuniqueindex
         type:             UNIQUE
         fields:           email
+        expression:       
+        match_type:       
+        reference_fields: 
+        reference_table:  
+        deferrable:       1
+        on_delete:        
+        on_update:        
+        options:          
+        is_valid:         1
+    
+    ?
+        type:             FOREIGN KEY
+        fields:           another_id
+        expression:       
+        match_type:       
+        reference_fields: id
+        reference_table:  Another
+        deferrable:       1
+        on_delete:        
+        on_update:        
+        options:          
+        is_valid:         1
+    
+Table: Another
+==========================================================================
+
+Fields
+    id
+        data_type:             int
+        size:                  10
+        is_nullable:           0
+        default_value:         
+        is_primary_key:        1
+        is_unique:             0
+        is_auto_increment:     1
+        is_foreign_key:        0
+        foreign_key_reference: 
+        is_valid:              1
+        order:                 10
+        table:                 Another
+    
+
+Indices
+    
+Constraints
+    ?
+        type:             PRIMARY KEY
+        fields:           id
         expression:       
         match_type:       
         reference_fields: 

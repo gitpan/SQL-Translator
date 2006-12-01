@@ -1,6 +1,6 @@
 ---
 name: SQL-Translator
-version: 0.08_02
+version: 0.08_04
 author:
   - 'Ken Y. Clark <kclark@cpan.org>'
 abstract: SQL DDL transformations and more
@@ -38,7 +38,7 @@ provides:
     file: lib/SQL/Translator/Parser/DB2/Grammar.pm
   SQL::Translator:
     file: lib/SQL/Translator.pm
-    version: 0.08_02
+    version: 0.08_04
   SQL::Translator::Diff:
     file: lib/SQL/Translator/Diff.pm
   SQL::Translator::Filter::DefaultExtra:
@@ -100,7 +100,7 @@ provides:
     version: 1.04
   SQL::Translator::Parser::SQLite:
     file: lib/SQL/Translator/Parser/SQLite.pm
-    version: 1.11
+    version: 1.12
   SQL::Translator::Parser::Storable:
     file: lib/SQL/Translator/Parser/Storable.pm
     version: 1.05
@@ -124,7 +124,7 @@ provides:
     version: 1.08
   SQL::Translator::Producer::DB2:
     file: lib/SQL/Translator/Producer/DB2.pm
-    version: 1.04
+    version: 1.05
   SQL::Translator::Producer::DiaUml:
     file: lib/SQL/Translator/Producer/DiaUml.pm
     version: 1.02
@@ -145,7 +145,7 @@ provides:
     version: 1.01
   SQL::Translator::Producer::MySQL:
     file: lib/SQL/Translator/Producer/MySQL.pm
-    version: 1.50
+    version: 1.52
   SQL::Translator::Producer::Oracle:
     file: lib/SQL/Translator/Producer/Oracle.pm
     version: 1.34
@@ -154,7 +154,7 @@ provides:
     version: 1.05
   SQL::Translator::Producer::PostgreSQL:
     file: lib/SQL/Translator/Producer/PostgreSQL.pm
-    version: 1.25
+    version: 1.28
   SQL::Translator::Producer::SQLServer:
     file: lib/SQL/Translator/Producer/SQLServer.pm
     version: 1.05
