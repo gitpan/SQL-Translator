@@ -525,7 +525,6 @@ Returns all the field objects as an array or array reference.
 
     if ( @fields ) {
         return wantarray ? @fields : \@fields;
-#        return \@fields;
     }
     else {
         $self->error('No fields');

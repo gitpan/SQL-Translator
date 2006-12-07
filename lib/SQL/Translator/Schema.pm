@@ -590,11 +590,8 @@ Returns all the tables as an array or array reference.
       sort { $a->[0] <=> $b->[0] }
       map  { [ $_->order, $_ ] } values %{ $self->{'tables'} };
 
-## TT DEBUG
-#print STDERR "Wantarray: ", wantarray, "\n";
     if (@tables) {
         return wantarray ? @tables : \@tables;
-#        return \@tables;
     }
     else {
         $self->error('No tables');

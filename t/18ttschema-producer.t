@@ -16,23 +16,22 @@ use FindBin qw/$Bin/;
 #=============================================================================
 
 BEGIN {
-    maybe_plan(7, 
+    eval {require Template;};
+        plan skip_all => "Template v2.15 is is incompatible with SQL::Translator 0.08" 
+        if !$@ && Template->VERSION == 2.15;
+
+    maybe_plan(6, 
         'XML::XPath', 
         'SQL::Translator::Parser::XML::SQLFairy',
         'Template', 
         'Test::Differences'
-    )
+    );
 }
 use Test::Differences;
 
 use SQL::Translator;
 use SQL::Translator::Producer::TTSchema;
 
-print STDERR $Template::VERSION, "\n";
-#use Data::Dumper;
-#print STDERR Dumper(\@INC, \%INC);
-my $tt = Template->new or die ;
-is(ref($tt->context->stash), 'Template::Stash::XS', 'Template::Stash::XS is the default Stash, good.');
 # Main test. Template whole schema and test tt_vars
 {
     my $obj;
@@ -42,8 +41,8 @@ is(ref($tt->context->stash), 'Template::Stash::XS', 'Template::Stash::XS is the 
         filename       => "$Bin/data/xml/schema.xml",
         to             => "TTSchema",
         producer_args  => {
-#           ttfile  => "$Bin/data/template/test.tt",
-           ttfile  => "$Bin/data/template/basic.tt",
+            ttfile  => "$Bin/data/template/basic.tt",
+#            ttfile  => "$Bin/data/template/test.tt",
             tt_vars => {
                 foo   => 'bar',
                 hello => 'world',
@@ -52,9 +51,10 @@ is(ref($tt->context->stash), 'Template::Stash::XS', 'Template::Stash::XS is the 
     );
     my $out;
     lives_ok { $out = $obj->translate; }  "Translate ran";
+#    print STDERR "Output: $out\n";
     ok $out ne ""                        ,"Produced something!";
     local $/ = undef; # slurp
-    eq_or_diff $out, <DATA>              ,"Output looks right", { context => 500000 };
+    eq_or_diff $out, <DATA>              ,"Output looks right";
 }
 
 # Test passing of Template config
