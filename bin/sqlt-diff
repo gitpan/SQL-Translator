@@ -2,7 +2,7 @@
 # vim: set ft=perl:
 
 # -------------------------------------------------------------------
-# $Id: sqlt-diff,v 1.13 2006/05/20 09:02:47 schiffbruechige Exp $
+# $Id: sqlt-diff,v 1.18 2007/03/21 15:20:50 duality72 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 The SQLFairy Authors
 #
@@ -37,13 +37,22 @@ For a list of all valid parsers:
 
 To diff two schemas:
 
-  sqlt-diff [options] file_name1=parser file_name2=parser
+  sqlt-diff [options] file_name1=parser1 file_name2=parser2
 
 Options:
 
   -d|--debug   Show debugging info
   -t|--trace   Turn on tracing for Parse::RecDescent
-  -c|--case-insensitive   Compare tables/columns case-insenstiviely
+  -c|--case-insensitive   Compare tables/columns case-insensitively
+  --ignore-index-names    Ignore index name differences
+  --ignore-constraint-names   Ignore constraint name differences
+  --mysql_parser_version=<#####> Specify a target MySQL parser version
+                                 for dealing with /*! comments
+  --output-db=<Producer>  This Producer will be used instead of one
+                          corresponding to parser1 to format output
+                          for new tables
+  --ignore-view-sql    Ignore view SQL differences
+  --ignore-proc-sql    Ignore procedure SQL differences
 
 =head1 DESCRIPTION
 
@@ -100,9 +109,11 @@ use SQL::Translator::Diff;
 use SQL::Translator::Schema::Constants;
 
 use vars qw( $VERSION );
-$VERSION = sprintf "%d.%02d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.18 $ =~ /(\d+)\.(\d+)/;
 
-my ( @input, $list, $help, $debug, $trace, $caseopt );
+my ( @input, $list, $help, $debug, $trace, $caseopt, $ignore_index_names, 
+	$ignore_constraint_names, $output_db, $mysql_parser_version,
+	$ignore_view_sql, $ignore_proc_sql );
 for my $arg ( @ARGV ) {
     if ( $arg =~ m/^-?-l(ist)?$/ ) {
         $list = 1;
@@ -116,8 +127,26 @@ for my $arg ( @ARGV ) {
     elsif ( $arg =~ m/^-?-t(race)?$/ ) {
         $trace = 1; 
     }
-    elsif ( $arg =~ m/^-?-c(ase-insenstive)?$/ ) {
+    elsif ( $arg =~ m/^-?-c(ase-insensitive)?$/ ) {
         $caseopt = 1; 
+    }
+    elsif ( $arg =~ m/^--ignore-index-names$/ ) {
+        $ignore_index_names = 1; 
+    }
+    elsif ( $arg =~ m/^--ignore-constraint-names$/ ) {
+        $ignore_constraint_names = 1; 
+    }
+    elsif ( $arg =~ m/^--mysql-parser-version=(.+)$/ ) {
+        $mysql_parser_version = $1; 
+    }
+    elsif ( $arg =~ m/^--output-db=(.+)$/ ) {
+        $output_db = $1; 
+    }
+    elsif ( $arg =~ m/^--ignore-view-sql$/ ) {
+        $ignore_view_sql = 1; 
+    }
+    elsif ( $arg =~ m/^--ignore-proc-sql$/ ) {
+        $ignore_proc_sql = 1; 
     }
     elsif ( $arg =~ m/^([^=]+)=(.+)$/ ) {
         push @input, { file => $1, parser => $2 };
@@ -149,7 +178,7 @@ my ( $source_schema, $source_db, $target_schema, $target_db ) = map {
     die "Unable to read file '$file'\n" unless -r $file;
     die "'$parser' is an invalid parser\n" unless $valid_parsers{ $parser };
 
-    my $t = SQL::Translator->new;
+    my $t = SQL::Translator->new(parser_args => {mysql_parser_version => $mysql_parser_version});
     $t->debug( $debug );
     $t->trace( $trace );
     $t->parser( $parser )            or die $tr->error;
@@ -164,9 +193,14 @@ my ( $source_schema, $source_db, $target_schema, $target_db ) = map {
 
 my $result = SQL::Translator::Diff::schema_diff($source_schema, $source_db, 
                                                 $target_schema, $target_db,
-                                                { caseopt => $caseopt,
-                                                  debug   => $debug,
-                                                  trace   => $trace });
+                                                { caseopt                 => $caseopt,
+                                                  ignore_index_names      => $ignore_index_names,
+                                                  ignore_constraint_names => $ignore_constraint_names,
+                                                  ignore_view_sql         => $ignore_view_sql,
+                                                  ignore_proc_sql         => $ignore_proc_sql,
+                                                  output_db               => $output_db,
+                                                  debug                   => $debug,
+                                                  trace                   => $trace });
 if($result)
 {
     print $result;

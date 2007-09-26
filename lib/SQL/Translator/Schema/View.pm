@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::View;
 
 # ----------------------------------------------------------------------
-# $Id: View.pm,v 1.12 2005/08/10 16:46:55 duality72 Exp $
+# $Id: View.pm,v 1.14 2007/03/21 15:20:50 duality72 Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -50,7 +50,7 @@ use base 'SQL::Translator::Schema::Object';
 
 use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.12 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf "%d.%02d", q$Revision: 1.14 $ =~ /(\d+)\.(\d+)/;
 
 # ----------------------------------------------------------------------
 
@@ -225,11 +225,24 @@ Determines if this view is the same as another
     my $self = shift;
     my $other = shift;
     my $case_insensitive = shift;
+    my $ignore_sql = shift;
     
     return 0 unless $self->SUPER::equals($other);
     return 0 unless $case_insensitive ? uc($self->name) eq uc($other->name) : $self->name eq $other->name;
     #return 0 unless $self->is_valid eq $other->is_valid;
-    return 0 unless $self->sql eq $other->sql;
+    
+    unless ($ignore_sql) {
+        my $selfSql = $self->sql;
+        my $otherSql = $other->sql;
+        # Remove comments
+        $selfSql =~ s/--.*$//mg;
+        $otherSql =~ s/--.*$//mg;
+        # Collapse whitespace to space to avoid whitespace comparison issues
+        $selfSql =~ s/\s+/ /sg;
+        $otherSql =~ s/\s+/ /sg;
+        return 0 unless $selfSql eq $otherSql;
+    }
+    
     my $selfFields = join(":", $self->fields);
     my $otherFields = join(":", $other->fields);
     return 0 unless $case_insensitive ? uc($selfFields) eq uc($otherFields) : $selfFields eq $otherFields;

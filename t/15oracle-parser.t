@@ -7,7 +7,7 @@ use SQL::Translator;
 use SQL::Translator::Schema::Constants;
 use Test::SQL::Translator qw(maybe_plan);
 
-maybe_plan(85, 'SQL::Translator::Parser::Oracle');
+maybe_plan(97, 'SQL::Translator::Parser::Oracle');
 SQL::Translator::Parser::Oracle->import('parse');
 
 my $t   = SQL::Translator->new( trace => 0 );
@@ -55,6 +55,7 @@ my $sql = q[
 
     CREATE UNIQUE INDEX qtl_accession ON qtl ( qtl_accession_id );
     CREATE UNIQUE INDEX qtl_accession_upper ON qtl ( UPPER(qtl_accession_id) );
+    CREATE INDEX qtl_index ON qtl ( qtl_accession_id );
 
     CREATE TABLE qtl_trait_synonym
     (
@@ -65,6 +66,46 @@ my $sql = q[
         UNIQUE( qtl_trait_id, trait_synonym ),
         FOREIGN KEY ( qtl_trait_id ) REFERENCES qtl_trait ON DELETE SET NULL
     );
+
+-- View and procedure testing
+	CREATE OR REPLACE PROCEDURE CMDOMAIN_LATEST.P_24_HOUR_EVENT_SUMMARY
+	IS
+	            ldate                   varchar2(10);
+	            user_added              INT;
+	            user_deleted            INT;
+	            workingsets_created     INT;
+	            change_executed         INT;
+	            change_detected         INT;
+	            reports_run             INT;
+	            backup_complete         INT;
+	            backup_failed           INT;
+	            devices_in_inventory    INT;
+	
+	
+	BEGIN
+	
+	           select CAST(TO_CHAR(sysdate,'MM/DD/YYYY') AS varchar2(10))  INTO ldate  from  dual;
+	END;
+/
+	
+	CREATE OR REPLACE FORCE VIEW CMDOMAIN_MIG.VS_ASSET (ASSET_ID, FQ_NAME, FOLDER_NAME, ASSET_NAME, ANNOTATION, ASSET_TYPE, FOREIGN_ASSET_ID, FOREIGN_ASSET_ID2, DATE_CREATED, DATE_MODIFIED, CONTAINER_ID, CREATOR_ID, MODIFIER_ID, USER_ACCESS) AS
+	  SELECT
+	    a.asset_id, a.fq_name,
+	    ap_extract_folder(a.fq_name) AS folder_name,
+	    ap_extract_asset(a.fq_name)  AS asset_name,
+	    a.annotation,
+	    a.asset_type,
+	    a.foreign_asset_id,
+	    a.foreign_asset_id2,
+	    a.dateCreated AS date_created,
+	    a.dateModified AS date_modified,
+	    a.container_id,
+	    a.creator_id,
+	    a.modifier_id,
+	    m.user_id AS user_access
+	from asset a
+	JOIN M_ACCESS_CONTROL m on a.acl_id = m.acl_id;
+
 ];
 
 $| = 1;
@@ -222,6 +263,14 @@ my $t3_f2     = shift @t3_fields;
 is( $t3_f2->comments, 'accession comment', 
     'Comment "accession comment" exists' );
 
+my @t3_indices = $t3->get_indices;
+is( scalar @t3_indices, 1, '1 index on table' );
+
+my $t3_i1 = shift @t3_indices;
+is( $t3_i1->type, 'NORMAL', 'First index is normal' );
+is( $t3_i1->name, 'qtl_index', 'Name is "qtl_index"' );
+is( join(',', $t3_i1->fields), 'qtl_accession_id', 'Fields = "qtl_accession_id"' );
+
 #
 # qtl_trait_synonym
 #
@@ -244,3 +293,17 @@ is( join(',', $t4_c3->reference_fields), 'qtl_trait_id',
     'Reference fields = "qtl_trait_id"' );
 is( $t4_c3->on_delete, 'SET NULL', 
     'on_delete = "SET NULL"' );
+
+my @views = $schema->get_views;
+is( scalar @views, 1, 'Right number of views (1)' );
+my $view1 = shift @views;
+is( $view1->name, 'VS_ASSET', 'Found "VS_ASSET" view' );
+like($view1->sql, qr/VS_ASSET/, "Detected view VS_ASSET");
+unlike($view1->sql, qr/CMDOMAIN_MIG/, "Did not detect CMDOMAIN_MIG");
+    
+my @procs = $schema->get_procedures;
+is( scalar @procs, 1, 'Right number of procedures (1)' );
+my $proc1 = shift @procs;
+is( $proc1->name, 'P_24_HOUR_EVENT_SUMMARY', 'Found "P_24_HOUR_EVENT_SUMMARY" procedure' );
+like($proc1->sql, qr/P_24_HOUR_EVENT_SUMMARY/, "Detected procedure P_24_HOUR_EVENT_SUMMARY");
+unlike($proc1->sql, qr/CMDOMAIN_MIG/, "Did not detect CMDOMAIN_MIG");

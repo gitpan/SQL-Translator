@@ -7,17 +7,28 @@ use SQL::Translator::Schema::Constants;
 sub schema_diff
 {
 #  use Data::Dumper;
+## we are getting instructions on how to turn the source into the target
+## source == original, target == new (hmm, if I need to comment this, should I rename the vars again ??)
+## _schema isa SQL::Translator::Schema
+## _db is the name of the producer/db it came out of/into
+## results are formatted to the source preferences
+
     my ($source_schema, $source_db, $target_schema, $target_db, $options) = @_;
 #  print Data::Dumper::Dumper($target_schema);
-    my $caseopt = $options->{caseopt} || 0;
+    my $case_insensitive = $options->{caseopt} || 0;
     my $debug = $options->{debug} || 0;
     my $trace = $options->{trace} || 0;
-
-    my $case_insensitive = $source_db =~ /SQLServer/ || $caseopt;
+    my $ignore_index_names = $options->{ignore_index_names} || 0;
+    my $ignore_constraint_names = $options->{ignore_constraint_names} || 0;
+    my $ignore_view_sql = $options->{ignore_view_sql} || 0;
+    my $ignore_proc_sql = $options->{ignore_proc_sql} || 0;
+    my $output_db = $options->{output_db} || $source_db;
 
     my $tar_name  = $target_schema->name;
     my $src_name  = $source_schema->name;
     my ( @new_tables, @diffs , @diffs_at_end);
+
+    ## do original/source tables exist in target?
     for my $tar_table ( $target_schema->get_tables ) {
         my $tar_table_name = $tar_table->name;
         my $src_table      = $source_schema->get_table( $tar_table_name, $case_insensitive );
@@ -26,14 +37,18 @@ sub schema_diff
         unless ( $src_table ) {
             warn "Couldn't find table '$tar_name.$tar_table_name' in '$src_name'\n"
                 if $debug;
-            if ( $source_db =~ /(SQLServer|Oracle)/ ) {
+                ## table is new
+            if ( $output_db =~ /(SQLServer|Oracle)/ ) {
+                ## contraints done in/on tables.. shouldnt create_table do this?
                 for my $constraint ( $tar_table->get_constraints ) {
                     next if $constraint->type ne FOREIGN_KEY;
                     push @diffs_at_end, "ALTER TABLE $tar_table_name ADD ".
-                        constraint_to_string($constraint, $source_db, $target_schema).";";
+                        constraint_to_string($constraint, $output_db, $target_schema).";";
+                    ## drop contraint so we don't add it twice later
                     $tar_table->drop_constraint($constraint);
                 }
             }
+            ## add table(s) later. 
             push @new_tables, $tar_table;
             next;
         }
@@ -80,11 +95,15 @@ sub schema_diff
                 push(@options, defined $value ? "$key=$value" : $key);
             }
             my $options = join(' ', @options);
+            ## create_table does this, but better, need to extract into a sub,
+            ## and make an alter_table that calls it in ::Producer::MySQL
+            ## then do that here, obviousmont
             @diffs_table_options = ("ALTER TABLE $tar_table_name $options;");
         }
 
         my $src_table_name = $src_table->name;
         my(@diffs_table_adds, @diffs_table_changes);
+        ## Compare fields, their types, defaults, sizes etc etc
         for my $tar_table_field ( $tar_table->get_fields ) {
             my $f_tar_type      = $tar_table_field->data_type;
             my $f_tar_size      = $tar_table_field->size;
@@ -93,7 +112,7 @@ sub schema_diff
             my $f_tar_default   = $tar_table_field->default_value;
             my $f_tar_auto_inc  = $tar_table_field->is_auto_increment;
             my $src_table_field     = $src_table->get_field( $f_tar_name, $case_insensitive );
-            my $f_tar_full_name = "$tar_name.$tar_table_name.$tar_table_name";
+            my $f_tar_full_name = "$tar_name.$tar_table_name.$f_tar_name";
             warn "FIELD '$f_tar_full_name'\n" if $debug;
 
             my $f_src_full_name = "$src_name.$src_table_name.$f_tar_name";
@@ -101,8 +120,11 @@ sub schema_diff
             unless ( $src_table_field ) {
                 warn "Couldn't find field '$f_src_full_name' in '$src_table_name'\n" 
                     if $debug;
+
+                ## Throw all this junk away and call producer->add_field :)
+                ## check output is the same.. if not, bash producers
                 my $temp_default_value = 0;
-                if ( $source_db =~ /SQLServer/ && 
+                if ( $output_db =~ /SQLServer/ && 
                      !$f_tar_nullable             && 
                      !defined $f_tar_default ) {
                     # SQL Server doesn't allow adding non-nullable, non-default columns
@@ -113,16 +135,16 @@ sub schema_diff
                 }
                 push @diffs_table_adds, sprintf
                     ( "ALTER TABLE %s ADD %s%s %s%s%s%s%s%s;",
-                      $tar_table_name, $source_db =~ /Oracle/ ? '(' : '',
+                      $tar_table_name, $output_db =~ /Oracle/ ? '(' : '',
                       $f_tar_name, $f_tar_type,
                       ($f_tar_size && $f_tar_type !~ /(blob|text)$/) ? "($f_tar_size)" : '',
                       !defined $f_tar_default ? ''
                       : uc $f_tar_default eq 'NULL' ? ' DEFAULT NULL'
                       : uc $f_tar_default eq 'CURRENT_TIMESTAMP' ? ' DEFAULT CURRENT_TIMESTAMP'
-                      : " DEFAULT '$f_tar_default'",
+                      : " default '$f_tar_default'",
                       $f_tar_nullable ? '' : ' NOT NULL',
                       $f_tar_auto_inc ? ' AUTO_INCREMENT' : '',
-                      $source_db =~ /Oracle/ ? ')' : '',
+                      $output_db =~ /Oracle/ ? ')' : '',
                       );
                 if ( $temp_default_value ) {
                     undef $f_tar_default;
@@ -146,21 +168,26 @@ END
                          , $tar_table_name, $tar_table_name, $f_tar_name, $tar_table_name,
                         );
                   }
+## delete goes down to here.. yay, 50lines gone
                 next;
-              }
+}
 
+            ## field exists, so what changed? 
+            ## (do we care? just call equals to see IF)
             my $f_src_type = $src_table_field->data_type;
             my $f_src_size = $src_table_field->size || '';
             my $f_src_nullable  = $src_table_field->is_nullable;
             my $f_src_default   = $src_table_field->default_value;
             my $f_src_auto_inc  = $src_table_field->is_auto_increment;
             if ( !$tar_table_field->equals($src_table_field, $case_insensitive) ) {
+                ## throw all this junk away and call producer->alter_field
+                ## check output same, etc etc
               # SQLServer timestamp fields can't be altered, so we drop and add instead
-              if ( $source_db =~ /SQLServer/ && $f_src_type eq "timestamp" ) {
+              if ( $output_db =~ /SQLServer/ && $f_src_type eq "timestamp" ) {
         		push @diffs_table_changes, "ALTER TABLE $tar_table_name DROP COLUMN $f_tar_name;";
 	            push @diffs_table_changes, sprintf
                   ( "ALTER TABLE %s ADD %s%s %s%s%s%s%s%s;",
-                    $tar_table_name, $source_db =~ /Oracle/ ? '(' : '',
+                    $tar_table_name, $output_db =~ /Oracle/ ? '(' : '',
                     $f_tar_name, $f_tar_type,
                     ($f_tar_size && $f_tar_type !~ /(blob|text)$/) ? "($f_tar_size)" : '',
                     !defined $f_tar_default ? ''
@@ -169,29 +196,29 @@ END
                     : " DEFAULT '$f_tar_default'",
 	                $f_tar_nullable ? '' : ' NOT NULL',
 	                $f_tar_auto_inc ? ' AUTO_INCREMENT' : '',
-	                $source_db =~ /Oracle/ ? ')' : '',
+	                $output_db =~ /Oracle/ ? ')' : '',
                   );
 	            next;
               }
 
-              my $changeText = $source_db =~ /SQLServer/ ? 'ALTER COLUMN' :
-				$source_db =~ /Oracle/ ? 'MODIFY (' : 'CHANGE';
+              my $changeText = $output_db =~ /SQLServer/ ? 'ALTER COLUMN' :
+				$output_db =~ /Oracle/ ? 'MODIFY (' : 'CHANGE';
               my $nullText = $f_tar_nullable ? '' : ' NOT NULL';
-              $nullText = '' if $source_db =~ /Oracle/ && $f_tar_nullable == $f_src_nullable;
+              $nullText = '' if $output_db =~ /Oracle/ && $f_tar_nullable == $f_src_nullable;
               push @diffs_table_changes, sprintf
                 ( "ALTER TABLE %s %s %s%s %s%s%s%s%s%s;",
                   $tar_table_name, $changeText,
-                  $f_tar_name, $source_db =~ /MySQL/ ? " $f_tar_name" : '',
+                  $f_tar_name, $output_db =~ /MySQL/ ? " $f_tar_name" : '',
                   $f_tar_type, ($f_tar_size && $f_tar_type !~ /(blob|text)$/) ? "($f_tar_size)" : '',
                   $nullText,
-                  !defined $f_tar_default || $source_db =~ /SQLServer/ ? ''
+                  !defined $f_tar_default || $output_db =~ /SQLServer/ ? ''
                   : uc $f_tar_default eq 'NULL' ? ' DEFAULT NULL'
                   : uc $f_tar_default eq 'CURRENT_TIMESTAMP' ? ' DEFAULT CURRENT_TIMESTAMP'
                   : " DEFAULT '$f_tar_default'",
                   $f_tar_auto_inc ? ' AUTO_INCREMENT' : '',
-                  $source_db =~ /Oracle/ ? ')' : '',
+                  $output_db =~ /Oracle/ ? ')' : '',
                 );
-              if ( defined $f_tar_default && $source_db =~ /SQLServer/ ) {
+              if ( defined $f_tar_default && $output_db =~ /SQLServer/ ) {
             	# Adding a column with a default value for SQL Server means adding a 
             	# constraint and setting existing NULLs to the default value
             	push @diffs_table_changes, sprintf
@@ -207,6 +234,7 @@ END
                 	: "'$f_tar_default'", $f_tar_name,
                   );
               }
+            ## remove down to here, another 50 lines gone!
             }
           }
 
@@ -214,11 +242,13 @@ END
       INDEX:
         for my $i_tar ( $tar_table->get_indices ) {
           for my $i_src ( $src_table->get_indices ) {
-			if ( $i_tar->equals($i_src, $case_insensitive) ) {
+			if ( $i_tar->equals($i_src, $case_insensitive, $ignore_index_names) ) {
               $checked_indices{$i_src} = 1;
               next INDEX;
 			}
           }
+          ## Unfound, therefore new to src
+          ## Call producer->create_index
           push @diffs_index_creates, sprintf
             ( "CREATE %sINDEX%s ON %s (%s);",
               $i_tar->type eq NORMAL ? '' : $i_tar->type." ",
@@ -229,11 +259,12 @@ END
         }
       INDEX2:
         for my $i_src ( $src_table->get_indices ) {
-          next if $checked_indices{$i_src};
+          next if !$ignore_index_names && $checked_indices{$i_src};
           for my $i_tar ( $tar_table->get_indices ) {
-			next INDEX2 if $i_src->equals($i_tar, $case_insensitive);
+			next INDEX2 if $i_src->equals($i_tar, $case_insensitive, $ignore_index_names);
           }
-          $source_db =~ /SQLServer/
+          ## Call producer->drop_index or some such. (does not exist yet)
+          $output_db =~ /SQLServer/
 			? push @diffs_index_drops, "DROP INDEX $tar_table_name.".$i_src->name.";"
               : push @diffs_index_drops, "DROP INDEX ".$i_src->name." on $tar_table_name;";
         }
@@ -241,29 +272,31 @@ END
         my(%checked_constraints, @diffs_constraint_drops);
       CONSTRAINT:
         for my $c_tar ( $tar_table->get_constraints ) {
-          next if $target_db =~ /Oracle/ && 
-            $c_tar->type eq UNIQUE && $c_tar->name =~ /^SYS_/i;
           for my $c_src ( $src_table->get_constraints ) {
-			if ( $c_tar->equals($c_src, $case_insensitive) ) {
+			if ( $c_tar->equals($c_src, $case_insensitive, $ignore_constraint_names) ) {
               $checked_constraints{$c_src} = 1;
               next CONSTRAINT;
 			}
           }
+          ## Create constraint on src, call producer->create_constraint
+          ## hmm, will this DWIM ? may need alter_table to do it.
+          ## in which case collect these and pass to alter_table down by
+          ## @new_tables
           push @diffs_at_end, "ALTER TABLE $tar_table_name ADD ".
-			constraint_to_string($c_tar, $source_db, $target_schema).";";
+			constraint_to_string($c_tar, $output_db, $target_schema).";";
         }
       CONSTRAINT2:
         for my $c_src ( $src_table->get_constraints ) {
-          next if $source_db =~ /Oracle/ && 
-            $c_src->type eq UNIQUE && $c_src->name =~ /^SYS_/i;
-          next if $checked_constraints{$c_src};
+          next if !$ignore_constraint_names && $checked_constraints{$c_src};
           for my $c_tar ( $tar_table->get_constraints ) {
-			next CONSTRAINT2 if $c_src->equals($c_tar, $case_insensitive);
+			next CONSTRAINT2 if $c_src->equals($c_tar, $case_insensitive, $ignore_constraint_names);
           }
+          ## Also these to alter table, or rather, dont pass the dropped ones
+          ## and it figures it out ?
           if ( $c_src->type eq UNIQUE ) {
 			push @diffs_constraint_drops, "ALTER TABLE $tar_table_name DROP INDEX ".
               $c_src->name.";";
-          } elsif ( $source_db =~ /SQLServer/ ) {
+          } elsif ( $output_db =~ /SQLServer/ ) {
 			push @diffs_constraint_drops, "ALTER TABLE $tar_table_name DROP ".$c_src->name.";";
           } else {
 			push @diffs_constraint_drops, "ALTER TABLE $tar_table_name DROP ".$c_src->type.
@@ -271,43 +304,98 @@ END
           }
         }
 
+        ## This is as before, but collected from the producer, yay!
         push @diffs, @diffs_index_drops, @diffs_constraint_drops,
           @diffs_table_options, @diffs_table_adds,
             @diffs_table_changes, @diffs_index_creates;
       }
 
+    ## Now we go backwards..
     for my $src_table ( $source_schema->get_tables ) {
       my $src_table_name = $src_table->name;
-      my $tar_table      = $target_schema->get_table( $src_table_name, $source_db =~ /SQLServer/ );
+      my $tar_table      = $target_schema->get_table( $src_table_name, $case_insensitive );
 
       unless ( $tar_table ) {
-    	if ( $source_db =~ /SQLServer/ ) {
+        ## wtf? hmm, cant drop the table without dropping the constraints first?
+        ## silly SQLServer .. shove this in the SQLServer drop_table code!
+    	if ( $output_db =~ /SQLServer/ ) {
           for my $constraint ( $src_table->get_constraints ) {
             next if $constraint->type eq PRIMARY_KEY;
             push @diffs, "ALTER TABLE $src_table_name DROP ".$constraint->name.";";
           }
     	}
+        ## or producer->drop_table, amended as above for silly DBs
         push @diffs_at_end, "DROP TABLE $src_table_name;";
         next;
       }
 
       for my $src_table_field ( $src_table->get_fields ) {
         my $f_src_name      = $src_table_field->name;
-        my $tar_table_field     = $tar_table->get_field( $f_src_name );
+        my $tar_table_field     = $tar_table->get_field( $f_src_name, $case_insensitive );
+        ## producer->drop_field
         unless ( $tar_table_field ) {
-          my $modifier = $source_db =~ /SQLServer/ ? "COLUMN " : '';
+          my $modifier = $output_db =~ /SQLServer/ ? "COLUMN " : '';
           push @diffs, "ALTER TABLE $src_table_name DROP $modifier$f_src_name;";
         }
       }
     }
 
+    ## producer->create_table
     if ( @new_tables ) {
       my $dummytr = SQL::Translator->new;
       $dummytr->schema->add_table( $_ ) for @new_tables;
-      my $producer = $dummytr->producer( $source_db );
+      my $producer = $dummytr->producer( $output_db );
       unshift @diffs, $producer->( $dummytr );
     }
     push(@diffs, @diffs_at_end);
+
+	# Procedures
+    ## Keep this lot for now ? Producers dont seem to support these well yet
+    my(%checked_procs, @diffs_proc_creates, @diffs_proc_drops);
+  PROC:
+    for my $p_tar ( $target_schema->get_procedures ) {
+      for my $p_src ( $source_schema->get_procedures ) {
+		if ( $p_tar->equals($p_src, $case_insensitive, $ignore_proc_sql) ) {
+          $checked_procs{$p_src} = 1;
+          next PROC;
+		}
+      }
+      push @diffs_proc_creates, $p_tar->sql;
+    }
+  PROC2:
+    for my $p_src ( $source_schema->get_procedures ) {
+      next if $checked_procs{$p_src};
+      for my $p_tar ( $target_schema->get_procedures ) {
+		next PROC2 if $p_src->equals($p_tar, $case_insensitive, $ignore_proc_sql);
+      }
+      my $proc_ident = $p_src->owner ? sprintf("[%s].%s", $p_src->owner, $p_src->name) : $p_src->name;
+      push @diffs_proc_drops, "DROP PROCEDURE $proc_ident;\nGO\n";
+    }
+
+	# Views
+    my(%checked_views, @diffs_view_creates, @diffs_view_drops);
+  VIEW:
+    for my $v_tar ( $target_schema->get_views ) {
+      for my $v_src ( $source_schema->get_views ) {
+		if ( $v_tar->equals($v_src, $case_insensitive, $ignore_view_sql) ) {
+          $checked_views{$v_src} = 1;
+          next VIEW;
+		}
+      }
+      push @diffs_view_creates, $v_tar->sql;
+    }
+  VIEW2:
+    for my $v_src ( $source_schema->get_views ) {
+      next if $checked_views{$v_src};
+      for my $v_tar ( $target_schema->get_views ) {
+		next VIEW2 if $v_src->equals($v_tar, $case_insensitive, $ignore_view_sql);
+      }
+      my $view_ident = $v_src->name;
+      push @diffs_view_drops, "DROP VIEW $view_ident;\nGO\n";
+    }
+
+    push @diffs, @diffs_view_drops, @diffs_proc_drops,
+      @diffs_view_creates, @diffs_proc_creates;
 
     if ( @diffs ) {
     	if ( $target_db !~ /^(MySQL|SQLServer|Oracle)$/ ) {
@@ -320,6 +408,7 @@ END
     return undef;
 }
 
+## Junk this now ;)
 sub constraint_to_string {
   my $c = shift;
   my $source_db = shift;

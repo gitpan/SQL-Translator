@@ -349,8 +349,10 @@ sub create_constraint
     my $expr = $constraint->type =~ /^CHECK_C$/i ? $constraint->expression :
         '';
     my $ref = $constraint->type =~ /^FOREIGN(_|\s)KEY$/i ? ('REFERENCES ' . $constraint->reference_table . '(' . join(', ', $constraint->reference_fields) . ')') : '';
-    my $update = $constraint->on_update ? $constraint->on_update : '';
-    my $delete = $constraint->on_delete ? $constraint->on_delete : '';
+#    my $update = $constraint->on_update ? $constraint->on_update : '';
+#    my $delete = $constraint->on_delete ? $constraint->on_delete : '';
+    my $update = '';
+    my $delete = '';
 
     my $out = join(' ', grep { $_ }
                       $constraint->name ? ('CONSTRAINT ' . $constraint->name) : '',

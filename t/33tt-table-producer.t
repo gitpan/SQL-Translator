@@ -22,8 +22,8 @@ use File::Temp qw/tempdir/;
 
 BEGIN {
     eval {require Template;};
-    plan skip_all => "Template v2.15 is incompatible with SQL::Translator 0.08"
-      if !$@ && Template->VERSION == 2.15;
+    plan skip_all => "Template v2.15+ is incompatible with SQL::Translator 0.08+"
+      if !$@ && Template->VERSION >= 2.15;
 
     maybe_plan(8, 'Template', 'Test::Differences')
 }
