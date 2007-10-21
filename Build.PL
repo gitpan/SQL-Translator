@@ -15,6 +15,7 @@ my $builder = Module::Build->new(
     script_files      => [
         'bin/sqlt-diagram',
         'bin/sqlt-diff',
+        'bin/sqlt-diff-old',
         'bin/sqlt-dumper',
         'bin/sqlt-graph',
         'bin/sqlt',
@@ -32,6 +33,7 @@ my $builder = Module::Build->new(
         'Template'                 => 2.10,
         'GD'                      => 0,
         'GraphViz'                => 0,
+        'Graph::Directed'         => 0,
         'IO::File'                => 0,
         'IO::Scalar'              => 0,
         'Spreadsheet::ParseExcel' => 0.2602,

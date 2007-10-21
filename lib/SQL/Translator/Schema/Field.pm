@@ -569,7 +569,7 @@ Determines if this field is the same as another
     return 0 unless $case_insensitive ? uc($self->name) eq uc($other->name) : $self->name eq $other->name;
     return 0 unless lc($self->data_type) eq lc($other->data_type);
     return 0 unless $self->size eq $other->size;
-    return 0 unless defined $self->default_value eq defined $other->default_value;
+    return 0 unless (!defined $self->default_value || $self->default_value eq 'NULL') eq (!defined $other->default_value || $other->default_value eq 'NULL');
     return 0 if defined $self->default_value && $self->default_value ne $other->default_value;
     return 0 unless $self->is_nullable eq $other->is_nullable;
 #    return 0 unless $self->is_unique eq $other->is_unique;

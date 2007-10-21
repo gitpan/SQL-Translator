@@ -252,8 +252,12 @@ Determines if this index is the same as another
     my $ignore_index_names = shift;
     
     return 0 unless $self->SUPER::equals($other);
+
     unless ($ignore_index_names) {
+      unless ((!$self->name && ($other->name eq $other->fields->[0])) ||
+        (!$other->name && ($self->name eq $self->fields->[0]))) {
         return 0 unless $case_insensitive ? uc($self->name) eq uc($other->name) : $self->name eq $other->name;
+      }
     }
     #return 0 unless $self->is_valid eq $other->is_valid;
     return 0 unless $self->type eq $other->type;

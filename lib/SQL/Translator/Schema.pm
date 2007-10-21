@@ -85,11 +85,13 @@ sub as_graph_pm {
 
 =pod
 
-=head2 as_grap_pmh
+=head2 as_graph_pm
 
 Returns a Graph::Directed object with the table names for nodes.
 
 =cut
+
+    require Graph::Directed;
 
     my $self = shift;
     my $g    = Graph::Directed->new;

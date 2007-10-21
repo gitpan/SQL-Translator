@@ -238,7 +238,9 @@ C<SQL::Translator::Schema::Index> object.
         $index = $index_class->new( \%args ) or return 
             $self->error( $index_class->error );
     }
-
+    foreach my $ex_index ($self->get_indices) {
+       return if ($ex_index->equals($index));
+    }
     push @{ $self->{'indices'} }, $index;
     return $index;
 }
