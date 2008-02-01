@@ -1,7 +1,7 @@
 package SQL::Translator::Producer;
 
 # -------------------------------------------------------------------
-# $Id: Producer.pm,v 1.8 2006/06/07 16:28:59 schiffbruechige Exp $
+# $Id: Producer.pm,v 1.8 2006-06-07 16:28:59 schiffbruechige Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::DBI::Sybase;
 
 # -------------------------------------------------------------------
-# $Id: Sybase.pm,v 1.6 2004/07/30 16:13:52 phrrngtn Exp $
+# $Id: Sybase.pm,v 1.6 2004-07-30 16:13:52 phrrngtn Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

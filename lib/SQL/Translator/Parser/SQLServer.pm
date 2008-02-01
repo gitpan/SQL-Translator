@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::SQLServer;
 
 # -------------------------------------------------------------------
-# $Id: SQLServer.pm,v 1.6 2007/03/19 17:11:02 duality72 Exp $
+# $Id: SQLServer.pm,v 1.6 2007-03-19 17:11:02 duality72 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

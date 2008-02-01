@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Procedure;
 
 # ----------------------------------------------------------------------
-# $Id: Procedure.pm,v 1.8 2007/03/21 15:20:50 duality72 Exp $
+# $Id: Procedure.pm,v 1.8 2007-03-21 15:20:50 duality72 Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

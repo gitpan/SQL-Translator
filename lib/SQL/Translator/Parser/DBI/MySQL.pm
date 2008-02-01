@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::DBI::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm,v 1.6 2006/02/22 22:52:51 kycl4rk Exp $
+# $Id: MySQL.pm,v 1.6 2006-02-22 22:52:51 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

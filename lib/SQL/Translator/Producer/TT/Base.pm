@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::TT::Base;
 
 # -------------------------------------------------------------------
-# $Id: Base.pm,v 1.6 2004/08/20 00:58:35 grommit Exp $
+# $Id: Base.pm,v 1.6 2004-08-20 00:58:35 grommit Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

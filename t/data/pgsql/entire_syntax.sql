@@ -1,4 +1,4 @@
--- $Header: /cvsroot/sqlfairy/sqlfairy/t/data/pgsql/entire_syntax.sql,v 1.1 2003/08/17 00:42:57 rossta Exp $
+-- $Header: /home/faga/work/sqlfairy_svn/sqlfairy-cvsbackup/sqlfairy/t/data/pgsql/entire_syntax.sql,v 1.1 2003-08-17 00:42:57 rossta Exp $
 
 -- done:
 

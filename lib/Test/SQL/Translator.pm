@@ -1,7 +1,7 @@
 package Test::SQL::Translator;
 
 # ----------------------------------------------------------------------
-# $Id: Translator.pm,v 1.8 2005/01/13 09:02:15 grommit Exp $
+# $Id: Translator.pm,v 1.8 2005-01-13 09:02:15 grommit Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2003 The SQLFairy Authors
 #

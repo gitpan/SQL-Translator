@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::Sybase;
 
 # -------------------------------------------------------------------
-# $Id: Sybase.pm,v 1.9 2004/02/09 23:02:17 kycl4rk Exp $
+# $Id: Sybase.pm,v 1.9 2004-02-09 23:02:17 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

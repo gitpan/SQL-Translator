@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::YAML;
 
 # -------------------------------------------------------------------
-# $Id: YAML.pm,v 1.8 2006/03/10 14:55:19 grommit Exp $
+# $Id: YAML.pm,v 1.8 2006-03-10 14:55:19 grommit Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -49,9 +49,11 @@ sub parse {
     ;
 
     for my $tdata ( @tables ) {
+  
         my $table = $schema->add_table(
-            name  => $tdata->{'name'},
-            extra => $tdata->{'extra'},
+            map {
+              $tdata->{$_} ? ($_ => $tdata->{$_}) : ()
+            } (qw/name extra options/)
         ) or die $schema->error;
 
         my @fields = 

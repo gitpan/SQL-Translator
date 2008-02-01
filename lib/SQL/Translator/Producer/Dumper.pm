@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::Dumper;
 
 # -------------------------------------------------------------------
-# $Id: Dumper.pm,v 1.9 2006/02/16 14:59:19 kycl4rk Exp $
+# $Id: Dumper.pm,v 1.9 2006-02-16 14:59:19 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-6 SQLFairy Authors
 #

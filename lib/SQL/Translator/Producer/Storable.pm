@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::Storable;
 
 # -------------------------------------------------------------------
-# $Id: Storable.pm,v 1.5 2004/02/09 23:02:17 kycl4rk Exp $
+# $Id: Storable.pm,v 1.5 2004-02-09 23:02:17 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

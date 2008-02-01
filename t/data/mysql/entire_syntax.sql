@@ -1,4 +1,4 @@
--- $Header: /cvsroot/sqlfairy/sqlfairy/t/data/mysql/entire_syntax.sql,v 1.2 2003/08/17 01:41:48 rossta Exp $
+-- $Header: /home/faga/work/sqlfairy_svn/sqlfairy-cvsbackup/sqlfairy/t/data/mysql/entire_syntax.sql,v 1.2 2003-08-17 01:41:48 rossta Exp $
 
 -- all data types
 DROP TABLE IF EXISTS t01;

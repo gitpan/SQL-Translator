@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::DB2;
 
 # -------------------------------------------------------------------
-# $Id: DB2.pm,v 1.5 2006/11/10 21:21:51 mwz444 Exp $
+# $Id: DB2.pm,v 1.5 2006-11-10 21:21:51 mwz444 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -349,10 +349,8 @@ sub create_constraint
     my $expr = $constraint->type =~ /^CHECK_C$/i ? $constraint->expression :
         '';
     my $ref = $constraint->type =~ /^FOREIGN(_|\s)KEY$/i ? ('REFERENCES ' . $constraint->reference_table . '(' . join(', ', $constraint->reference_fields) . ')') : '';
-#    my $update = $constraint->on_update ? $constraint->on_update : '';
-#    my $delete = $constraint->on_delete ? $constraint->on_delete : '';
-    my $update = '';
-    my $delete = '';
+    my $update = $constraint->on_update ? $constraint->on_update : '';
+    my $delete = $constraint->on_delete ? $constraint->on_delete : '';
 
     my $out = join(' ', grep { $_ }
                       $constraint->name ? ('CONSTRAINT ' . $constraint->name) : '',

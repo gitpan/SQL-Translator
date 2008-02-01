@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::TT::Table;
 
 # -------------------------------------------------------------------
-# $Id: Table.pm,v 1.3 2004/08/19 20:58:05 grommit Exp $
+# $Id: Table.pm,v 1.3 2004-08-19 20:58:05 grommit Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Constraint;
 
 # ----------------------------------------------------------------------
-# $Id: Constraint.pm,v 1.21 2007/03/01 22:15:59 duality72 Exp $
+# $Id: Constraint.pm,v 1.21 2007-03-01 22:15:59 duality72 Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

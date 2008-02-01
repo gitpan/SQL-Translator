@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::DBI::PostgreSQL;
 
 # -------------------------------------------------------------------
-# $Id: PostgreSQL.pm,v 1.10 2007/06/04 04:01:14 mwz444 Exp $
+# $Id: PostgreSQL.pm,v 1.10 2007-06-04 04:01:14 mwz444 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::DBI::Oracle;
 
 # -------------------------------------------------------------------
-# $Id: Oracle.pm,v 1.2 2006/03/09 20:18:05 cahille Exp $
+# $Id: Oracle.pm,v 1.2 2006-03-09 20:18:05 cahille Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2006 SQLFairy Authors
 #

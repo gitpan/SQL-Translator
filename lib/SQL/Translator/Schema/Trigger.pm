@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Trigger;
 
 # ----------------------------------------------------------------------
-# $Id: Trigger.pm,v 1.9 2006/06/07 16:37:33 schiffbruechige Exp $
+# $Id: Trigger.pm,v 1.9 2006-06-07 16:37:33 schiffbruechige Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Object;
 
 # ----------------------------------------------------------------------
-# $Id: Object.pm,v 1.8 2006/06/07 16:43:41 schiffbruechige Exp $
+# $Id: Object.pm,v 1.8 2006-06-07 16:43:41 schiffbruechige Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

@@ -2,8 +2,8 @@
 # vim: set ft=perl ts=4 et:
 #
 
-# $Source: /cvsroot/sqlfairy/sqlfairy/t/26sybase.t,v $
-# $Id: 26sybase.t,v 1.2 2004/09/13 18:16:48 kycl4rk Exp $
+# $Source: /home/faga/work/sqlfairy_svn/sqlfairy-cvsbackup/sqlfairy/t/26sybase.t,v $
+# $Id: 26sybase.t,v 1.2 2004-09-13 18:16:48 kycl4rk Exp $
 
 use strict;
 use Test::More;

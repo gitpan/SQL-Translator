@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::DBI::SQLServer;
 
 # -------------------------------------------------------------------
-# $Id: SQLServer.pm,v 1.6 2007/04/12 15:14:59 duality72 Exp $
+# $Id: SQLServer.pm,v 1.6 2007-04-12 15:14:59 duality72 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

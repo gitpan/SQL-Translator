@@ -1,4 +1,4 @@
-# $Id: Build.PL,v 1.12 2006/07/23 14:14:56 schiffbruechige Exp $
+# $Id: Build.PL,v 1.13 2007-10-24 10:55:44 schiffbruechige Exp $
 
 use strict;
 use lib './lib';
@@ -28,6 +28,7 @@ my $builder = Module::Build->new(
         'Log::Log4perl'            => 0,
         'Parse::RecDescent'        => 1.94,
         'Pod::Usage'               => 0,
+        'Class::Accessor::Fast'    => 0,
     },
     recommends        => {
         'Template'                 => 2.10,
@@ -46,6 +47,7 @@ my $builder = Module::Build->new(
         'File::Basename'          => 0,
         'File::Spec'              => 0,
         'Test::More'              => 0.6,
+        'Test::Differences'       => 0,
         'Test::Exception'         => 0,
         'Test::Differences'       => 0,
         'YAML'                    => 0.39,

@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::DiaUml;
 
 # -------------------------------------------------------------------
-# $Id: DiaUml.pm,v 1.2 2006/03/06 13:08:43 grommit Exp $
+# $Id: DiaUml.pm,v 1.2 2006-03-06 13:08:43 grommit Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::Oracle;
 
 # -------------------------------------------------------------------
-# $Id: Oracle.pm,v 1.29 2007/03/19 22:32:31 duality72 Exp $
+# $Id: Oracle.pm,v 1.29 2007-03-19 22:32:31 duality72 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::Diagram;
 
 # -------------------------------------------------------------------
-# $Id: Diagram.pm,v 1.13 2006/05/13 01:25:44 kycl4rk Exp $
+# $Id: Diagram.pm,v 1.13 2006-05-13 01:25:44 kycl4rk Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

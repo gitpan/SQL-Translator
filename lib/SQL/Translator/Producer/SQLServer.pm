@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::SQLServer;
 
 # -------------------------------------------------------------------
-# $Id: SQLServer.pm,v 1.7 2007/03/14 16:56:33 duality72 Exp $
+# $Id: SQLServer.pm,v 1.7 2007-03-14 16:56:33 duality72 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

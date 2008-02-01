@@ -22,18 +22,16 @@ eofile : /^\Z/
 statement : 
     comment
     | create
-    | drop
     | <error>
 
-comment : /^\s*--.*\n/
+comment : /^\s*-{2}.*\n/
     {
         my $comment =  $item[1];
-        $comment    =~ s/^\s*(--)\s*//;
+        $comment    =~ s/^\s*(-{2})\s*//;
         $comment    =~ s/\s*$//;
         $return     = $comment;
     }
 
-drop : /drop/i table_name end_statement
 
 create: CREATE TRIGGER trigger_name before type /ON/i table_name reference_b(?) /FOR EACH ROW/i 'MODE DB2SQL' triggered_action
 {
@@ -88,140 +86,12 @@ create: CREATE /FEDERATED|/i VIEW view_name column_list(?) /AS/i with_expression
 
 # col_list_or_of: column_list | /OF/i ( root_view_definition | subview_definition )
 
-create: CREATE TABLE table_name element_list /IN/i tablespace_name end_statement
-{   
-    $table_order++;
-    $tables{ $item{table_name}{name} }{order} = $table_order;
-    
-       
-}
-
-element_list: '(' ( column_definition
-                  | unique_constraint
-                  | referential_constraint
-                  | check_constraint 
-                  )(s /,/) ')'
-{
-}
-column_definition: column_name data_type column_options(s)
-{
-    $return = { name => $item{column_name},
-                data_type => $item{data_type},
-                is_nullable => 1,
-              };
-    foreach my $opt @{ $item{column_options} }
-    {
-        $return->{is_nullable} = 0 if($opt->{notnull});
-        $return->{default} = $opt->{default} if($opt->{default});
-        $return->{primary_key} = $opt->{pkey} if($opt->{pkey});
-        $return->{is_auto_increment} = $opt->{is_auto_increment} 
-          if($opt->{is_auto_increment});
-    }
-}
-
-column_options: /NOT NULL/i
-{
-    $return = { notnull => 1 };
-}
-                | ( CONSTRAINT constraint_name )(?) 
-                    ( /PRIMARY KEY/i
-                    | /UNIQUE/i
-                    | references_clause
-                    | /CHECK/i '(' check_condition ')' constraint_attributes
-                    )
-{
-    die "Constraints not supported yet" if($item[1]);
-    $return->{p_key} = 1 if($item[2][1]);
-    $return->{unique} = 1 if($item[2][2]);
-}
-                | generated_column_spec
-                
-{
-    $return = { default => $item{generated_column_spec}{default_clause},
-                is_auto_increment => $item{generated_column_spec}{autoinc},
-              };
-}
-
-
-generated_column_spec: default_clause 
-              | /GENERATED/i ( /ALWAYS/i | /BY\sDEFAULT/i ) /AS\sIDENTITY/i identity_options(?)
-{
-   ## Should be more complex than this.. probably
-   $return->{autoinc} => 1;
-}
-#              | /GENERATED\sALWAYS\sAS/i '(' generation_expression ')'
-
-# generation_expression: expression
-
-identity_options: 
-
-default_clause: WITH(?) /DEFAULT/i default_values(?)
-{
-   $return = $item{default_values}[0];
-}
-
-default_values: constant
-              | /USER/i
-              | /NULL/i
-              | datetime_special_register
-#              | cast_function '(' ( constant
-#                                  | datetime_special_register
-#                                  | /USER/i
-#                                  )
-#                               ')'
-
-datetime_special_register: /CURRENT DATE/i | /CURRENT TIMESTAMP/i | /CURRENT TIME/i
-
-references_clause: /REFERENCES/i ( table_name | nickname ) '(' column_name(s /,/) ')' rule_clause constraint_attributes
-
-rule_clause: ( ( /ON\sDELETE\sNO\sACTION/i 
-               | /ON\sDELETE/i
-                 ( /RESTRICT/i 
-                 | /CASCADE/i
-                 | /SET\sNULL/i
-                 )
-               )
-             | ( /ON\sUPDATE\sNO\sACTION/i
-               | /ON\sUPDATE\sRESTRICT/i
-               )
-             )(s)
-
-constraint_attributes: ( ( /ENFORCED/i
-                         | /NOT\sENFORCED/i
-                         ) 
-                       | ( /ENABLE\sQUERY\sOPTIMIZATION/i
-                         | /DISABLE\sQUERY\sOPTIMIZATION/i
-                         )
-                       )(s)
-
-unique_constraint: ( CONSTRAINT constraint_name )(?) 
-                   ( /UNIQUE/ 
-                   | /PRIMARY\sKEY/i) '(' column_name(s /,/) ')'
-
-
-referential_constraint: ( CONSTRAINT constraint_name )(?) /FOREIGN\sKEY/i '(' column_name(s /,/) ')' references_clause
-
-check_constraint: ( CONSTRAINT constraint_name )(?) /CHECK/i '(' check_condition ')' constraint_attributes
-
-check_condition: ( search_condition | functional_dependency )
-
-functional_dependency:
-
-#functional_dependency: ( column_name 
-#                       | '(' column_name(s /,/) ')' 
-#                       ) /DETERMINED\sBY/i 
-#                       ( column_name 
-#                       | '(' column_name(s /,/) ')' 
-#                       )
-
 with_expression: /WITH/i common_table_expression(s /,/)
 {
     $return = $item{'common_table_expression'};
 }
 
-SQL_procedure_statement: /[^;]*/ end_statement { $return = $item[1] . $item[2] }
-
-end_statement: /(;|\z)/
+SQL_procedure_statement: /[^;]*/ /(;|\z)/ { $return = $item[1] . $item[2] }
 
 column_list: '(' column_name(s /,/) ')'
 {
@@ -234,8 +104,6 @@ TRIGGER: /trigger/i
 
 VIEW: /view/i
 
-TABLE: /table/i
-
 INNER: /inner/i
 
 LEFT: /left/i
@@ -247,29 +115,21 @@ FULL: /full/i
 OUTER: /outer/i
 
 WHERE: /where/i
-
-CONSTRAINT: /constraint/i
-
-WITH: /with/i
  
 trigger_name: SCHEMA '.' NAME
     { $return = { schema => $item[1], name => $item[3] } }
-  | NAME
+    | NAME
     { $return = { name => $item[1] } } 
 
 table_name: SCHEMA '.' NAME
     { $return = { schema => $item[1], name => $item[3] } }
-  | NAME
+    | NAME
     { $return = { name => $item[1] } } 
 
 view_name: SCHEMA '.' NAME
     { $return = { schema => $item[1], name => $item[3] } }
-  | NAME
+    | NAME
     { $return = { name => $item[1] } } 
-
-typed_table_name : table_name
-
-typed_view_name : view_name
 
 column_name: NAME
 
@@ -277,13 +137,7 @@ identifier: NAME
 
 correlation_name: NAME
 
-constraint_name: NAME
-
-nickname: NAME
-
 numeric_constant: /\d+/
-
-tablespace_name: NAME
 
 SCHEMA: /\w+/
 
@@ -294,45 +148,6 @@ NAME: /\w+/
 NAME: /\w{1,18}/
  
 options: /WITH/i ( /CASCADED/i | /LOCAL/i ) /CHECK\s+OPTION/i
-
-data_type: ( /SMALLINT/i
-           | ( /INTEGER/i | /INT/i )
-           | /BIGINT/i
-           | ( /FLOAT/i '(' integer ')'
-             | /REAL/i
-             | /DOUBLE/i (/PRECISION/i)(?)
-             )
-           | ( /DECIMAL/i 
-             | /DEC/i
-             | /NUMERIC/i
-             | /NUM/i
-             ) ( '(' integer ( ',' integer)(?) ')' )(?)
-           | ( ( /CHARACTER/i
-               | /CHAR/i
-               | ( '(' integer ')' )(?)
-               )
-             | ( /VARCHAR/i
-               | ( /CHARACTER/i | /CHAR/i ) /VARYING/i
-               ) '(' integer ')'
-             | /LONG\sVARCHAR/i
-             )
-           | ( ( /BLOB/i
-               | /BINARY\sLARGE\sOBJECT/i
-               )
-             | ( /CLOB/i
-               | ( /CHARACTER/i | /CHAR/i ) /LARGE\sOBJECT/i
-               )
-             | /DBCLOB/i
-             ) ( '(' integer ( /K/i | /M/i | /G/i )(?) ')' )(?)
-           | /GRAPHIC/i ( '(' integer ')' )(?)
-           | /VARGRAPHIC/i '(' integer ')'
-           | /LONG\sVARGRAPHIC/i
-           | /DATE/i
-           | /TIME/i
-           | /TIMESTAMP/i
-           | /DATALINK/i ( '(' integer ')' )(?)
-           )
-           
 
 # root_view_definition: /MODE\s+DB2SQL/i '(' oid_column ( /,/ with_options )(?) ')'
 
@@ -356,7 +171,7 @@ get_bracketed:
     extract_bracketed($text, '(');
 }
 
-# common_table_expression: table_name column_list /AS/i '(' fullselect ')'
+common_table_expression: table_name column_list /AS/i '(' fullselect ')'
 
 # fullselect: ( subselect | '(' fullselect ')' | values_clause ) ( ( /UNION/i | /UNION/i /ALL/i | /EXCEPT/i | /EXCEPT/i /ALL/i | /INTERSECT/i | /INTERSECT/i /ALL/i ) ( subselect | '(' fullselect ')' | values_clause ) )(s)
 
@@ -489,52 +304,28 @@ expression: (
               | '(' expression ')'
               | constant
               | column_name
-#              | host_variable
-#              | special_register
-#              | '(' scalar_fullselect ')' 
+              | host_variable
+              | special_register
+              | '(' scalar_fullselect ')' 
               | labeled_duration
               | case_expression
               | cast_specification
 #              | dereference_operation
-#              | OLAP_function
-#              | method_invocation
-#              | subtype_treatment
-#              | sequence_reference 
+              | OLAP_function
+              | method_invocation
+              | subtype_treatment
+              | sequence_reference 
               )
             )(s /operator/)
 
 operator: ( /CONCAT/i | '||' ) | '/' | '*' | '+' | '-' 
 
 function: ( /SYSIBM\.|/i sysibm_function 
-#          | /SYSFUN\.|/i sysfun_function
-#          | userdefined_function 
+          | /SYSFUN\.|/i sysfun_function
+          | userdefined_function 
           ) '(' func_args(s /,/)  ')'
 
 constant: int_const | float_const | dec_const | char_const | hex_const | grastr_const
-
-integer: /\d+/
-
-int_const: /^([+-]?\d+)$/
-
-float_const: /^([+-]?[\d\.]+E[+-]?\d+)$/
-
-dec_const: /^([+-]?[\d\.]+)$/
-
-char_const: /^('.*')$/
-
-hex_const: /^X'([0-9A-F]+)'$/i 
-{ $return = { type => 'hex',
-              value => hex $item[1],
-            }
-}
-
-grastr_const: /^[NG]'(.*)'$/
-{ $return = { type => 'grastr',
-              value => $item[1],
-            }
-}
-
-unsigned_constant: constant
 
 func_args: expression
 
@@ -669,7 +460,7 @@ sysfun: ( /ABS/i | /ABSVAL/i )
                 | /REPLACE/i
                 | /RIGHT/i
                 | /ROUND/i
-                | /RTRIM/i
+                | /RTRIM/I
                 | /SIGN/i
                 | /SIN/i
                 | /SOUNDEX/i
@@ -684,7 +475,7 @@ sysfun: ( /ABS/i | /ABSVAL/i )
                 | /WEEK/i
                 | /WEEK_ISO/i
 
-# scalar_fullselect: '(' fullselect ')'
+scalar_fullselect: '(' fullselect ')'
 
 labeled_duration: ld_type ld_duration
 
@@ -692,7 +483,7 @@ ld_type: function
        | '(' expression ')' 
        | constant 
        | column_name 
-#       | host_variable
+       | host_variable
 
 ld_duration: /YEARS?/i 
            | /MONTHS?/i 
@@ -725,7 +516,7 @@ result_expression: expression
 
 cast_specification: /CAST/i '(' ( expression 
                                 | /NULL/i
-#                                | parameter_marker
+                                | parameter_marker
                                 ) /AS/i data_type 
                                   ( /SCOPE/ ( typed_table_name 
                                             | typed_view_name
@@ -744,94 +535,93 @@ scoped_reference_expression: expression
 
 name1: NAME
 
-# OLAP_function: ranking_function 
-#            | numbering_function
-#            | aggregation_function
+OLAP_function: ranking_function 
+             | numbering_function
+             | aggregation_function
 
-# ranking_function: ( /RANK/ '()' 
-#                   | /DENSE_RANK|DENSERANK/i '()' 
-#                   ) /OVER/i '(' window_partition_clause(?) window_order_clause ')'
-# 
-# numbering_function: /ROW_NUMBER|ROWNUMBER/i '()' /OVER/i '(' window_partition_clause(?) 
-#                       ( window_order_clause window_aggregation_group_clause(?) 
-#                       )(?) 
-#                       ( /RANGE\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+UNBBOUNDED\s+FOLLOWING/i 
-#                       | window_aggregation_group_clause
-#                       )(?) ')'
-# 
-# window_partition_clause: /PARTITION\s+BY/i partitioning_expression(s /,/)
-# 
-# window_order_clause: /ORDER\s+BY/i 
-#                       ( sort_key_expression 
-#                         ( asc_option 
-#                         | desc_option 
-#                         )(?)
-#                       )(s /,/)
-# 
-# asc_option: /ASC/i ( /NULLS\s+FIRST/i | /NULLS\s+LAST/i )(?)
-# 
-# desc_option: /DESC/i ( /NULLS\s+FIRST/i | /NULLS\s+LAST/i )(?)
-# 
-# window_aggregation_group_clause: ( /ROWS/i
-#                                  | /RANGE/i
-#                                  ) 
-#                                  ( group_start
-#                                  | group_between
-#                                  | group_end
-#                                  )
-# 
-# group_start: /UNBOUNDED\s+PRECEDING/i 
-#            | unsigned_constant /PRECEDING/i
-#            | /CURRENT\s+ROW/i
-# 
-# group_between: /BETWEEN/i group_bound1 /AND/i group_bound2
-# 
-# group_bound1: /UNBOUNDED\s+PRECEDING/i 
-#            | unsigned_constant /PRECEDING/i
-#            | unsigned_constant /FOLLOWING/i
-#            | /CURRENT\s+ROW/i
-# 
-# group_bound2: /UNBOUNDED\s+PRECEDING/i 
-#            | unsigned_constant /PRECEDING/i
-#            | unsigned_constant /FOLLOWING/i
-#            | /CURRENT\s+ROW/i
-# 
-# group_end: /UNBOUNDED\s+PRECEDING/i 
-#            | unsigned_constant /FOLLOWING/i 
-# 
-# method_invocation: subject_expression '..' method_name
-#                     ( '(' expression(s) ')' 
-# #                    ( '(' expression(s /,/) ')' 
-#                     )(?)
-# 
-# subject_expression: expression
-# { # with static result type that is a used-defined struct type 
-# }
-# 
-# method_name: NAME
-# { # must be a method of subject_expression 
-# }
-# 
-# subtype_treatment: /TREAT/i '(' expression /AS/i data_type ')'
-# 
-# sequence_reference: nextval_expression
-#                   | prevval_expression
-# 
-# nextval_expression: /NEXTVAL\s+FOR/i sequence_name
-# 
-# prevval_expression: /PREVVAL\s+FOR/i sequence_name
-# 
-# sequence_name: NAME
-# 
-# 
-# search_condition: /NOT|/i ( predicate ( /SELECTIVITY/i numeric_constant )(?) | '(' search_condition ')' ) cond(s?)
-# 
-# cond: ( /AND/i | /OR/i ) /NOT|/i ( predicate ( /SELECTIVITY/i numeric_constant )(?) | '(' search_condition ')' )
-# 
-# predicate: basic_p | quantified_p | between_p | exists_p | in_p | like_p | null_p | type_p 
-# 
-# basic_p: expression /(=|<>|<|>|<=|=>|\^=|\^<|\^>|\!=)/ expression
-# 
-# quantified_p: expression1 /(=|<>|<|>|<=|=>|\^=|\^<|\^>|\!=)/ /SOME|ANY|ALL/i '(' fullselect ')'
-# 
-# 
+ranking_function: ( /RANK/ '()' 
+                  | /DENSE_RANK|DENSERANK/i '()' 
+                  ) /OVER/i '(' window_partition_clause(?) window_order_clause ')'
+
+numbering_function: /ROW_NUMBER|ROWNUMBER/i '()' /OVER/i '(' window_partition_clause(?) 
+                      ( window_order_clause window_aggregation_group_clause(?) 
+                      )(?) 
+                      ( /RANGE\s+BETWEEN\s+UNBOUNDED\s+PRECEDING\s+AND\s+UNBBOUNDED\s+FOLLOWING/i 
+                      | window_aggregation_group_clause
+                      )(?) ')'
+
+window_partition_clause: /PARTITION\s+BY/i partitioning_expression(s /,/)
+
+window_order_clause: /ORDER\s+BY/i 
+                      ( sort_key_expression 
+                        ( asc_option 
+                        | desc_option 
+                        )(?)
+                      )(s /,/)
+
+asc_option: /ASC/i ( /NULLS\s+FIRST/i | /NULLS\s+LAST/i )(?)
+
+desc_option: /DESC/i ( /NULLS\s+FIRST/i | /NULLS\s+LAST/i )(?)
+
+window_aggregation_group_clause: ( /ROWS/i
+                                 | /RANGE/i
+                                 ) 
+                                 ( group_start
+                                 | group_between
+                                 | group_end
+                                 )
+
+group_start: /UNBOUNDED\s+PRECEDING/i 
+           | unsigned_constant /PRECEDING/i
+           | /CURRENT\s+ROW/i
+
+group_between: /BETWEEN/i group_bound1 /AND/i group_bound2
+
+group_bound1: /UNBOUNDED\s+PRECEDING/i 
+           | unsigned_constant /PRECEDING/i
+           | unsigned_constant /FOLLOWING/i
+           | /CURRENT\s+ROW/i
+
+group_bound2: /UNBOUNDED\s+PRECEDING/i 
+           | unsigned_constant /PRECEDING/i
+           | unsigned_constant /FOLLOWING/i
+           | /CURRENT\s+ROW/i
+
+group_end: /UNBOUNDED\s+PRECEDING/i 
+           | unsigned_constant /FOLLOWING/i 
+
+method_invocation: subject_expression '..' method_name
+                    ( '(' expression(s) ')' 
+#                    ( '(' expression(s /,/) ')' 
+                    )(?)
+
+subject_expression: expression
+{ # with static result type that is a used-defined struct type 
+}
+
+method_name: NAME
+{ # must be a method of subject_expression 
+}
+
+subtype_treatment: /TREAT/i '(' expression /AS/i data_type ')'
+
+sequence_reference: nextval_expression
+                  | prevval_expression
+
+nextval_expression: /NEXTVAL\s+FOR/i sequence_name
+
+prevval_expression: /PREVVAL\s+FOR/i sequence_name
+
+sequence_name: NAME
+
+
+search_condition: /NOT|/i ( predicate ( /SELECTIVITY/i numeric_constant )(?) | '(' search_condition ')' ) cond(s?)
+
+cond: ( /AND/i | /OR/i ) /NOT|/i ( predicate ( /SELECTIVITY/i numeric_constant )(?) | '(' search_condition ')' )
+
+predicate: basic_p | quantified_p | between_p | exists_p | in_p | like_p | null_p | type_p 
+
+basic_p: expression /(=|<>|<|>|<=|=>|\^=|\^<|\^>|\!=)/ expression
+
+quantified_p: expression1 /(=|<>|<|>|<=|=>|\^=|\^<|\^>|\!=)/ /SOME|ANY|ALL/i '(' fullselect ')'
+

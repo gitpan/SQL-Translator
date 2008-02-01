@@ -1,7 +1,7 @@
 package SQL::Translator::Parser::XML::SQLFairy;
 
 # -------------------------------------------------------------------
-# $Id: SQLFairy.pm,v 1.15 2005/07/05 16:20:42 mwz444 Exp $
+# $Id: SQLFairy.pm,v 1.15 2005-07-05 16:20:42 mwz444 Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2003 Mark Addison <mark.addison@itn.co.uk>,
 #

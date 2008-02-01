@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::TTSchema;
 
 # -------------------------------------------------------------------
-# $Id: TTSchema.pm,v 1.11 2006/09/19 20:55:12 schiffbruechige Exp $
+# $Id: TTSchema.pm,v 1.11 2006-09-19 20:55:12 schiffbruechige Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #

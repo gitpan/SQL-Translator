@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::Latex;
 
 # -------------------------------------------------------------------
-# $Id: Latex.pm,v 1.1 2006/03/21 20:07:21 cmungall Exp $
+# $Id: Latex.pm,v 1.1 2006-03-21 20:07:21 cmungall Exp $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-6 SQLFairy Authors
 #

@@ -1,7 +1,7 @@
 package SQL::Translator::Schema::Constants;
 
 # ----------------------------------------------------------------------
-# $Id: Constants.pm,v 1.43 2004/02/09 22:15:15 kycl4rk Exp $
+# $Id: Constants.pm,v 1.43 2004-02-09 22:15:15 kycl4rk Exp $
 # ----------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
