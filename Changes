@@ -1,4 +1,8 @@
 
+* Fix Pg produces idea of which field types need a size param
+* Add support for COLLATE table option to MySQL parser
+* Allow DEFAULT CHARACTER SET without '=' (as produced by mysqldump)
+
 # -----------------------------------------------------------
 # 0.0899_02 2008-01-29
 # ----------------------------------------------------------

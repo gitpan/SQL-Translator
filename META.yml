@@ -1,6 +1,6 @@
 ---
 name: SQL-Translator
-version: 0.0899_02
+version: 0.0900
 author:
   - 'Ken Y. Clark <kclark@cpan.org>'
 abstract: SQL DDL transformations and more
@@ -40,7 +40,7 @@ provides:
     file: lib/SQL/Translator/Parser/DB2/Grammar.pm
   SQL::Translator:
     file: lib/SQL/Translator.pm
-    version: 0.0899_02
+    version: 0.0900
   SQL::Translator::Diff:
     file: lib/SQL/Translator/Diff.pm
   SQL::Translator::Filter::DefaultExtra:
@@ -236,7 +236,7 @@ provides:
   Test::SQL::Translator:
     file: lib/Test/SQL/Translator.pm
     version: 1.08
-generated_by: Module::Build version 0.28
+generated_by: Module::Build version 0.2808
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
   version: 1.2
