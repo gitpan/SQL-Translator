@@ -26,7 +26,7 @@ use base 'Class::Base';
 
 require 5.004;
 
-$VERSION  = '0.09000';
+$VERSION  = '0.09001';
 $REVISION = sprintf "%d.%02d", q$Revision: 1.73 $ =~ /(\d+)\.(\d+)/;
 $DEBUG    = 0 unless defined $DEBUG;
 $ERROR    = "";
@@ -536,8 +536,13 @@ sub translate {
     # Run producer
     # Calling wantarray in the eval no work, wrong scope.
     my $wantarray = wantarray ? 1 : 0;
-    eval { $wantarray ? @producer_output = $producer->($self) :
-               $producer_output = $producer->($self) };
+    eval {
+        if ($wantarray) {
+            @producer_output = $producer->($self);
+        } else {
+            $producer_output = $producer->($self);
+        }
+    };
     if ($@ || !( $producer_output || @producer_output)) {
         my $err = $@ || $self->error || "no results";
         my $msg = "translate: Error with producer '$producer_type': $err";
@@ -1273,6 +1278,8 @@ The following people have contributed to the SQLFairy project:
 
 =item * Sam Angiuoli <angiuoli@users.sourceforge.net>
 
+=item * Anders Nor Berle <berle@cpan.org>
+
 =item * Dave Cash <dave@gnofn.org>
 
 =item * Darren Chamberlain <dlc@users.sourceforge.net>
@@ -1296,6 +1303,10 @@ The following people have contributed to the SQLFairy project:
 =item * Jason Williams <smdwilliams@users.sourceforge.net>
 
 =item * Ying Zhang <zyolive@yahoo.com>
+
+=item * Daniel Ruoso <daniel@ruoso.com>
+
+=item * Ryan D Johnson <ryan@innerfence.com>
 
 =back
 

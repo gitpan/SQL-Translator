@@ -19,7 +19,7 @@ use FindBin qw/$Bin/;
 #=============================================================================
 
 BEGIN {
-    maybe_plan(11,
+    maybe_plan(16,
         'YAML',
         'SQL::Translator::Producer::MySQL',
         'Test::Differences',
@@ -94,15 +94,25 @@ schema:
           data_type: int
           order: 2
           is_not_null: 1
+        bar_set:
+          name: bar_set
+          data_type: set
+          order: 3
+          is_not_null: 1
+          extra:
+            list:
+              - foo
+              - bar
+              - baz
       indices:
         - type: NORMAL
-          fields: 
+          fields:
             - id
           name: index_1
         - type: NORMAL
-          fields: 
+          fields:
             - id
-          name: index_2
+          name: really_long_name_bigger_than_64_chars_aaaaaaaaaaaaaaaaaaaaaaaaaaa
       constraints:
         - type: PRIMARY_KEY
           fields:
@@ -126,8 +136,8 @@ my @stmts = (
 "CREATE TABLE `thing` (
   `id` unsigned int auto_increment,
   `name` varchar(32),
-  `swedish_name` varchar(32) CHARACTER SET swe7,
-  `description` text CHARACTER SET utf8 COLLATE utf8_general_ci,
+  `swedish_name` varchar(32) character set swe7,
+  `description` text character set utf8 collate utf8_general_ci,
   PRIMARY KEY (`id`),
   UNIQUE `idx_unique_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_danish_ci;\n\n",
@@ -137,8 +147,9 @@ my @stmts = (
   `id` integer,
   `foo` integer,
   `foo2` integer,
+  `bar_set` set('foo', 'bar', 'baz'),
   INDEX index_1 (`id`),
-  INDEX index_2 (`id`),
+  INDEX really_long_name_bigger_than_64_chars_aaaaaaaaaaaaaaaaa_aed44c47 (`id`),
   INDEX (`foo`),
   INDEX (`foo2`),
   PRIMARY KEY (`id`, `foo`),
@@ -236,3 +247,53 @@ is($add_field, 'ALTER TABLE mytable ADD COLUMN myfield VARCHAR(10)', 'Add field 
 
 my $drop_field = SQL::Translator::Producer::MySQL::drop_field($field2);
 is($drop_field, 'ALTER TABLE mytable DROP COLUMN myfield', 'Drop field works');
+
+my $field3 = SQL::Translator::Schema::Field->new( name      => 'myfield',
+                                                  table => $table,
+                                                  data_type => 'boolean',
+                                                  is_nullable => 0,
+                                                  is_foreign_key => 0,
+                                                  is_unique => 0 );
+
+my $field3_sql = SQL::Translator::Producer::MySQL::create_field($field3, { mysql_version => 4.1 });
+is($field3_sql, 'myfield boolean NOT NULL', 'For Mysql >= 4, use boolean type');
+$field3_sql = SQL::Translator::Producer::MySQL::create_field($field3, { mysql_version => 3.22 });
+is($field3_sql, "myfield enum('0','1') NOT NULL", 'For Mysql < 4, use enum for boolean type');
+$field3_sql = SQL::Translator::Producer::MySQL::create_field($field3,);
+is($field3_sql, "myfield enum('0','1') NOT NULL", 'When no version specified, use enum for boolean type');
+
+{
+  my $view1 = SQL::Translator::Schema::View->new( name => 'view_foo',
+                                                  fields => [qw/id name/],
+                                                  sql => 'SELECT id, name FROM thing',
+                                                  extra => {
+                                                    mysql_definer => 'CURRENT_USER',
+                                                    mysql_algorithm => 'MERGE',
+                                                    mysql_security => 'DEFINER',
+                                                  });
+  my $create_opts = { add_replace_view => 1, no_comments => 1 };
+  my $view1_sql1 = SQL::Translator::Producer::MySQL::create_view($view1, $create_opts);
+
+  my $view_sql_replace = "CREATE OR REPLACE
+   ALGORITHM = MERGE
+   DEFINER = CURRENT_USER
+   SQL SECURITY DEFINER
+  VIEW view_foo ( id, name ) AS (
+    SELECT id, name FROM thing
+  );\n\n";
+  is($view1_sql1, $view_sql_replace, 'correct "CREATE OR REPLACE VIEW" SQL');
+
+
+  my $view2 = SQL::Translator::Schema::View->new( name => 'view_foo',
+                                                  fields => [qw/id name/],
+                                                  sql => 'SELECT id, name FROM thing',);
+  my $create2_opts = { add_replace_view => 0, no_comments => 1 };
+  my $view1_sql2 = SQL::Translator::Producer::MySQL::create_view($view2, $create2_opts);
+  my $view_sql_noreplace = "CREATE
+  VIEW view_foo ( id, name ) AS (
+    SELECT id, name FROM thing
+  );\n\n";
+  is($view1_sql2, $view_sql_noreplace, 'correct "CREATE VIEW" SQL');
+}
+
+

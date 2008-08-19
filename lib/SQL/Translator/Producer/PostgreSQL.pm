@@ -38,7 +38,7 @@ producer.
 
 use strict;
 use warnings;
-use vars qw[ $DEBUG $WARN $VERSION ];
+use vars qw[ $DEBUG $WARN $VERSION %used_names ];
 $VERSION = sprintf "%d.%02d", q$Revision: 1.29 $ =~ /(\d+)\.(\d+)/;
 $DEBUG = 1 unless defined $DEBUG;
 
@@ -181,6 +181,10 @@ sub produce {
     my $no_comments    = $translator->no_comments;
     my $add_drop_table = $translator->add_drop_table;
     my $schema         = $translator->schema;
+    my $pargs          = $translator->producer_args;
+    local %used_names  = ();
+
+    my $postgres_version = $pargs->{postgres_version} || 0;
 
     my $qt = '';
     $qt = '"' if ($translator->quote_table_names);
@@ -189,7 +193,6 @@ sub produce {
     
     my $output;
     $output .= header_comment unless ($no_comments);
-#    my %used_index_names;
 
     my (@table_defs, @fks);
     for my $table ( $schema->get_tables ) {
@@ -198,6 +201,7 @@ sub produce {
                                              { quote_table_names => $qt,
                                                quote_field_names => $qf,
                                                no_comments => $no_comments,
+                                               postgres_version => $postgres_version,
                                                add_drop_table => $add_drop_table,});
         push @table_defs, $table_def;
         push @fks, @$fks;
@@ -288,24 +292,21 @@ sub unreserve {
 
 # -------------------------------------------------------------------
 sub next_unused_name {
-    my $name       = shift || '';
-    my $used_names = shift || '';
-
-    my %used_names = %$used_names;
-
-    if ( !defined($used_names{$name}) ) {
+    my $name = shift || '';
+    if ( !defined( $used_names{$name} ) ) {
         $used_names{$name} = $name;
         return $name;
     }
-    
+
     my $i = 2;
-    while ( defined($used_names{$name . $i}) ) {
+    while ( defined( $used_names{ $name . $i } ) ) {
         ++$i;
     }
     $name .= $i;
     $used_names{$name} = $name;
     return $name;
 }
+
 
 sub create_table 
 {
@@ -315,6 +316,7 @@ sub create_table
     my $qf = $options->{quote_field_names} || '';
     my $no_comments = $options->{no_comments} || 0;
     my $add_drop_table = $options->{add_drop_table} || 0;
+    my $postgres_version = $options->{postgres_version} || 0;
 
     my $table_name    = $table->name or next;
     $table_name       = mk_name( $table_name, '', undef, 1 );
@@ -322,7 +324,7 @@ sub create_table
     $table->name($table_name_ur);
 
 # print STDERR "$table_name table_name\n";
-    my ( @comments, @field_defs, @sequence_defs, @constraint_defs, @fks );
+    my ( @comments, @field_defs, @sequence_defs, @constraint_defs, @type_defs, @type_drops, @fks );
 
     push @comments, "--\n-- Table: $table_name_ur\n--\n" unless $no_comments;
 
@@ -341,6 +343,9 @@ sub create_table
         push @field_defs, create_field($field, { quote_table_names => $qt,
                                                  quote_field_names => $qf,
                                                  table_name => $table_name_ur,
+                                                 postgres_version => $postgres_version,
+                                                 type_defs => \@type_defs,
+                                                 type_drops => \@type_drops,
                                                  constraint_defs => \@constraint_defs,});
     }
 
@@ -377,14 +382,23 @@ sub create_table
 
     my $create_statement;
     $create_statement = join("\n", @comments);
-    $create_statement .= qq[DROP TABLE $qt$table_name_ur$qt CASCADE;\n] 
-        if $add_drop_table;
+    if ($add_drop_table) {
+        if ($postgres_version >= 8.2) {
+            $create_statement .= qq[DROP TABLE IF EXISTS $qt$table_name_ur$qt CASCADE;\n];
+            $create_statement .= join ("\n", @type_drops) . "\n"
+                if $postgres_version >= 8.3;
+        } else {
+            $create_statement .= qq[DROP TABLE $qt$table_name_ur$qt CASCADE;\n];
+        }
+    }
+    $create_statement .= join("\n", @type_defs) . "\n"
+        if $postgres_version >= 8.3;
     $create_statement .= qq[CREATE TABLE $qt$table_name_ur$qt (\n].
                             join( ",\n", map { "  $_" } @field_defs, @constraint_defs ).
                             "\n);"
                             ;
 
-    $create_statement .= "\n" . join(";\n", @index_defs) . "\n";
+    $create_statement .= "\n" . join("\n", @index_defs) . "\n";
     
     return $create_statement, \@fks;
 }
@@ -401,6 +415,9 @@ sub create_table
         my $qf = $options->{quote_field_names} || '';
         my $table_name = $field->table->name;
         my $constraint_defs = $options->{constraint_defs} || [];
+        my $postgres_version = $options->{postgres_version} || 0;
+        my $type_defs = $options->{type_defs} || [];
+        my $type_drops = $options->{type_drops} || [];
 
         $field_name_scope{$table_name} ||= {};
         my $field_name    = mk_name(
@@ -425,7 +442,14 @@ sub create_table
         my $commalist = join( ', ', map { qq['$_'] } @$list );
         my $seq_name;
 
-        $field_def .= ' '. convert_datatype($field);
+        if ($postgres_version >= 8.3 && $field->data_type eq 'enum') {
+            my $type_name = $field->table->name . '_' . $field->name . '_type';
+            $field_def .= ' '. $type_name;
+            push @$type_defs, "CREATE TYPE $type_name AS ENUM ($commalist);";
+            push @$type_drops, "DROP TYPE IF EXISTS $type_name;";
+        } else {
+            $field_def .= ' '. convert_datatype($field);
+        }
 
         #
         # Default value -- disallow for timestamps
@@ -453,9 +477,6 @@ sub create_table
     }
 }
 
-{
-    my %used_index_names;
-
     sub create_index
     {
         my ($index, $options) = @_;
@@ -467,11 +488,9 @@ sub create_table
 
         my ($index_def, @constraint_defs);
 
-        $used_index_names{$table_name} ||= {};
         my $name = $index->name || '';
         if ( $name ) {
-            $name = next_unused_name($name, $used_index_names{$table_name});
-            $used_index_names{$name} = $name;
+            $name = next_unused_name($name);
         }
 
         my $type = $index->type || NORMAL;
@@ -516,8 +535,7 @@ sub create_table
 
         my $name = $c->name || '';
         if ( $name ) {
-            $name = next_unused_name($name, \%used_index_names);
-            $used_index_names{$name} = $name;
+            $name = next_unused_name($name);
         }
 
         my @fields     = 
@@ -537,8 +555,7 @@ sub create_table
                 '('.$qf . join( $qf.', '.$qf, @fields ) . $qf.')';
         }
         elsif ( $c->type eq UNIQUE ) {
-            $name = next_unused_name($name, \%used_index_names);
-            $used_index_names{$name} = $name;
+            $name = next_unused_name($name);
             push @constraint_defs, "${def_start}UNIQUE " .
                 '('.$qf . join( $qf.', '.$qf, @fields ) . $qf.')';
         }
@@ -568,12 +585,15 @@ sub create_table
                 $def .= ' ON UPDATE '.join( ' ', $c->on_update );
             }
 
+            if ( $c->deferrable ) {
+                $def .= ' DEFERRABLE';
+            }
+
             push @fks, "$def;";
         }
 
         return \@constraint_defs, \@fks;
     }
-}
 
 sub convert_datatype
 {

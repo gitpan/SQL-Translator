@@ -55,30 +55,34 @@ The producer recognises the following extra attributes on the Schema objects.
 
 =over 4
 
-=item field.list
+=item B<field.list>
 
 Set the list of allowed values for Enum fields.
 
-=item field.binary, field.unsigned, field.zerofill
+=item B<field.binary>, B<field.unsigned>, B<field.zerofill>
 
 Set the MySQL field options of the same name.
 
-=item field.renamed_from
+=item B<field.renamed_from>, B<table.renamed_from>
 
-Used when producing diffs to say this column is the new name fo the specified
-old column.
+Use when producing diffs to indicate that the current table/field has been
+renamed from the old name as given in the attribute value.
 
-=item table.mysql_table_type
+=item B<table.mysql_table_type>
 
 Set the type of the table e.g. 'InnoDB', 'MyISAM'. This will be
 automatically set for tables involved in foreign key constraints if it is
 not already set explicitly. See L<"Table Types">.
 
-=item table.mysql_charset, table.mysql_collate
+Please note that the C<ENGINE> option is the prefered method of specifying
+the MySQL storage engine to use, but this method still works for backwards
+compatability.
+
+=item B<table.mysql_charset>, B<table.mysql_collate>
 
 Set the tables default charater set and collation order.
 
-=item field.mysql_charset, field.mysql_collate
+=item B<field.mysql_charset>, B<field.mysql_collate>
 
 Set the fields charater set and collation order.
 
@@ -92,9 +96,14 @@ use vars qw[ $VERSION $DEBUG %used_names ];
 $VERSION = sprintf "%d.%02d", q$Revision: 1.54 $ =~ /(\d+)\.(\d+)/;
 $DEBUG   = 0 unless defined $DEBUG;
 
+# Maximum length for most identifiers is 64, according to:
+#   http://dev.mysql.com/doc/refman/4.1/en/identifiers.html
+#   http://dev.mysql.com/doc/refman/5.0/en/identifiers.html
+my $DEFAULT_MAX_ID_LENGTH = 64;
+
 use Data::Dumper;
 use SQL::Translator::Schema::Constants;
-use SQL::Translator::Utils qw(debug header_comment);
+use SQL::Translator::Utils qw(debug header_comment truncate_id_uniquely);
 
 #
 # Use only lowercase for the keys (e.g. "long" and not "LONG")
@@ -130,12 +139,13 @@ sub preprocess_schema {
 
     # extra->{mysql_table_type} used to be the type. It belongs in options, so
     # move it if we find it. Return Engine type if found in extra or options
-    my $mysql_table_type_to_options = sub {
-      my ($table) = @_;
+    # Similarly for mysql_charset and mysql_collate
+    my $extra_to_options = sub {
+      my ($table, $extra_name, $opt_name) = @_;
 
       my $extra = $table->extra;
 
-      my $extra_type = delete $extra->{mysql_table_type};
+      my $extra_type = delete $extra->{$extra_name};
 
       # Now just to find if there is already an Engine or Type option...
       # and lets normalize it to ENGINE since:
@@ -148,20 +158,38 @@ sub preprocess_schema {
       # to remove options.
       my $options = ( $table->{options} ||= []);
 
+      # If multiple option names, normalize to the first one
+      if (ref $opt_name) {
+        OPT_NAME: for ( @$opt_name[1..$#$opt_name] ) {
+          for my $idx ( 0..$#{$options} ) {
+            my ($key, $value) = %{ $options->[$idx] };
+            
+            if (uc $key eq $_) {
+              $options->[$idx] = { $opt_name->[0] => $value };
+              last OPT_NAME;
+            }
+          }
+        }
+        $opt_name = $opt_name->[0];
+
+      }
+
+
       # This assumes that there isn't both a Type and an Engine option.
+      OPTION:
       for my $idx ( 0..$#{$options} ) {
         my ($key, $value) = %{ $options->[$idx] };
 
-        next unless uc $key eq 'ENGINE' || uc $key eq 'TYPE';
-
-        # if the extra.mysql_table_type is given, use that
+        next unless uc $key eq $opt_name;
+     
+        # make sure case is right on option name
         delete $options->[$idx]{$key};
-        return $options->[$idx]{ENGINE} = $value || $extra_type;
+        return $options->[$idx]{$opt_name} = $value || $extra_type;
 
       }
   
       if ($extra_type) {
-        push @$options, { ENGINE => $extra_type };
+        push @$options, { $opt_name => $extra_type };
         return $extra_type;
       }
 
@@ -175,8 +203,10 @@ sub preprocess_schema {
     # constraints. We do this first as we need InnoDB at both ends.
     #
     foreach my $table ( $schema->get_tables ) {
-       
-        $mysql_table_type_to_options->($table);
+      
+        $extra_to_options->($table, 'mysql_table_type', ['ENGINE', 'TYPE'] );
+        $extra_to_options->($table, 'mysql_charset', 'CHARACTER SET' );
+        $extra_to_options->($table, 'mysql_collate', 'COLLATE' );
 
         foreach my $c ( $table->get_constraints ) {
             next unless $c->type eq FOREIGN_KEY;
@@ -191,12 +221,19 @@ sub preprocess_schema {
 
             for my $meth (qw/table reference_table/) {
                 my $table = $schema->get_table($c->$meth) || next;
-                next if $mysql_table_type_to_options->($table);
+                # This normalizes the types to ENGINE and returns the value if its there
+                next if $extra_to_options->($table, 'mysql_table_type', ['ENGINE', 'TYPE']);
                 $table->options( { 'ENGINE' => 'InnoDB' } );
             }
         } # foreach constraints
 
+        my %map = ( mysql_collate => 'collate', mysql_charset => 'character set');
         foreach my $f ( $table->get_fields ) {
+          my $extra = $f->extra;
+          for (keys %map) {
+            $extra->{$map{$_}} = delete $extra->{$_} if exists $extra->{$_};
+          }
+
           my @size = $f->size;
           if ( !$size[0] && $f->data_type =~ /char$/ ) {
             $f->size( (255) );
@@ -214,8 +251,11 @@ sub produce {
     my $add_drop_table = $translator->add_drop_table;
     my $schema         = $translator->schema;
     my $show_warnings  = $translator->show_warnings || 0;
+    my $producer_args  = $translator->producer_args;
+    my $mysql_version  = $producer_args->{mysql_version} || 0;
+    my $max_id_length  = $producer_args->{mysql_max_id_length} || $DEFAULT_MAX_ID_LENGTH;
 
-    my ($qt, $qf) = ('','');
+    my ($qt, $qf, $qc) = ('','', '');
     $qt = '`' if $translator->quote_table_names;
     $qf = '`' if $translator->quote_field_names;
 
@@ -240,14 +280,74 @@ sub produce {
                                          show_warnings     => $show_warnings,
                                          no_comments       => $no_comments,
                                          quote_table_names => $qt,
-                                         quote_field_names => $qf
+                                         quote_field_names => $qf,
+                                         max_id_length     => $max_id_length,
+                                         mysql_version     => $mysql_version
                                          });
     }
+
+    if ($mysql_version > 5.0) {
+      for my $view ( $schema->get_views ) {
+        push @table_defs, create_view($view,
+                                       { add_replace_view  => $add_drop_table,
+                                         show_warnings     => $show_warnings,
+                                         no_comments       => $no_comments,
+                                         quote_table_names => $qt,
+                                         quote_field_names => $qf,
+                                         max_id_length     => $max_id_length,
+                                         mysql_version     => $mysql_version
+                                         });
+      }
+    }
+
 
 #    print "@table_defs\n";
     push @table_defs, "SET foreign_key_checks=1;\n\n";
 
     return wantarray ? ($create, @table_defs) : $create . join ('', @table_defs);
+}
+
+sub create_view {
+    my ($view, $options) = @_;
+    my $qt = $options->{quote_table_names} || '';
+    my $qf = $options->{quote_field_names} || '';
+
+    my $view_name = $view->name;
+    debug("PKG: Looking at view '${view_name}'\n");
+
+    # Header.  Should this look like what mysqldump produces?
+    my $create = '';
+    $create .= "--\n-- View: ${qt}${view_name}${qt}\n--\n" unless $options->{no_comments};
+    $create .= 'CREATE';
+    $create .= ' OR REPLACE' if $options->{add_replace_view};
+    $create .= "\n";
+
+    my $extra = $view->extra;
+    # ALGORITHM
+    if( exists($extra->{mysql_algorithm}) && defined(my $algorithm = $extra->{mysql_algorithm}) ){
+      $create .= "   ALGORITHM = ${algorithm}\n" if $algorithm =~ /(?:UNDEFINED|MERGE|TEMPTABLE)/i;
+    }
+    # DEFINER
+    if( exists($extra->{mysql_definer}) && defined(my $user = $extra->{mysql_definer}) ){
+      $create .= "   DEFINER = ${user}\n";
+    }
+    # SECURITY
+    if( exists($extra->{mysql_security}) && defined(my $security = $extra->{mysql_security}) ){
+      $create .= "   SQL SECURITY ${security}\n" if $security =~ /(?:DEFINER|INVOKER)/i;
+    }
+
+    #Header, cont.
+    $create .= "  VIEW ${qt}${view_name}${qt}";
+
+    if( my @fields = $view->fields ){
+      my $list = join ', ', map { "${qf}${_}${qf}"} @fields;
+      $create .= " ( ${list} )";
+    }
+    if( my $sql = $view->sql ){
+      $create .= " AS (\n    ${sql}\n  )";
+    }
+    $create .= ";\n\n";
+    return $create;
 }
 
 sub create_table
@@ -322,18 +422,25 @@ sub generate_table_options
   my $create;
 
   my $table_type_defined = 0;
+  my $charset          = $table->extra('mysql_charset');
+  my $collate          = $table->extra('mysql_collate');
   for my $t1_option_ref ( $table->options ) {
     my($key, $value) = %{$t1_option_ref};
     $table_type_defined = 1
       if uc $key eq 'ENGINE' or uc $key eq 'TYPE';
+    if (uc $key eq 'CHARACTER SET') {
+      $charset = $value;
+      next;
+    } elsif (uc $key eq 'COLLATE') {
+      $collate = $value;
+      next;
+    }
     $create .= " $key=$value";
   }
 
   my $mysql_table_type = $table->extra('mysql_table_type');
   $create .= " ENGINE=$mysql_table_type"
     if $mysql_table_type && !$table_type_defined;
-  my $charset          = $table->extra('mysql_charset');
-  my $collate          = $table->extra('mysql_collate');
   my $comments         = $table->comments;
 
   $create .= " DEFAULT CHARACTER SET $charset" if $charset;
@@ -388,8 +495,13 @@ sub create_field
         @size      = ();
     }
     elsif ( $data_type =~ /boolean/i ) {
-        $data_type = 'enum';
-        $commalist = "'0','1'";
+        my $mysql_version = $options->{mysql_version} || 0;
+        if ($mysql_version >= 4) {
+            $data_type = 'boolean';
+        } else {
+            $data_type = 'enum';
+            $commalist = "'0','1'";
+        }
     }
     elsif ( exists $translate{ lc $data_type } ) {
         $data_type = $translate{ lc $data_type };
@@ -403,9 +515,9 @@ sub create_field
 
     $field_def .= " $data_type";
 
-    if ( lc $data_type eq 'enum' ) {
+    if ( lc($data_type) eq 'enum' || lc($data_type) eq 'set') {
         $field_def .= '(' . $commalist . ')';
-    } 
+    }
     elsif ( defined $size[0] && $size[0] > 0 ) {
         $field_def .= '(' . join( ', ', @size ) . ')';
     }
@@ -470,7 +582,7 @@ sub create_index
 
     return join( ' ', 
                  lc $index->type eq 'normal' ? 'INDEX' : $index->type . ' INDEX',
-                 $index->name,
+                 truncate_id_uniquely( $index->name, $options->{max_id_length} || $DEFAULT_MAX_ID_LENGTH ),
                  '(' . $qf . join( "$qf, $qf", $index->fields ) . $qf . ')'
                  );
 
@@ -498,10 +610,10 @@ sub alter_drop_constraint
     my ($c, $options) = @_;
 
     my $qt      = $options->{quote_table_names} || '';
-    my $qc      = $options->{quote_constraint_names} || '';
+    my $qc      = $options->{quote_field_names} || '';
 
     my $out = sprintf('ALTER TABLE %s DROP %s %s',
-                      $c->table->name,
+                      $qt . $c->table->name . $qt,
                       $c->type eq FOREIGN_KEY ? $c->type : "INDEX",
                       $qc . $c->name . $qc );
 
@@ -536,7 +648,7 @@ sub create_constraint
     elsif ( $c->type eq UNIQUE ) {
         return
         'UNIQUE '. 
-            (defined $c->name ? $qf.$c->name.$qf.' ' : '').
+            (defined $c->name ? $qf.truncate_id_uniquely( $c->name, $options->{max_id_length} || $DEFAULT_MAX_ID_LENGTH ).$qf.' ' : '').
             '(' . $qf . join("$qf, $qf", @fields). $qf . ')';
     }
     elsif ( $c->type eq FOREIGN_KEY ) {
@@ -545,12 +657,12 @@ sub create_constraint
         #
 
         my $table = $c->table;
-        my $c_name = $c->name;
+        my $c_name = truncate_id_uniquely( $c->name, $options->{max_id_length} || $DEFAULT_MAX_ID_LENGTH );
 
         my $def = join(' ', 
                        map { $_ || () } 
                          'CONSTRAINT', 
-                         $qt . $c_name . $qt, 
+                         $qf . $c_name . $qf, 
                          'FOREIGN KEY'
                       );
 
@@ -602,7 +714,7 @@ sub alter_table
 {
     my ($to_table, $options) = @_;
 
-    my $qt = $options->{quote_table_name} || '';
+    my $qt = $options->{quote_table_names} || '';
 
     my $table_options = generate_table_options($to_table) || '';
     my $out = sprintf('ALTER TABLE %s%s',
@@ -617,8 +729,8 @@ sub alter_field
 {
     my ($from_field, $to_field, $options) = @_;
 
-    my $qf = $options->{quote_field_name} || '';
-    my $qt = $options->{quote_table_name} || '';
+    my $qf = $options->{quote_field_names} || '';
+    my $qt = $options->{quote_table_names} || '';
 
     my $out = sprintf('ALTER TABLE %s CHANGE COLUMN %s %s',
                       $qt . $to_field->table->name . $qt,
@@ -632,7 +744,7 @@ sub add_field
 {
     my ($new_field, $options) = @_;
 
-    my $qt = $options->{quote_table_name} || '';
+    my $qt = $options->{quote_table_names} || '';
 
     my $out = sprintf('ALTER TABLE %s ADD COLUMN %s',
                       $qt . $new_field->table->name . $qt,
@@ -646,8 +758,8 @@ sub drop_field
 { 
     my ($old_field, $options) = @_;
 
-    my $qf = $options->{quote_field_name} || '';
-    my $qt = $options->{quote_table_name} || '';
+    my $qf = $options->{quote_field_names} || '';
+    my $qt = $options->{quote_table_names} || '';
     
     my $out = sprintf('ALTER TABLE %s DROP COLUMN %s',
                       $qt . $old_field->table->name . $qt,
@@ -717,7 +829,7 @@ sub batch_alter_table {
 
   # Now strip off the 'ALTER TABLE xyz' of all but the first one
 
-  my $qt = $options->{quote_table_name} || '';
+  my $qt = $options->{quote_table_names} || '';
   my $table_name = $qt . $table->name . $qt;
 
 
