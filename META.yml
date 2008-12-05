@@ -1,12 +1,12 @@
 ---
 name: SQL-Translator
-version: 0.09001
+version: 0.09002
 author:
   - 'Ken Y. Clark <kclark@cpan.org>'
 abstract: SQL DDL transformations and more
 license: gpl
 resources:
-  license: http://www.opensource.org/licenses/gpl-license.php
+  license: http://opensource.org/licenses/gpl-license.php
 requires:
   Class::Accessor::Fast: 0
   Class::Base: 0
@@ -31,7 +31,7 @@ recommends:
   GraphViz: 0
   IO::File: 0
   IO::Scalar: 0
-  Spreadsheet::ParseExcel: 0.2602
+  Spreadsheet::ParseExcel: '>= 0.2602, != 0.33'
   Template: 2.1
   Text::ParseWords: 0
   Text::RecordParser: 0.02
@@ -42,7 +42,7 @@ provides:
     file: lib/SQL/Translator/Parser/DB2/Grammar.pm
   SQL::Translator:
     file: lib/SQL/Translator.pm
-    version: 0.09001
+    version: 0.09002
   SQL::Translator::Diff:
     file: lib/SQL/Translator/Diff.pm
   SQL::Translator::Filter::DefaultExtra:
@@ -126,6 +126,9 @@ provides:
   SQL::Translator::Producer:
     file: lib/SQL/Translator/Producer.pm
     version: 1.08
+  SQL::Translator::Producer::ClassDBI:
+    file: lib/SQL/Translator/Producer/ClassDBI.pm
+    version: 1.44
   SQL::Translator::Producer::DB2:
     file: lib/SQL/Translator/Producer/DB2.pm
     version: 1.05
@@ -239,7 +242,7 @@ provides:
   Test::SQL::Translator:
     file: lib/Test/SQL/Translator.pm
     version: 1.08
-generated_by: Module::Build version 0.2808
+generated_by: Module::Build version 0.3
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
   version: 1.2

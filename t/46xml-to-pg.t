@@ -46,16 +46,20 @@ CREATE TABLE "Basic" (
   "another_id" integer DEFAULT '2',
   "timest" timestamp(0),
   PRIMARY KEY ("id"),
-  Constraint "emailuniqueindex" UNIQUE ("email")
+  CONSTRAINT "emailuniqueindex" UNIQUE ("email")
 );
 CREATE INDEX "titleindex" on "Basic" ("title");
-
 
 DROP TABLE "Another" CASCADE;
 CREATE TABLE "Another" (
   "id" serial NOT NULL,
   PRIMARY KEY ("id")
 );
+
+DROP VIEW "email_list";
+CREATE VIEW "email_list" ( "email" ) AS (
+    SELECT email FROM Basic WHERE email IS NOT NULL
+  );
 
 ALTER TABLE "Basic" ADD FOREIGN KEY ("another_id")
   REFERENCES "Another" ("id") DEFERRABLE;

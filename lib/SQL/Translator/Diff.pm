@@ -13,7 +13,7 @@ use base 'Class::Accessor::Fast';
 # Input/option accessors
 __PACKAGE__->mk_accessors(qw/
   ignore_index_names ignore_constraint_names ignore_view_sql
-  ignore_proc_sql output_db source_schema source_db target_schema target_db
+  ignore_proc_sql output_db source_schema target_schema 
   case_insensitive no_batch_alters ignore_missing_methods producer_options
 /);
 
@@ -45,15 +45,14 @@ sub schema_diff {
     ## _db is the name of the producer/db it came out of/into
     ## results are formatted to the source preferences
 
-    my ($source_schema, $source_db, $target_schema, $target_db, $options) = @_;
+    my ($source_schema, $source_db, $target_schema, $output_db, $options) = @_;
     $options ||= {};
 
     my $obj = SQL::Translator::Diff->new( {
       %$options,
       source_schema => $source_schema,
-      source_db     => $source_db,
       target_schema => $target_schema,
-      target_db     => $target_db
+      output_db     => $output_db
     } );
 
     $obj->compute_differences->produce_diff_sql;
@@ -202,7 +201,7 @@ sub produce_diff_sql {
             
             $meth ? map { 
                     my $sql = $meth->( (ref $_ eq 'ARRAY' ? @$_ : $_), $self->producer_options );
-                    $sql ?  ("$sql;") : (); 
+                    $sql ?  ("$sql") : (); 
                   } @{ $flattened_diffs{$_} }
                   : $self->ignore_missing_methods
                   ? "-- $producer_class cant $_"
@@ -235,30 +234,31 @@ sub produce_diff_sql {
 
       unshift @diffs, 
         # Remove begin/commit here, since we wrap everything in one.
-        grep { $_ !~ /^(?:COMMIT|START(?: TRANSACTION)?|BEGIN(?: TRANSACTION)?);/ } $producer_class->can('produce')->($translator);
+        grep { $_ !~ /^(?:COMMIT|START(?: TRANSACTION)?|BEGIN(?: TRANSACTION)?)/ } $producer_class->can('produce')->($translator);
     }
 
     if (my @tables_to_drop = @{ $self->{tables_to_drop} || []} ) {
       my $meth = $producer_class->can('drop_table');
       
-      push @diffs, $meth ? map( { $meth->($_, $self->producer_options) } @tables_to_drop )
+      push @diffs, $meth ? ( map { $meth->($_, $self->producer_options) } @tables_to_drop)
                          : $self->ignore_missing_methods
                          ? "-- $producer_class cant drop_table"
                          : die "$producer_class cant drop_table";
     }
 
     if (@diffs) {
-      unshift @diffs, "BEGIN;\n";
-      push    @diffs, "\nCOMMIT;\n";
+      unshift @diffs, "BEGIN";
+      push    @diffs, "\nCOMMIT";
     } else {
-      @diffs = ("-- No differences found\n\n");
+      @diffs = ("-- No differences found");
     }
 
     if ( @diffs ) {
-      if ( $self->target_db !~ /^(?:MySQL|SQLite)$/ ) {
-        unshift(@diffs, "-- Target database @{[$self->target_db]} is untested/unsupported!!!");
+      if ( $self->output_db !~ /^(?:MySQL|SQLite|PostgreSQL)$/ ) {
+        unshift(@diffs, "-- Output database @{[$self->output_db]} is untested/unsupported!!!");
       }
-      return join( "\n", "-- Convert schema '$src_name' to '$tar_name':\n", @diffs);
+      return join '', map { $_ ? ( $_ =~ /;$/xms ? $_ : "$_;\n\n" ) : "\n" }
+      ("-- Convert schema '$src_name' to '$tar_name':", @diffs);
     }
     return undef;
 

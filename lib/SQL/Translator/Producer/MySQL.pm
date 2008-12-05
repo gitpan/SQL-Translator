@@ -40,6 +40,15 @@ There are still some issues to be worked out with syntax differences
 between MySQL versions 3 and 4 ("SET foreign_key_checks," character sets
 for fields, etc.).
 
+=head1 ARGUMENTS 
+
+This producer takes a single optional producer_arg C<mysql_version>, which 
+provides the desired version for the target database. By default MySQL v3 is
+assumed, and statements pertaining to any features introduced in later versions
+(e.g. CREATE VIEW) are not produced.
+
+Valid version specifiers for C<mysql_parser_version> are listed L<here|SQL::Translator::Utils/parse_mysql_version> 
+
 =head2 Table Types
 
 Normally the tables will be created without any explicit table type given and
@@ -103,7 +112,7 @@ my $DEFAULT_MAX_ID_LENGTH = 64;
 
 use Data::Dumper;
 use SQL::Translator::Schema::Constants;
-use SQL::Translator::Utils qw(debug header_comment truncate_id_uniquely);
+use SQL::Translator::Utils qw(debug header_comment truncate_id_uniquely parse_mysql_version);
 
 #
 # Use only lowercase for the keys (e.g. "long" and not "LONG")
@@ -252,7 +261,7 @@ sub produce {
     my $schema         = $translator->schema;
     my $show_warnings  = $translator->show_warnings || 0;
     my $producer_args  = $translator->producer_args;
-    my $mysql_version  = $producer_args->{mysql_version} || 0;
+    my $mysql_version  = parse_mysql_version ($producer_args->{mysql_version}, 'perl') || 0;
     my $max_id_length  = $producer_args->{mysql_max_id_length} || $DEFAULT_MAX_ID_LENGTH;
 
     my ($qt, $qf, $qc) = ('','', '');
@@ -261,10 +270,10 @@ sub produce {
 
     debug("PKG: Beginning production\n");
     %used_names = ();
-    my $create; 
+    my $create = ''; 
     $create .= header_comment unless ($no_comments);
     # \todo Don't set if MySQL 3.x is set on command line
-    $create .= "SET foreign_key_checks=0;\n\n";
+    my @create = "SET foreign_key_checks=0";
 
     preprocess_schema($schema);
 
@@ -286,7 +295,7 @@ sub produce {
                                          });
     }
 
-    if ($mysql_version > 5.0) {
+    if ($mysql_version >= 5.000001) {
       for my $view ( $schema->get_views ) {
         push @table_defs, create_view($view,
                                        { add_replace_view  => $add_drop_table,
@@ -302,9 +311,9 @@ sub produce {
 
 
 #    print "@table_defs\n";
-    push @table_defs, "SET foreign_key_checks=1;\n\n";
+    push @table_defs, "SET foreign_key_checks=1";
 
-    return wantarray ? ($create, @table_defs) : $create . join ('', @table_defs);
+    return wantarray ? ($create ? $create : (), @create, @table_defs) : ($create . join('', map { $_ ? "$_;\n\n" : () } (@create, @table_defs)));
 }
 
 sub create_view {
@@ -346,7 +355,7 @@ sub create_view {
     if( my $sql = $view->sql ){
       $create .= " AS (\n    ${sql}\n  )";
     }
-    $create .= ";\n\n";
+#    $create .= "";
     return $create;
 }
 
@@ -366,7 +375,7 @@ sub create_table
     my $create = '';
     my $drop;
     $create .= "--\n-- Table: $qt$table_name$qt\n--\n" unless $options->{no_comments};
-    $drop = qq[DROP TABLE IF EXISTS $qt$table_name$qt;\n] if $options->{add_drop_table};
+    $drop = qq[DROP TABLE IF EXISTS $qt$table_name$qt] if $options->{add_drop_table};
     $create .= "CREATE TABLE $qt$table_name$qt (\n";
 
     #
@@ -410,20 +419,22 @@ sub create_table
     # Footer
     #
     $create .= "\n)";
-    $create .= generate_table_options($table) || '';
-    $create .= ";\n\n";
+    $create .= generate_table_options($table, $options) || '';
+#    $create .= ";\n\n";
 
     return $drop ? ($drop,$create) : $create;
 }
 
 sub generate_table_options 
 {
-  my ($table) = @_;
+  my ($table, $options) = @_;
   my $create;
 
   my $table_type_defined = 0;
+  my $qf               = $options->{quote_field_names} ||= '';
   my $charset          = $table->extra('mysql_charset');
   my $collate          = $table->extra('mysql_collate');
+  my $union            = undef;
   for my $t1_option_ref ( $table->options ) {
     my($key, $value) = %{$t1_option_ref};
     $table_type_defined = 1
@@ -433,6 +444,9 @@ sub generate_table_options
       next;
     } elsif (uc $key eq 'COLLATE') {
       $collate = $value;
+      next;
+    } elsif (uc $key eq 'UNION') {
+      $union = "($qf". join("$qf, $qf", @$value) ."$qf)";
       next;
     }
     $create .= " $key=$value";
@@ -445,6 +459,7 @@ sub generate_table_options
 
   $create .= " DEFAULT CHARACTER SET $charset" if $charset;
   $create .= " COLLATE $collate" if $collate;
+  $create .= " UNION=$union" if $union;
   $create .= qq[ comment='$comments'] if $comments;
   return $create;
 }
@@ -469,6 +484,7 @@ sub create_field
     my $charset = $extra{'mysql_charset'};
     my $collate = $extra{'mysql_collate'};
 
+    my $mysql_version = $options->{mysql_version} || 0;
     #
     # Oracle "number" type -- figure best MySQL type
     #
@@ -489,13 +505,15 @@ sub create_field
     }
     #
     # Convert a large Oracle varchar to "text"
+    # (not necessary as of 5.0.3 http://dev.mysql.com/doc/refman/5.0/en/char.html)
     #
     elsif ( $data_type =~ /char/i && $size[0] > 255 ) {
-        $data_type = 'text';
-        @size      = ();
+        unless ($size[0] <= 65535 && $mysql_version >= 5.000003 ) {
+            $data_type = 'text';
+            @size      = ();
+        }
     }
     elsif ( $data_type =~ /boolean/i ) {
-        my $mysql_version = $options->{mysql_version} || 0;
         if ($mysql_version >= 4) {
             $data_type = 'boolean';
         } else {
@@ -542,11 +560,13 @@ sub create_field
     # Default?  XXX Need better quoting!
     my $default = $field->default_value;
     if ( defined $default ) {
-        if ( uc $default eq 'NULL') {
-            $field_def .= ' DEFAULT NULL';
-        } else {
-            $field_def .= " DEFAULT '$default'";
-        }
+        SQL::Translator::Producer->_apply_default_value(
+          \$field_def,
+          $default, 
+          [
+            'NULL'       => \'NULL',
+          ],
+        );
     }
 
     if ( my $comments = $field->comments ) {
@@ -716,7 +736,7 @@ sub alter_table
 
     my $qt = $options->{quote_table_names} || '';
 
-    my $table_options = generate_table_options($to_table) || '';
+    my $table_options = generate_table_options($to_table, $options) || '';
     my $out = sprintf('ALTER TABLE %s%s',
                       $qt . $to_table->name . $qt,
                       $table_options);
@@ -791,14 +811,13 @@ sub batch_alter_table {
     } else { ( ) }
   } @{$diff_hash->{alter_create_constraint} };
 
-  my $drop_stmt = '';
+  my @drop_stmt;
   if (scalar keys %fks_to_alter) {
     $diff_hash->{alter_drop_constraint} = [
       grep { !$fks_to_alter{$_->name} } @{ $diff_hash->{alter_drop_constraint} }
     ];
 
-    $drop_stmt = batch_alter_table($table, { alter_drop_constraint => [ values %fks_to_alter ] }, $options) 
-               . "\n";
+    @drop_stmt = batch_alter_table($table, { alter_drop_constraint => [ values %fks_to_alter ] }, $options);
 
   }
 
@@ -825,7 +844,7 @@ sub batch_alter_table {
 
   return unless @stmts;
   # Just zero or one stmts. return now
-  return "$drop_stmt@stmts;" unless @stmts > 1;
+  return (@drop_stmt,@stmts) unless @stmts > 1;
 
   # Now strip off the 'ALTER TABLE xyz' of all but the first one
 
@@ -842,7 +861,7 @@ sub batch_alter_table {
 
   my $padd = " " x length($alter_table);
 
-  return $drop_stmt . join( ",\n", $first, map { s/$re//; $padd . $_ } @stmts) . ';';
+  return @drop_stmt, join( ",\n", $first, map { s/$re//; $padd . $_ } @stmts);
 
 }
 
@@ -854,7 +873,8 @@ sub drop_table {
   # Drop (foreign key) constraints so table drops cleanly
   my @sql = batch_alter_table($table, { alter_drop_constraint => [ grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints ] }, $options);
 
-  return join("\n", @sql, "DROP TABLE $qt$table$qt;");
+  return (@sql, "DROP TABLE $qt$table$qt");
+#  return join("\n", @sql, "DROP TABLE $qt$table$qt");
 
 }
 

@@ -14,7 +14,7 @@ use FindBin qw/$Bin/;
 #=============================================================================
 
 BEGIN {
-    maybe_plan(7,
+    maybe_plan(13,
         'SQL::Translator::Producer::PostgreSQL',
         'Test::Differences',
     )
@@ -22,7 +22,7 @@ BEGIN {
 use Test::Differences;
 use SQL::Translator;
 
-
+my $PRODUCER = \&SQL::Translator::Producer::PostgreSQL::create_field;
 
 my $table = SQL::Translator::Schema::Table->new( name => 'mytable');
 
@@ -52,17 +52,17 @@ my $field2 = SQL::Translator::Schema::Field->new( name      => 'myfield',
 
 my $alter_field = SQL::Translator::Producer::PostgreSQL::alter_field($field1,
                                                                 $field2);
-is($alter_field, qq[ALTER TABLE mytable ALTER COLUMN myfield SET NOT NULL;
-ALTER TABLE mytable ALTER COLUMN myfield TYPE character varying(25);],
+is($alter_field, qq[ALTER TABLE mytable ALTER COLUMN myfield SET NOT NULL
+ALTER TABLE mytable ALTER COLUMN myfield TYPE character varying(25)],
  'Alter field works');
 
 $field1->name('field3');
 my $add_field = SQL::Translator::Producer::PostgreSQL::add_field($field1);
 
-is($add_field, 'ALTER TABLE mytable ADD COLUMN field3 character varying(10);', 'Add field works');
+is($add_field, 'ALTER TABLE mytable ADD COLUMN field3 character varying(10)', 'Add field works');
 
 my $drop_field = SQL::Translator::Producer::PostgreSQL::drop_field($field2);
-is($drop_field, 'ALTER TABLE mytable DROP COLUMN myfield;', 'Drop field works');
+is($drop_field, 'ALTER TABLE mytable DROP COLUMN myfield', 'Drop field works');
 
 my $field3 = SQL::Translator::Schema::Field->new( name      => 'time_field',
                                                   table => $table,
@@ -104,3 +104,101 @@ my $field5_sql = SQL::Translator::Producer::PostgreSQL::create_field($field5,{ p
 
 is($field5_sql, 'enum_field mytable_enum_field_type NOT NULL', 'Create real enum field works');
 
+{
+    # let's test default values! -- rjbs, 2008-09-30
+    my %field = (
+        table => $table,
+        data_type => 'VARCHAR',
+        size => 10,
+        is_auto_increment => 0,
+        is_nullable => 1,
+        is_foreign_key => 0,
+        is_unique => 0,
+    );
+
+    {
+        my $simple_default = SQL::Translator::Schema::Field->new(
+            %field,
+            name => 'str_default',
+            default_value => 'foo',
+        );
+
+        is(
+            $PRODUCER->($simple_default),
+            q{str_default character varying(10) DEFAULT 'foo'},
+            'default str',
+        );
+    }
+
+    {
+        my $null_default = SQL::Translator::Schema::Field->new(
+            %field,
+            name => 'null_default',
+            default_value => \'NULL',
+        );
+
+        is(
+            $PRODUCER->($null_default),
+            q{null_default character varying(10) DEFAULT NULL},
+            'default null',
+        );
+    }
+
+    {
+        my $null_default = SQL::Translator::Schema::Field->new(
+            %field,
+            name => 'null_default_2',
+            default_value => 'NULL', # XXX: this should go away
+        );
+
+        is(
+            $PRODUCER->($null_default),
+            q{null_default_2 character varying(10) DEFAULT NULL},
+            'default null from special cased string',
+        );
+    }
+
+    {
+        my $func_default = SQL::Translator::Schema::Field->new(
+            %field,
+            name => 'func_default',
+            default_value => \'func(funky)',
+        );
+
+        is(
+            $PRODUCER->($func_default),
+            q{func_default character varying(10) DEFAULT func(funky)},
+            'unquoted default from scalar ref',
+        );
+    }
+}
+
+
+my $view1 = SQL::Translator::Schema::View->new(
+    name   => 'view_foo',
+    fields => [qw/id name/],
+    sql    => 'SELECT id, name FROM thing',
+);
+my $create_opts = { add_replace_view => 1, no_comments => 1 };
+my $view1_sql1 = SQL::Translator::Producer::PostgreSQL::create_view($view1, $create_opts);
+
+my $view_sql_replace = "CREATE VIEW view_foo ( id, name ) AS (
+    SELECT id, name FROM thing
+  )";
+is($view1_sql1, $view_sql_replace, 'correct "CREATE OR REPLACE VIEW" SQL');
+
+my $view2 = SQL::Translator::Schema::View->new(
+    name   => 'view_foo2',
+    sql    => 'SELECT id, name FROM thing',
+    extra  => {
+      'temporary'    => '1',
+      'check_option' => 'cascaded',
+    },
+);
+my $create2_opts = { add_replace_view => 1, no_comments => 1 };
+my $view2_sql1 = SQL::Translator::Producer::PostgreSQL::create_view($view2, $create2_opts);
+
+my $view2_sql_replace = "CREATE TEMPORARY VIEW view_foo2 AS (
+    SELECT id, name FROM thing
+  ) WITH CASCADED CHECK OPTION";
+is($view2_sql1, $view2_sql_replace, 'correct "CREATE OR REPLACE VIEW" SQL 2');

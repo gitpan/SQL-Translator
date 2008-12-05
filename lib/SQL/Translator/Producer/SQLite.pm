@@ -60,25 +60,29 @@ sub produce {
     my $no_comments    = $translator->no_comments;
     my $add_drop_table = $translator->add_drop_table;
     my $schema         = $translator->schema;
+    my $producer_args  = $translator->producer_args;
+    my $sqlite_version  = $producer_args->{sqlite_version} || 0;
 
     debug("PKG: Beginning production\n");
 
-    my $create = '';
-    $create .= header_comment unless ($no_comments);
-    $create .= "BEGIN TRANSACTION;\n\n";
+    my @create = ();
+    push @create, header_comment unless ($no_comments);
+    push @create, 'BEGIN TRANSACTION';
 
-    my @table_defs = ();
     for my $table ( $schema->get_tables ) {
-        my @defs = create_table($table, { no_comments => $no_comments,
+        push @create, create_table($table, { no_comments => $no_comments,
+                                             sqlite_version => $sqlite_version,
                                           add_drop_table => $add_drop_table,});
-        my $create = shift @defs;
-        $create .= ";\n";
-        push @table_defs, $create, map( { "$_;" } @defs), "";
     }
 
-#    $create .= "COMMIT;\n";
+    for my $view ( $schema->get_views ) {
+      push @create, create_view($view, {
+        add_drop_view => $add_drop_table,
+        no_comments   => $no_comments,
+      });
+    }
 
-    return wantarray ? ($create, @table_defs, "COMMIT;\n") : join("\n", ($create, @table_defs, "COMMIT;\n"));
+    return wantarray ? (@create, "COMMIT") : join(";\n\n", (@create, "COMMIT;\n"));
 }
 
 # -------------------------------------------------------------------
@@ -117,6 +121,31 @@ sub mk_name {
     return $name;
 }
 
+sub create_view {
+    my ($view, $options) = @_;
+    my $add_drop_view = $options->{add_drop_view};
+
+    my $view_name = $view->name;
+    debug("PKG: Looking at view '${view_name}'\n");
+
+    # Header.  Should this look like what mysqldump produces?
+    my $extra = $view->extra;
+    my $create = '';
+    $create .= "--\n-- View: ${view_name}\n--\n" unless $options->{no_comments};
+    $create .= "DROP VIEW IF EXISTS $view_name;\n" if $add_drop_view;
+    $create .= 'CREATE';
+    $create .= " TEMPORARY" if exists($extra->{temporary}) && $extra->{temporary};
+    $create .= ' VIEW';
+    $create .= " IF NOT EXISTS" if exists($extra->{if_not_exists}) && $extra->{if_not_exists};
+    $create .= " ${view_name}";
+
+    if( my $sql = $view->sql ){
+      $create .= " AS\n    ${sql}";
+    }
+    return $create;
+}
+
+
 sub create_table
 {
     my ($table, $options) = @_;
@@ -124,6 +153,7 @@ sub create_table
     my $table_name = $table->name;
     my $no_comments = $options->{no_comments};
     my $add_drop_table = $options->{add_drop_table};
+    my $sqlite_version = $options->{sqlite_version} || 0;
 
     debug("PKG: Looking at table '$table_name'\n");
 
@@ -134,18 +164,19 @@ sub create_table
     #
     # Header.
     #
-    my $create = '';
-    $create .= "--\n-- Table: $table_name\n--\n" unless $no_comments;
-    $create .= qq[DROP TABLE $table_name;\n] if $add_drop_table;
-    $create .= "CREATE ${temp}TABLE $table_name (\n";
+    my $exists = ($sqlite_version >= 3.3) ? ' IF EXISTS' : '';
+    my @create;
+    push @create, "--\n-- Table: $table_name\n--\n" unless $no_comments;
+    push @create, qq[DROP TABLE$exists $table_name] if $add_drop_table;
+    my $create_table = "CREATE ${temp}TABLE $table_name (\n";
 
     #
     # Comments
     #
     if ( $table->comments and !$no_comments ){
-        $create .= "-- Comments: \n-- ";
-        $create .= join "\n-- ",  $table->comments;
-        $create .= "\n--\n\n";
+        $create_table .= "-- Comments: \n-- ";
+        $create_table .= join "\n-- ",  $table->comments;
+        $create_table .= "\n--\n\n";
     }
 
     #
@@ -187,9 +218,9 @@ sub create_table
         push @constraint_defs, create_constraint($c);
     }
 
-    $create .= join(",\n", map { "  $_" } @field_defs ) . "\n)";
+    $create_table .= join(",\n", map { "  $_" } @field_defs ) . "\n)";
 
-    return ($create, @index_defs, @constraint_defs, @trigger_defs );
+    return (@create, $create_table, @index_defs, @constraint_defs, @trigger_defs );
 }
 
 sub create_field
@@ -256,17 +287,16 @@ sub create_field
 
     # Default?  XXX Need better quoting!
     my $default = $field->default_value;
-    if ( defined $default ) {
-        if ( uc $default eq 'NULL') {
-            $field_def .= ' DEFAULT NULL';
-        } elsif ( $default eq 'now()' ||
-                  $default eq 'CURRENT_TIMESTAMP' ) {
-            $field_def .= ' DEFAULT CURRENT_TIMESTAMP';
-        } elsif ( $default =~ /val\(/ ) {
-            next;
-        } else {
-            $field_def .= " DEFAULT '$default'";
-        }
+    if (defined $default) {
+        SQL::Translator::Producer->_apply_default_value(
+            \$field_def,
+            $default, 
+            [
+             'NULL'              => \'NULL',
+             'now()'             => 'now()',
+             'CURRENT_TIMESTAMP' => 'CURRENT_TIMESTAMP',
+            ],
+        );
     }
 
     return $field_def;
@@ -372,9 +402,10 @@ sub batch_alter_table {
        @{$diffs->{alter_field}}  == 0 &&
        @{$diffs->{drop_field}}   == 0
        ) {
-    return join("\n", map { 
+#    return join("\n", map { 
+    return map { 
         my $meth = __PACKAGE__->can($_) or die __PACKAGE__ . " cant $_";
-        map { my $sql = $meth->(ref $_ eq 'ARRAY' ? @$_ : $_); $sql ?  ("$sql;") : () } @{ $diffs->{$_} }
+        map { my $sql = $meth->(ref $_ eq 'ARRAY' ? @$_ : $_); $sql ?  ("$sql") : () } @{ $diffs->{$_} }
         
       } grep { @{$diffs->{$_}} } 
     qw/rename_table
@@ -386,7 +417,7 @@ sub batch_alter_table {
        rename_field
        alter_create_index
        alter_create_constraint
-       alter_table/);
+       alter_table/;
   }
 
 
@@ -406,12 +437,13 @@ sub batch_alter_table {
              "INSERT INTO @{[$table_name]} SELECT @{[ join(', ', $old_table->get_fields)]} FROM @{[$table_name]}_temp_alter",
              "DROP TABLE @{[$table_name]}_temp_alter";
 
-  return join(";\n", @sql, "");
+  return @sql;
+#  return join("", @sql, "");
 }
 
 sub drop_table {
   my ($table) = @_;
-  return "DROP TABLE $table;";
+  return "DROP TABLE $table";
 }
 
 sub rename_table {

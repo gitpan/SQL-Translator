@@ -50,6 +50,11 @@ To translate a schema:
     --trace            Print parser trace info
     --show-warnings    Print warnings to STDERR
 
+  General Parser Options:
+
+    --skip             Comma-separated list of tables to skip (only implemented in some parsers)
+    --ignore_opts      Comma-separated list of table options to ignore 
+
   DBI Parser Options:
 
     --dsn              DSN for connecting to database
@@ -187,6 +192,7 @@ my $db_password;      # DBI parser
 my $show_version;     # Show version and exit script
 my $skip;
 my $skiplike;
+my $ignore_opts;
 my $producer_db_user; # DSN     for producer (e.g. Dumper, ClassDBI)
 my $producer_db_password; # db_pass "
 my $producer_dsn;     # db_user "
@@ -227,6 +233,7 @@ GetOptions(
     'producer-db-pass:s'=> \$producer_db_password,
     'skip:s'           => \$skip,
     'skiplike:s'       => \$skiplike,
+    'ignore_opts:s'    => \$ignore_opts,
     'add_truncate'     => \$add_truncate,
     'add-prefix'       => \$add_prefix,
     'prefix:s'         => \$prefix,
@@ -282,6 +289,8 @@ my $translator           =  SQL::Translator->new(
         db_user          => $db_user,
         db_password      => $db_password,
         mysql_parser_version => $mysql_parser_version,
+        skip => $skip,
+        ignore_opts => $ignore_opts,
     },
     producer_args   => {
         imap_file        => $imap_file,

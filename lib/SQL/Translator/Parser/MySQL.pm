@@ -134,6 +134,17 @@ A subset of INSERT that we ignore:
 
   INSERT anything
 
+=head1 ARGUMENTS
+
+This parser takes a single optional parser_arg C<mysql_parser_version>, which
+provides the desired version for the target database. Any statement in the processed
+dump file, that is commented with a version higher than the one supplied, will be stripped.
+
+Valid version specifiers for C<mysql_parser_version> are listed L<here|SQL::Translator::Utils/parse_mysql_version>
+
+More information about the MySQL comment-syntax: L<http://dev.mysql.com/doc/refman/5.0/en/comments.html>
+
+
 =cut
 
 use strict;
@@ -147,6 +158,8 @@ use Exporter;
 use Storable qw(dclone);
 use DBI qw(:sql_types);
 use base qw(Exporter);
+
+use SQL::Translator::Utils qw/parse_mysql_version/;
 
 our %type_mapping = (
 );
@@ -521,6 +534,7 @@ reference_option: /restrict/i |
 
 index : normal_index
     | fulltext_index
+    | spatial_index
     | <error>
 
 table_name   : NAME
@@ -583,7 +597,7 @@ unsigned     : /unsigned/i { $return = 0 }
 default_val : 
     /default/i 'CURRENT_TIMESTAMP'
     {
-        $return =  $item[2];
+        $return =  \$item[2];
     }
     |
     /default/i /'(?:.*?\\')*.*?'|(?:')?[\w\d:.-]*(?:')?/
@@ -667,6 +681,16 @@ fulltext_index : /fulltext/i KEY(?) index_name(?) '(' name_with_opt_paren(s /,/)
         } 
     }
 
+spatial_index : /spatial/i KEY(?) index_name(?) '(' name_with_opt_paren(s /,/) ')'
+    { 
+        $return       = { 
+            supertype => 'index',
+            type      => 'spatial',
+            name      => $item{'index_name(?)'}[0],
+            fields    => $item[5],
+        } 
+    }
+
 name_with_opt_paren : NAME parens_value_list(s?)
     { $item[2][0] ? "$item[1]($item[2][0][0])" : $item[1] }
 
@@ -688,6 +712,10 @@ table_option : /comment/i /=/ /'.*?'/
     | /collate/i WORD
     {
         $return = { 'COLLATE' => $item[2] }
+    }
+    | /union/i /\s*=\s*/ '(' table_name(s /,/) ')'
+    { 
+        $return = { $item[1] => $item[4] };
     }
     | WORD /\s*=\s*/ WORD
     { 
@@ -714,7 +742,7 @@ COMMA : ','
 
 BACKTICK : '`'
 
-NAME    : BACKTICK /\w+/ BACKTICK
+NAME    : BACKTICK /[^`]+/ BACKTICK
     { $item[2] }
     | /\w+/
     { $item[1] }
@@ -741,7 +769,6 @@ END_OF_GRAMMAR
 sub parse {
     my ( $translator, $data ) = @_;
     my $parser = Parse::RecDescent->new($GRAMMAR);
-
     local $::RD_TRACE  = $translator->trace ? 1 : undef;
     local $DEBUG       = $translator->debug;
 
@@ -751,7 +778,9 @@ sub parse {
     }
     
     # Preprocess for MySQL-specific and not-before-version comments from mysqldump
-    my $parser_version = $translator->parser_args->{mysql_parser_version} || DEFAULT_PARSER_VERSION;
+    my $parser_version = 
+        parse_mysql_version ($translator->parser_args->{mysql_parser_version}, 'mysql') 
+        || DEFAULT_PARSER_VERSION;
     while ( $data =~ s#/\*!(\d{5})?(.*?)\*/#($1 && $1 > $parser_version ? '' : $2)#es ) {}
 
     my $result = $parser->startrule($data);
@@ -836,7 +865,19 @@ sub parse {
         }
 
         if ( my @options = @{ $tdata->{'table_options'} || [] } ) {
-            $table->options( \@options ) or die $table->error;
+            my @cleaned_options;
+            my @ignore_opts = $translator->parser_args->{ignore_opts}?split(/,/,$translator->parser_args->{ignore_opts}):();
+            if (@ignore_opts) {
+                my $ignores = { map { $_ => 1 } @ignore_opts };
+                foreach my $option (@options) {
+                    # make sure the option isn't in ignore list
+                    my ($option_key) = keys %$option;
+                    push(@cleaned_options, $option) unless (exists $ignores->{$option_key});
+                }
+            } else {
+                @cleaned_options = @options;
+            }
+            $table->options( \@cleaned_options ) or die $table->error;
         }
 
         for my $cdata ( @{ $tdata->{'constraints'} || [] } ) {

@@ -9,12 +9,12 @@ use SQL::Translator;
 use SQL::Translator::Diff;
 
 BEGIN {
-    maybe_plan(3, 'SQL::Translator::Parser::YAML',
+    maybe_plan(2, 'SQL::Translator::Parser::YAML',
                   'SQL::Translator::Producer::Oracle');
 }
 
-my $schema1 = $Bin.'/data/oracle/schema_diff_a.yaml';
-my $schema2 = $Bin.'/data/oracle/schema_diff_b.yaml';
+my $schema1 = $Bin.'/data/oracle/schema_diff_b.yaml';
+my $schema2 = $Bin.'/data/oracle/schema_diff_c.yaml';
 
 open my $io1, '<', $schema1 or die $!;
 open my $io2, '<', $schema2 or die $!;
@@ -38,7 +38,6 @@ $t->parser->($t,$yaml2);
 my $d = SQL::Translator::Diff->new
   ({
     output_db => 'Oracle',
-    target_db => 'Oracle',
     source_schema => $s->schema,
     target_schema => $t->schema,
    });
@@ -47,7 +46,5 @@ my $d = SQL::Translator::Diff->new
 my $diff = $d->compute_differences->produce_diff_sql || die $d->error;
 
 ok($diff, 'Diff generated.');
-like($diff, '/ALTER TABLE d_operator MODIFY \( name nvarchar2\(10\) \)/',
-     'Alter table generated.');
-like($diff, '/ALTER TABLE d_operator MODIFY \( other nvarchar2\(10\) NOT NULL \)/',
+like($diff, '/ALTER TABLE d_operator ADD \( foo nvarchar2\(10\) NOT NULL \)/',
      'Alter table generated.');

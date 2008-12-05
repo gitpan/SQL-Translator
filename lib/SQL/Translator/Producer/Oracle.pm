@@ -46,6 +46,56 @@ CREATE TABLE statement and adds ALTER TABLEs at the end with it.
 
 =back
 
+=head1 NOTES
+
+=head2 Autoincremental primary keys
+
+This producer uses sequences and triggers to autoincrement primary key
+columns, if necessary. SQLPlus and DBI expect a slightly different syntax
+of CREATE TRIGGER statement. You might have noticed that this
+producer returns a scalar containing all statements concatenated by
+newlines or an array of single statements depending on the context
+(scalar, array) it has been called in.
+
+SQLPlus expects following trigger syntax:
+
+    CREATE OR REPLACE TRIGGER ai_person_id
+    BEFORE INSERT ON person
+    FOR EACH ROW WHEN (
+     new.id IS NULL OR new.id = 0
+    )
+    BEGIN
+     SELECT sq_person_id.nextval
+     INTO :new.id
+     FROM dual;
+    END;
+    /
+
+Whereas if you want to create the same trigger using L<DBI/do>, you need
+to omit the last slash:
+
+    my $dbh = DBI->connect('dbi:Oracle:mysid', 'scott', 'tiger');
+    $dbh->do("
+        CREATE OR REPLACE TRIGGER ai_person_id
+        BEFORE INSERT ON person
+        FOR EACH ROW WHEN (
+         new.id IS NULL OR new.id = 0
+        )
+        BEGIN
+         SELECT sq_person_id.nextval
+         INTO :new.id
+         FROM dual;
+        END;
+    ");
+
+If you call this producer in array context, we expect you want to process
+the returned array of statements using L<DBI> like
+L<DBIx::Class::Schema/deploy> does.
+
+To get this working we removed the slash in those statements in version
+0.09002 of L<SQL::Translator> when called in array context. In scalar
+context the slash will be still there to ensure compatibility with SQLPlus.
+
 =cut
 
 use strict;
@@ -151,6 +201,20 @@ my %ora_reserved = map { $_, 1 } qw(
     WHENEVER WHERE WITH
 );
 
+#
+# Oracle 8/9 max size of data types from:
+# http://www.ss64.com/orasyntax/datatypes.html
+#
+my %max_size = (
+    char      => 2000,
+    nchar     => 2000,
+    nvarchar2 => 4000,
+    number    => [ 38, 127 ],
+    raw       => 2000,
+    varchar   => 4000,          # only synonym for varchar2
+    varchar2  => 4000,
+);
+
 my $max_id_length    = 30;
 my %used_identifiers = ();
 my %global_names;
@@ -181,13 +245,14 @@ sub produce {
     }
 
     for my $table ( $schema->get_tables ) { 
-        my ( $table_def, $fk_def, $trigger_def, $index_def, $constraint_def) = create_table(
+        my ( $table_def, $fk_def, $trigger_def, $index_def, $constraint_def ) = create_table(
             $table,
             {
-                add_drop_table => $add_drop_table,
-                show_warnings  => $WARN,
-                no_comments    => $no_comments,
-                delay_constraints => $delay_constraints
+                add_drop_table    => $add_drop_table,
+                show_warnings     => $WARN,
+                no_comments       => $no_comments,
+                delay_constraints => $delay_constraints,
+                wantarray         => wantarray ? 1 : 0,
             }
         );
         push @table_defs, @$table_def;
@@ -202,7 +267,15 @@ sub produce {
         push @view_defs, create_view($view);
     }
 
-    return wantarray ? (defined $create ? $create : (), @table_defs, @view_defs, @fk_defs, @trigger_defs, @index_defs, @constraint_defs) : $create . join ("\n\n", @table_defs, @view_defs, @fk_defs, @trigger_defs, @index_defs, @constraint_defs, '');
+    if (wantarray) {
+        return defined $create ? $create : (), @table_defs, @view_defs, @fk_defs, @trigger_defs, @index_defs, @constraint_defs;
+    }
+    else {
+        $create .= join ('', map { $_ ? "$_;\n\n" : () } @table_defs, @view_defs, @fk_defs, @index_defs, @constraint_defs);
+        # triggers may NOT end with a semicolon
+        $create .= join "\n\n", @trigger_defs;
+        return $create;
+    }
 }
 
 sub create_table {
@@ -213,10 +286,10 @@ sub create_table {
     my $drop;
     my (@create, @field_defs, @constraint_defs, @fk_defs, @trigger_defs);
 
-    push @create, "--\n-- Table: $table_name\n--" unless $options->{no_comments};
-    push @create, qq[DROP TABLE $table_name CASCADE CONSTRAINTS;] if $options->{add_drop_table};
-
     my $table_name_ur = unreserve($table_name) or next;
+
+    push @create, "--\n-- Table: $table_name_ur\n--" unless $options->{no_comments};
+    push @create, qq[DROP TABLE $table_name_ur CASCADE CONSTRAINTS] if $options->{add_drop_table};
 
         my ( %field_name_scope, @field_comments );
         for my $field ( $table->get_fields ) {
@@ -297,7 +370,7 @@ sub create_table {
                 push @constraint_defs, "CONSTRAINT $name CHECK ($expression)";
             }
             elsif ( $c->type eq FOREIGN_KEY ) {
-            $name = mk_name( join('_', $table_name, $c->fields). '_fk' );
+                $name = mk_name( join('_', $table_name, $c->fields). '_fk' );
                 my $def = "CONSTRAINT $name FOREIGN KEY ";
 
                 if ( @fields ) {
@@ -321,12 +394,12 @@ sub create_table {
                     $def .= ' ON DELETE '.join( ' ', $c->on_delete );
                 }
 
-            # disabled by plu 2007-12-29 - doesn't exist for oracle
-            #if ( $c->on_update ) {
-            #    $def .= ' ON UPDATE '.join( ' ', $c->on_update );
-            #}
+                # disabled by plu 2007-12-29 - doesn't exist for oracle
+                #if ( $c->on_update ) {
+                #    $def .= ' ON UPDATE '.join( ' ', $c->on_update );
+                #}
 
-            push @fk_defs, sprintf("ALTER TABLE %s ADD %s;", $table, $def);
+                push @fk_defs, sprintf("ALTER TABLE %s ADD %s", $table_name_ur, $def);
             }
         }
 
@@ -375,7 +448,7 @@ sub create_table {
                 push @index_defs, 
                     "CREATE INDEX $index_name on $table_name_ur (".
                         join( ', ', @fields ).  
-                    ")$index_options;";
+                    ")$index_options";
             }
             elsif ( $index_type eq UNIQUE ) {
                 $index_name = $index_name ? mk_name( $index_name ) 
@@ -383,7 +456,7 @@ sub create_table {
                 push @index_defs, 
                     "CREATE UNIQUE INDEX $index_name on $table_name_ur (".
                         join( ', ', @fields ).  
-                    ")$index_options;"; 
+                    ")$index_options"; 
             }
             else {
                 warn "Unknown index type ($index_type) on table $table_name.\n"
@@ -396,7 +469,7 @@ sub create_table {
                 next unless $comment;
                 $comment =~ s/'/''/g;
                 push @field_comments, "COMMENT ON TABLE $table_name_ur is\n '".
-                $comment . "';" unless $options->{no_comments}
+                $comment . "'" unless $options->{no_comments}
                 ;
             }
         }
@@ -406,9 +479,9 @@ sub create_table {
     push @create, "CREATE TABLE $table_name_ur (\n" .
             join( ",\n", map { "  $_" } @field_defs,
             ($options->{delay_constraints} ? () : @constraint_defs) ) .
-            "\n)$table_options;";
+            "\n)$table_options";
 
-    @constraint_defs = map { 'ALTER TABLE '.$table_name_ur.' ADD '.$_.';'  }
+    @constraint_defs = map { 'ALTER TABLE '.$table_name_ur.' ADD '.$_  }
       @constraint_defs;
 
     if ( $WARN ) {
@@ -506,6 +579,17 @@ sub create_field {
             $data_type;
         $data_type ||= 'varchar2';
     }
+    
+    # ensure size is not bigger than max size oracle allows for data type
+    if ( defined $max_size{$data_type} ) {
+        for ( my $i = 0 ; $i < scalar @size ; $i++ ) {
+            my $max =
+              ref( $max_size{$data_type} ) eq 'ARRAY'
+              ? $max_size{$data_type}->[$i]
+              : $max_size{$data_type};
+            $size[$i] = $max if $size[$i] > $max;
+        }
+    }
 
     #
     # Fixes ORA-02329: column of datatype LOB cannot be 
@@ -548,7 +632,11 @@ sub create_field {
         # then sub "1/0," otherwise just test the truthity of the
         # argument and use that (naive?).
         #
-        if ( 
+        if (ref $default and defined $$default) {
+          $default = $$default;
+        } elsif (ref $default) {
+          $default = 'NULL';
+        } elsif ( 
             $data_type =~ /^number$/i && 
             $default   !~ /^-?\d+$/     &&
             $default   !~ m/null/i
@@ -592,9 +680,9 @@ sub create_field {
         my $seq_name     = mk_name( $base_name, 'sq' );
         my $trigger_name = mk_name( $base_name, 'ai' );
 
-        push @create, qq[DROP SEQUENCE $seq_name;] if $options->{add_drop_table};
-        push @create, "CREATE SEQUENCE $seq_name;";
-        push @trigger_defs, 
+        push @create, qq[DROP SEQUENCE $seq_name] if $options->{add_drop_table};
+        push @create, "CREATE SEQUENCE $seq_name";
+        my $trigger =
           "CREATE OR REPLACE TRIGGER $trigger_name\n" .
           "BEFORE INSERT ON $table_name_ur\n" .
           "FOR EACH ROW WHEN (\n" .
@@ -605,20 +693,35 @@ sub create_field {
           " SELECT $seq_name.nextval\n" .
           " INTO :new." . $field->name."\n" .
           " FROM dual;\n" .
-          "END;\n/";
-        ;
+          "END;\n";
+        
+        #
+        # If wantarray is set we have to omit the last "/" in this statement so it
+        # can be executed by DBI->do() directly.
+        #
+        $trigger .= "/" unless $options->{wantarray};
+        
+        push @trigger_defs, $trigger;
     }
 
     if ( lc $field->data_type eq 'timestamp' ) {
         my $base_name = $table_name_ur . "_". $field_name_ur;
         my $trig_name = mk_name( $base_name, 'ts' );
-        push @trigger_defs, 
+        my $trigger = 
           "CREATE OR REPLACE TRIGGER $trig_name\n".
           "BEFORE INSERT OR UPDATE ON $table_name_ur\n".
           "FOR EACH ROW WHEN (new.$field_name_ur IS NULL)\n".
           "BEGIN \n".
           " SELECT sysdate INTO :new.$field_name_ur FROM dual;\n".
-          "END;\n/";
+          "END;\n";
+
+          #
+          # If wantarray is set we have to omit the last "/" in this statement so it
+          # can be executed by DBI->do() directly.
+          #
+          $trigger .= "/" unless $options->{wantarray};
+
+          push @trigger_defs, $trigger;
     }
 
     push @field_defs, $field_def;
@@ -638,7 +741,7 @@ sub create_field {
 sub create_view {
     my ($view) = @_;
 
-    my $out = sprintf("CREATE VIEW %s AS\n%s;",
+    my $out = sprintf("CREATE VIEW %s AS\n%s",
                       $view->name,
                       $view->sql);
 
