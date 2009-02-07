@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 
 # -------------------------------------------------------------------
-# $Id: sqlt.cgi,v 1.4 2004-02-06 17:48:16 kycl4rk Exp $
+# $Id: sqlt.cgi 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -37,9 +37,6 @@ all the parsers and producers of SQL::Translator.
 use strict;
 use CGI;
 use SQL::Translator;
-
-use vars '$VERSION';
-$VERSION = sprintf "%d.%02d", q$Revision: 1.4 $ =~ /(\d+)\.(\d+)/;
 
 my $q = CGI->new;
 
@@ -551,6 +548,7 @@ Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 
 =head1 SEE ALSO
 
-perl, SQL::Translator.
+L<perl>,
+L<SQL::Translator>
 
 =cut

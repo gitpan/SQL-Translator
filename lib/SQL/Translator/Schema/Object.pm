@@ -1,9 +1,9 @@
 package SQL::Translator::Schema::Object;
 
 # ----------------------------------------------------------------------
-# $Id: Object.pm,v 1.8 2006-06-07 16:43:41 schiffbruechige Exp $
+# $Id: Object.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # ----------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -40,11 +40,6 @@ use Class::Base;
 use base 'Class::Data::Inheritable';
 use base 'Class::Base';
 use Class::MakeMethods::Utility::Ref qw( ref_compare );
-
-use vars qw[ $VERSION ];
-
-$VERSION = sprintf "%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/;
-
 
 =head1 Construction
 

@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::SQLServer;
 
 # -------------------------------------------------------------------
-# $Id: SQLServer.pm,v 1.7 2007-03-14 16:56:33 duality72 Exp $
+# $Id: SQLServer.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -55,8 +55,7 @@ List of values for an enum field.
 =cut
 
 use strict;
-use vars qw[ $DEBUG $WARN $VERSION ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG $WARN ];
 $DEBUG = 1 unless defined $DEBUG;
 
 use Data::Dumper;

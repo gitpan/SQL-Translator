@@ -1,9 +1,9 @@
 package SQL::Translator::Parser::SQLServer;
 
 # -------------------------------------------------------------------
-# $Id: SQLServer.pm,v 1.6 2007-03-19 17:11:02 duality72 Exp $
+# $Id: SQLServer.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -38,8 +38,7 @@ should probably be considered a work in progress.
 
 use strict;
 
-use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG $GRAMMAR @EXPORT_OK ];
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;

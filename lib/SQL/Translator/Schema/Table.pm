@@ -1,9 +1,9 @@
 package SQL::Translator::Schema::Table;
 
 # ----------------------------------------------------------------------
-# $Id: Table.pm,v 1.37 2007-10-24 10:55:44 schiffbruechige Exp $
+# $Id: Table.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # ----------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -49,9 +49,7 @@ use Data::Dumper;
 
 use base 'SQL::Translator::Schema::Object';
 
-use vars qw( $VERSION $FIELD_ORDER );
-
-$VERSION = sprintf "%d.%02d", q$Revision: 1.27 $ =~ /(\d+)\.(\d+)/;
+use vars qw( $FIELD_ORDER );
 
 # Stringify to our name, being careful not to pass any args through so we don't
 # accidentally set it to undef. We also have to tweak bool so the object is

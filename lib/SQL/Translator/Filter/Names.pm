@@ -1,9 +1,9 @@
 package SQL::Translator::Filter::Names;
 
 # -------------------------------------------------------------------
-# $Id: Names.pm,v 1.1 2005-12-16 10:25:00 grommit Exp $
+# $Id: Names.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as

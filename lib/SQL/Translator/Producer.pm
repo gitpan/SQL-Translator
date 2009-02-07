@@ -1,7 +1,7 @@
 package SQL::Translator::Producer;
 
 # -------------------------------------------------------------------
-# $Id: Producer.pm,v 1.8 2006-06-07 16:28:59 schiffbruechige Exp $
+# $Id: Producer.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
@@ -21,8 +21,6 @@ package SQL::Translator::Producer;
 # -------------------------------------------------------------------
 
 use strict;
-use vars qw($VERSION);
-$VERSION = sprintf "%d.%02d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/;
 
 sub produce { "" }
 

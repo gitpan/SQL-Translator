@@ -1,9 +1,9 @@
 package SQL::Translator::Parser::DBI::SQLite;
 
 # -------------------------------------------------------------------
-# $Id: SQLite.pm,v 1.5 2004-02-09 22:23:40 kycl4rk Exp $
+# $Id: SQLite.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -44,8 +44,7 @@ use DBI;
 use SQL::Translator::Parser::SQLite;
 use Data::Dumper;
 
-use vars qw[ $DEBUG $VERSION @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG @EXPORT_OK ];
 $DEBUG   = 0 unless defined $DEBUG;
 
 # -------------------------------------------------------------------

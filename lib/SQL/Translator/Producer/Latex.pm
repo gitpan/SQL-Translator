@@ -1,7 +1,7 @@
 package SQL::Translator::Producer::Latex;
 
 # -------------------------------------------------------------------
-# $Id: Latex.pm,v 1.1 2006-03-21 20:07:21 cmungall Exp $
+# $Id: Latex.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
 # Copyright (C) 2002-6 SQLFairy Authors
 #
@@ -58,8 +58,7 @@ automatically arrange them horizontally or vertically.
 
 use strict;
 
-use vars qw[ $DEBUG $VERSION @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.1 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG @EXPORT_OK ];
 $DEBUG   = 0 unless defined $DEBUG;
 
 use SQL::Translator::Utils 'debug';

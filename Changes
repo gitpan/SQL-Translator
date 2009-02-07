@@ -1,4 +1,11 @@
 # ----------------------------------------------------------
+# 0.09003 2009-02-07
+# ----------------------------------------------------------
+* Add support for temporary tables in Pg (nachos)
+* Create Trigger support for SQLite
+* GraphViz producer improvements
+
+# ----------------------------------------------------------
 # 0.09002 2008-12-05
 # ----------------------------------------------------------
 * parsing MySQL CURRENT_TIMESTAMP as scalar ref so it can be produced without 

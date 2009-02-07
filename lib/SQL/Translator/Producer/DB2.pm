@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::DB2;
 
 # -------------------------------------------------------------------
-# $Id: DB2.pm,v 1.5 2006-11-10 21:21:51 mwz444 Exp $
+# $Id: DB2.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -38,8 +38,7 @@ Creates an SQL DDL suitable for DB2.
 
 use warnings;
 use strict;
-use vars qw[ $VERSION $DEBUG $WARN ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG $WARN ];
 $DEBUG   = 0 unless defined $DEBUG;
 
 use SQL::Translator::Schema::Constants;

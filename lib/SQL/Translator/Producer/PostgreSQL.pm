@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::PostgreSQL;
 
 # -------------------------------------------------------------------
-# $Id: PostgreSQL.pm,v 1.29 2007-06-04 04:01:14 mwz444 Exp $
+# $Id: PostgreSQL.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -38,10 +38,10 @@ producer.
 
 use strict;
 use warnings;
-use vars qw[ $DEBUG $WARN $VERSION %used_names ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.29 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG $WARN %used_names ];
 $DEBUG = 0 unless defined $DEBUG;
 
+use base qw(SQL::Translator::Producer);
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug header_comment);
 use Data::Dumper;
@@ -392,6 +392,13 @@ sub create_table
         push @fks, @$fks;
     }
 
+
+    my $temporary = "";
+
+    if(exists $table->{extra}{temporary}) {
+        $temporary = $table->{extra}{temporary} ? "TEMPORARY " : "";
+    } 
+
     my $create_statement;
     $create_statement = join("\n", @comments);
     if ($add_drop_table) {
@@ -405,7 +412,7 @@ sub create_table
     }
     $create_statement .= join("\n", @type_defs) . "\n"
         if $postgres_version >= 8.3;
-    $create_statement .= qq[CREATE TABLE $qt$table_name_ur$qt (\n].
+    $create_statement .= qq[CREATE ${temporary}TABLE $qt$table_name_ur$qt (\n].
                             join( ",\n", map { "  $_" } @field_defs, @constraint_defs ).
                             "\n)"
                             ;

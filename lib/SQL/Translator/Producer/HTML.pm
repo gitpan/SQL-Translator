@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::HTML;
 
 # -------------------------------------------------------------------
-# $Id: HTML.pm,v 1.15 2005-02-07 22:09:32 kycl4rk Exp $
+# $Id: HTML.pm 1445 2009-02-07 17:50:03Z ashberlin $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -22,10 +22,9 @@ package SQL::Translator::Producer::HTML;
 
 use strict;
 use Data::Dumper;
-use vars qw($VERSION $NOWRAP $NOLINKTABLE $NAME);
+use vars qw($NOWRAP $NOLINKTABLE $NAME);
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.15 $ =~ /(\d+)\.(\d+)/;
-$NAME = join ', ', __PACKAGE__, $VERSION;
+$NAME = __PACKAGE__;
 $NOWRAP = 0 unless defined $NOWRAP;
 $NOLINKTABLE = 0 unless defined $NOLINKTABLE;
 

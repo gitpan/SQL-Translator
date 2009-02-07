@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::ClassDBI;
 
 # -------------------------------------------------------------------
-# $Id: ClassDBI.pm,v 1.44 2005-11-17 21:55:41 mwz444 Exp $
+# $Id: ClassDBI.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -21,8 +21,7 @@ package SQL::Translator::Producer::ClassDBI;
 # -------------------------------------------------------------------
 
 use strict;
-use vars qw[ $VERSION $DEBUG ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.44 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG ];
 $DEBUG = 1 unless defined $DEBUG;
 
 use SQL::Translator::Schema::Constants;

@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::Sybase;
 
 # -------------------------------------------------------------------
-# $Id: Sybase.pm,v 1.9 2004-02-09 23:02:17 kycl4rk Exp $
+# $Id: Sybase.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -38,8 +38,7 @@ This module will produce text output of the schema suitable for Sybase.
 =cut
 
 use strict;
-use vars qw[ $DEBUG $WARN $VERSION ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG $WARN ];
 $DEBUG = 1 unless defined $DEBUG;
 
 use Data::Dumper;

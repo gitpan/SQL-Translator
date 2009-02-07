@@ -1,9 +1,9 @@
 package SQL::Translator;
 
 # ----------------------------------------------------------------------
-# $Id: Translator.pm,v 1.73 2007-10-24 10:55:45 schiffbruechige Exp $
+# $Id: Translator.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # ----------------------------------------------------------------------
-# Copyright (C) 2002-4 The SQLFairy Authors
+# Copyright (C) 2002-2009 The SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -21,13 +21,12 @@ package SQL::Translator;
 # -------------------------------------------------------------------
 
 use strict;
-use vars qw( $VERSION $REVISION $DEFAULT_SUB $DEBUG $ERROR );
+use vars qw( $VERSION $DEFAULT_SUB $DEBUG $ERROR );
 use base 'Class::Base';
 
 require 5.004;
 
-$VERSION  = '0.09002';
-$REVISION = sprintf "%d.%02d", q$Revision: 1.73 $ =~ /(\d+)\.(\d+)/;
+$VERSION  = '0.09003';
 $DEBUG    = 0 unless defined $DEBUG;
 $ERROR    = "";
 
@@ -1308,6 +1307,8 @@ The following people have contributed to the SQLFairy project:
 =item * Daniel Ruoso <daniel@ruoso.com>
 
 =item * Ryan D Johnson <ryan@innerfence.com>
+
+=item * Jonathan Yu <frequency@cpan.org>
 
 =back
 

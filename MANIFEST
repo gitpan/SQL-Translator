@@ -122,6 +122,7 @@ t/24yaml.t
 t/25storable.t
 t/26sybase.t
 t/27sqlite-parser.t
+t/27sqlite-roundtrip.t
 t/29html.t
 t/30sqlt-diff.t
 t/30sqlt-new-diff-mysql.t

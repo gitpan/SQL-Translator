@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::SQLite;
 
 # -------------------------------------------------------------------
-# $Id: SQLite.pm,v 1.15 2006-08-26 11:35:31 schiffbruechige Exp $
+# $Id: SQLite.pm 1445 2009-02-07 17:50:03Z ashberlin $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -38,20 +38,20 @@ This module will produce text output of the schema suitable for SQLite.
 =cut
 
 use strict;
+use warnings;
 use Data::Dumper;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug header_comment);
 
-use vars qw[ $VERSION $DEBUG $WARN ];
+use vars qw[ $DEBUG $WARN ];
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.15 $ =~ /(\d+)\.(\d+)/;
 $DEBUG = 0 unless defined $DEBUG;
 $WARN = 0 unless defined $WARN;
 
-my %used_identifiers = ();
-my $max_id_length    = 30;
-my %global_names;
-my %truncated;
+our %used_identifiers = ();
+our $max_id_length    = 30;
+our %global_names;
+our %truncated;
 
 sub produce {
     my $translator     = shift;
@@ -61,13 +61,14 @@ sub produce {
     my $add_drop_table = $translator->add_drop_table;
     my $schema         = $translator->schema;
     my $producer_args  = $translator->producer_args;
-    my $sqlite_version  = $producer_args->{sqlite_version} || 0;
+    my $sqlite_version = $producer_args->{sqlite_version} || 0;
+    my $no_txn         = $producer_args->{no_transaction};
 
     debug("PKG: Beginning production\n");
 
     my @create = ();
     push @create, header_comment unless ($no_comments);
-    push @create, 'BEGIN TRANSACTION';
+    $create[0] .= "\n\nBEGIN TRANSACTION" unless $no_txn;
 
     for my $table ( $schema->get_tables ) {
         push @create, create_table($table, { no_comments => $no_comments,
@@ -82,16 +83,31 @@ sub produce {
       });
     }
 
-    return wantarray ? (@create, "COMMIT") : join(";\n\n", (@create, "COMMIT;\n"));
+    for my $trigger ( $schema->get_triggers ) {
+      push @create, create_trigger($trigger, {
+        add_drop_trigger => $add_drop_table,
+        no_comments   => $no_comments,
+      });
+    }
+
+    if (wantarray) {
+      push @create, "COMMIT" unless $no_txn;
+      return @create;
+    } else {
+      push @create, "COMMIT;\n" unless $no_txn;
+      return join(";\n\n", @create );
+    }
 }
 
 # -------------------------------------------------------------------
 sub mk_name {
     my ($basename, $type, $scope, $critical) = @_;
     my $basename_orig = $basename;
-    my $max_name      = $type 
-                        ? $max_id_length - (length($type) + 1) 
-                        : $max_id_length;
+    my $max_name      = !$max_id_length 
+                      ? length($type) + 1
+                      : $type 
+                      ? $max_id_length - (length($type) + 1) 
+                      : $max_id_length;
     $basename         = substr( $basename, 0, $max_name ) 
                         if length( $basename ) > $max_name;
     $basename         =~ s/\./_/g;
@@ -157,7 +173,7 @@ sub create_table
 
     debug("PKG: Looking at table '$table_name'\n");
 
-    my ( @index_defs, @constraint_defs, @trigger_defs );
+    my ( @index_defs, @constraint_defs );
     my @fields = $table->get_fields or die "No fields in $table_name";
 
     my $temp = $options->{temporary_table} ? 'TEMPORARY ' : '';
@@ -166,9 +182,15 @@ sub create_table
     #
     my $exists = ($sqlite_version >= 3.3) ? ' IF EXISTS' : '';
     my @create;
-    push @create, "--\n-- Table: $table_name\n--\n" unless $no_comments;
-    push @create, qq[DROP TABLE$exists $table_name] if $add_drop_table;
-    my $create_table = "CREATE ${temp}TABLE $table_name (\n";
+    my ($comment, $create_table) = "";
+    $comment =  "--\n-- Table: $table_name\n--\n" unless $no_comments;
+    if ($add_drop_table) {
+      push @create, $comment . qq[DROP TABLE$exists $table_name];
+    } else {
+      $create_table = $comment;
+    }
+
+    $create_table .= "CREATE ${temp}TABLE $table_name (\n";
 
     #
     # Comments
@@ -220,7 +242,7 @@ sub create_table
 
     $create_table .= join(",\n", map { "  $_" } @field_defs ) . "\n)";
 
-    return (@create, $create_table, @index_defs, @constraint_defs, @trigger_defs );
+    return (@create, $create_table, @index_defs, @constraint_defs );
 }
 
 sub create_field
@@ -338,6 +360,49 @@ sub create_constraint
         ' (' . join( ', ', @fields ) . ')';
 
     return $c_def;
+}
+
+sub create_trigger {
+  my ($trigger, $options) = @_;
+  my $add_drop = $options->{add_drop_trigger};
+
+  my $name = $trigger->name;
+  my @create;
+
+  push @create,  "DROP TRIGGER IF EXISTS $name" if $add_drop;
+
+  my $events = $trigger->database_events;
+  die "Can't handle multiple events in triggers" if @$events > 1;
+
+  my $action = "";
+
+  $DB::single = 1;
+  unless (ref $trigger->action) {
+    $action .= "BEGIN " . $trigger->action . " END";
+  } else {
+    $action = $trigger->action->{for_each} . " "
+      if $trigger->action->{for_each};
+
+    $action = $trigger->action->{when} . " "
+      if $trigger->action->{when};
+
+    my $steps = $trigger->action->{steps} || [];
+
+    $action .= "BEGIN ";
+    for (@$steps) {
+      $action .= $_ . "; "
+    }
+    $action .= "END";
+  }
+
+  push @create, "CREATE TRIGGER $name " .
+                $trigger->perform_action_when . " " .
+                $events->[0] .
+                " on " . $trigger->on_table . " " .
+                $action;
+
+  return @create;
+            
 }
 
 sub alter_table { } # Noop

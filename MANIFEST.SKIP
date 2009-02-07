@@ -1,7 +1,7 @@
 .*CVS.*
 .#.*
-.*.bak
-.*.swp
+.*\.bak
+.*\.swp
 .*\.old
 .*\.tar\.gz
 ^Makefile$
@@ -11,21 +11,43 @@
 _blib$
 Build$
 (^|/)\.
-lib/SQL/Translator/Parser/XML/XMI.pm
-lib/SQL/Translator/Parser/XML/XMI/Rational.pm
-lib/SQL/Translator/Parser/XML/XMI/SQLFairy.pm
-lib/SQL/Translator/XMI/Parser.pm
-lib/SQL/Translator/XMI/Parser/V10.pm
-lib/SQL/Translator/XMI/Parser/V12.pm
-t/data/xmi/Foo.poseidon2.xmi
-t/data/xmi/Foo.poseidon2.zuml
-t/data/xmi/MAGE.poseidon.xmi
-t/data/xmi/MAGE.rose.xmi
-t/data/xmi/OrderDB.plain.poseidon2.zuml
-t/data/xmi/OrderDB.rationalprofile.poseidon2.xmi
-t/data/xmi/OrderDB.rationalprofile.poseidon2.zuml
-t/data/xmi/OrderDB.sqlfairy.poseidon2.xmi
-t/21xml-xmi-parser.t
-t/22xml-xmi-parser-visibility.t
-t/23xml-xmi-parser-rational.t
-t/28xml-xmi-parser-sqlfairy.t
+
+# Version control files and dirs.
+\bRCS\b
+\bCVS\b
+\bSCCS\b
+,v$
+\B\.svn\b
+\B\.git\b
+\B\.gitignore\b
+\b_darcs\b
+
+# Module::Build generated files and dirs.
+^Build$
+^_build/
+
+# Module::Install included files.
+^inc/Module/Install
+
+# Makemaker generated files and dirs.
+\bMANIFEST\.bak
+\bMakefile$
+\bblib/
+\bMakeMaker-\d
+\bpm_to_blib\.ts$
+\bpm_to_blib$
+\bblibdirs\.ts$         # 6.18 through 6.25 generated this
+
+# Temp, old and emacs backup files.
+~$
+\.old$
+\#$
+\b\.#
+\.bak$
+
+# Devel::Cover files.
+\bcover_db\b
+
+# Test::Kwalitee cache files.
+^Debian_CPANTS\.txt
+

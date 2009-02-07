@@ -1,9 +1,9 @@
 package SQL::Translator::Utils;
 
 # ----------------------------------------------------------------------
-# $Id: Utils.pm,v 1.12 2004-02-09 23:04:26 kycl4rk Exp $
+# $Id: Utils.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # ----------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -22,13 +22,12 @@ package SQL::Translator::Utils;
 
 use strict;
 use base qw(Exporter);
-use vars qw($VERSION $DEFAULT_COMMENT @EXPORT_OK);
+use vars qw($DEFAULT_COMMENT @EXPORT_OK);
 
 use Digest::SHA1 qw( sha1_hex );
 
 use Exporter;
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.12 $ =~ /(\d+)\.(\d+)/;
 $DEFAULT_COMMENT = '-- ';
 @EXPORT_OK = qw(
     debug normalize_name header_comment parse_list_arg truncate_id_uniquely $DEFAULT_COMMENT parse_mysql_version

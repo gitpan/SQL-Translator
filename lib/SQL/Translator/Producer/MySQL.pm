@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm,v 1.54 2007-11-10 03:36:43 mwz444 Exp $
+# $Id: MySQL.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -101,8 +101,7 @@ Set the fields charater set and collation order.
 
 use strict;
 use warnings;
-use vars qw[ $VERSION $DEBUG %used_names ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.54 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG %used_names ];
 $DEBUG   = 0 unless defined $DEBUG;
 
 # Maximum length for most identifiers is 64, according to:

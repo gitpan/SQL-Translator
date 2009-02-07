@@ -3,7 +3,7 @@
 #
 
 # $Source: /home/faga/work/sqlfairy_svn/sqlfairy-cvsbackup/sqlfairy/t/40oracle-parser-dbi.t,v $
-# $Id: 40oracle-parser-dbi.t,v 1.1 2006-03-09 19:24:32 cahille Exp $
+# $Id: 40oracle-parser-dbi.t 1433 2009-01-17 15:10:56Z jawnsy $
 
 use strict;
 use Test::More;

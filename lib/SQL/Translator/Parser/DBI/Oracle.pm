@@ -1,9 +1,9 @@
 package SQL::Translator::Parser::DBI::Oracle;
 
 # -------------------------------------------------------------------
-# $Id: Oracle.pm,v 1.2 2006-03-09 20:18:05 cahille Exp $
+# $Id: Oracle.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2006 SQLFairy Authors
+# Copyright (C) 2006-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -41,8 +41,6 @@ use SQL::Translator::Schema::Constants;
 use SQL::Translator::Schema::Table;
 use SQL::Translator::Schema::Field;
 use SQL::Translator::Schema::Constraint;
-
-our $VERSION = sprintf "%d.%02d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/;
 
 # -------------------------------------------------------------------
 sub parse {

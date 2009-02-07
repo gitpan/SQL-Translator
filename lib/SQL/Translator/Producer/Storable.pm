@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::Storable;
 
 # -------------------------------------------------------------------
-# $Id: Storable.pm,v 1.5 2004-02-09 23:02:17 kycl4rk Exp $
+# $Id: Storable.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -41,9 +41,8 @@ takes a long time.
 =cut
 
 use strict;
-use vars qw($DEBUG $VERSION @EXPORT_OK);
+use vars qw($DEBUG @EXPORT_OK);
 $DEBUG = 0 unless defined $DEBUG;
-$VERSION = sprintf "%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/;
 
 use Storable;
 use Exporter;

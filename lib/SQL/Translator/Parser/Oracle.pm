@@ -1,9 +1,9 @@
 package SQL::Translator::Parser::Oracle;
 
 # -------------------------------------------------------------------
-# $Id: Oracle.pm,v 1.29 2007-03-19 22:32:31 duality72 Exp $
+# $Id: Oracle.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -96,8 +96,7 @@ was altered to better handle the syntax created by DDL::Oracle.
 =cut
 
 use strict;
-use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.29 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG $GRAMMAR @EXPORT_OK ];
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -460,7 +459,7 @@ ora_data_type :
     |
     /long\s+raw/i { $return = 'long raw' }
     |
-    /(long|date|timestamp|raw|rowid|urowid|mlslabel|clob|nclob|blob|bfile|float)/i { $item[1] }
+    /(long|date|timestamp|raw|rowid|urowid|mlslabel|clob|nclob|blob|bfile|float|double)/i { $item[1] }
 
 parens_value_list : '(' VALUE(s /,/) ')'
     { $item[2] }

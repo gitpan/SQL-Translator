@@ -1,9 +1,9 @@
 package SQL::Translator::Parser::SQLite;
 
 # -------------------------------------------------------------------
-# $Id: SQLite.pm,v 1.12 2006-11-10 21:43:15 mwz444 Exp $
+# $Id: SQLite.pm 1445 2009-02-07 17:50:03Z ashberlin $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -151,8 +151,7 @@ like-op::=
 =cut
 
 use strict;
-use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.12 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG $GRAMMAR @EXPORT_OK ];
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -196,7 +195,7 @@ statement : begin_transaction
     | create
     | <error>
 
-begin_transaction : /begin transaction/i SEMICOLON
+begin_transaction : /begin/i TRANSACTION(?) SEMICOLON
 
 commit : /commit/i SEMICOLON
 
@@ -419,7 +418,7 @@ create : CREATE TEMPORARY(?) TRIGGER NAME before_or_after(?) database_event ON t
             is_temporary => $item[2][0] ? 1 : 0,
             when         => $item[5][0],
             instead_of   => 0,
-            db_event     => $item[6],
+            db_events    => [ $item[6] ],
             action       => $item[9],
             on_table     => $table_name,
         }
@@ -433,7 +432,7 @@ create : CREATE TEMPORARY(?) TRIGGER NAME instead_of database_event ON view_name
             is_temporary => $item[2][0] ? 1 : 0,
             when         => undef,
             instead_of   => 1,
-            db_event     => $item[6],
+            db_events    => [ $item[6] ],
             action       => $item[9],
             on_table     => $table_name,
         }
@@ -452,7 +451,7 @@ trigger_action : for_each(?) when(?) BEGIN_C trigger_step(s) END_C
         }
     }
 
-for_each : /FOR EACH ROW/i | /FOR EACH STATEMENT/i
+for_each : /FOR EACH ROW/i
 
 when : WHEN expr { $item[2] }
 
@@ -497,6 +496,8 @@ select_statement : SELECT /[^;]+/ SEMICOLON
 BEGIN_C : /begin/i
 
 END_C : /end/i
+
+TRANSACTION: /transaction/i
 
 CREATE : /create/i
 
@@ -635,7 +636,7 @@ sub parse {
         my $view                = $schema->add_trigger(
             name                => $def->{'name'},
             perform_action_when => $def->{'when'},
-            database_event      => $def->{'db_event'},
+            database_events     => $def->{'db_events'},
             action              => $def->{'action'},
             on_table            => $def->{'on_table'},
         );

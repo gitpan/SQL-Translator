@@ -1,9 +1,9 @@
 package SQL::Translator::Parser::DBI::Sybase;
 
 # -------------------------------------------------------------------
-# $Id: Sybase.pm,v 1.6 2004-07-30 16:13:52 phrrngtn Exp $
+# $Id: Sybase.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -39,8 +39,7 @@ use DBI;
 use SQL::Translator::Schema;
 use Data::Dumper;
 
-use vars qw[ $DEBUG $VERSION @EXPORT_OK ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/;
+use vars qw[ $DEBUG @EXPORT_OK ];
 $DEBUG   = 0 unless defined $DEBUG;
 
 no strict 'refs';

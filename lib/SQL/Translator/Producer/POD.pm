@@ -1,9 +1,9 @@
 package SQL::Translator::Producer::POD;
 
 # -------------------------------------------------------------------
-# $Id: POD.pm,v 1.5 2004-02-09 23:02:15 kycl4rk Exp $
+# $Id: POD.pm 1440 2009-01-17 16:31:57Z jawnsy $
 # -------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -41,8 +41,6 @@ interesting formats using Pod::POM or Template::Toolkit's POD plugin.
 =cut
 
 use strict;
-use vars qw[ $VERSION ];
-$VERSION = sprintf "%d.%02d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/;
 
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(header_comment);
@@ -116,11 +114,11 @@ sub produce {
                 }
 
                 if ( my $update = $c->on_update ) {
-                    $pod .= "=item * On update = $update";
+                    $pod .= "=item * On update = $update\n\n";
                 }
 
                 if ( my $delete = $c->on_delete ) {
-                    $pod .= "=item * On delete = $delete";
+                    $pod .= "=item * On delete = $delete\n\n";
                 }
 
                 $pod .= "=back\n\n";
@@ -147,6 +145,10 @@ sub produce {
 =head1 AUTHOR
 
 Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
+
+=head2 CONTRIBUTORS
+
+Jonathan Yu E<lt>frequency@cpan.orgE<gt>
 
 =head1 SEE ALSO
 

@@ -1,9 +1,9 @@
 package SQL::Translator::Schema::Trigger;
 
 # ----------------------------------------------------------------------
-# $Id: Trigger.pm,v 1.9 2006-06-07 16:37:33 schiffbruechige Exp $
+# $Id: Trigger.pm 1444 2009-02-07 15:53:56Z ashberlin $
 # ----------------------------------------------------------------------
-# Copyright (C) 2002-4 SQLFairy Authors
+# Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -53,9 +53,9 @@ use SQL::Translator::Utils 'parse_list_arg';
 
 use base 'SQL::Translator::Schema::Object';
 
-use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
+use Carp;
 
-$VERSION = sprintf "%d.%02d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/;
+use vars qw($TABLE_COUNT $VIEW_COUNT);
 
 # ----------------------------------------------------------------------
 
@@ -123,9 +123,10 @@ Obosolete please use database_events!
 		$self->database_events( [$arg] );
 	}
 
-	return $self->error("Please use database_events the trigger has more then one events!") if (scalar @{$self->{'database_events'}} > 1);
-	
-    warn 'database_event is obsolete please use database_events';
+	return $self->error("Please use database_events the trigger has more then one events!") 
+    if (scalar @{$self->{'database_events'}} > 1);
+
+  carp 'database_event is obsolete please use database_events';
 	return (@{ $self->{'database_events'} })[0];
 }
 # ----------------------------------------------------------------------
@@ -137,7 +138,7 @@ sub database_events {
 
 Gets or sets the events that triggers the trigger.
 
-  my $ok = $trigger->database_event('insert');
+  my $ok = $trigger->database_events('insert');
 
 =cut
 
