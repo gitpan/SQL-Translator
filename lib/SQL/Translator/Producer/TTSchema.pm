@@ -1,8 +1,6 @@
 package SQL::Translator::Producer::TTSchema;
 
 # -------------------------------------------------------------------
-# $Id: TTSchema.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -128,7 +126,8 @@ constructor.
 
 use strict;
 
-use vars qw[ $DEBUG @EXPORT_OK ];
+use vars qw[ $DEBUG $VERSION @EXPORT_OK ];
+$VERSION = '1.59';
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Template;

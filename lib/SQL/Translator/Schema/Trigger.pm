@@ -1,8 +1,6 @@
 package SQL::Translator::Schema::Trigger;
 
 # ----------------------------------------------------------------------
-# $Id: Trigger.pm 1444 2009-02-07 15:53:56Z ashberlin $
-# ----------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -55,7 +53,9 @@ use base 'SQL::Translator::Schema::Object';
 
 use Carp;
 
-use vars qw($TABLE_COUNT $VIEW_COUNT);
+use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
+
+$VERSION = '1.59';
 
 # ----------------------------------------------------------------------
 

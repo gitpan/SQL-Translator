@@ -1,8 +1,6 @@
 package SQL::Translator::Filter::Globals;
 
 # -------------------------------------------------------------------
-# $Id: Globals.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -58,7 +56,7 @@ SQL::Translator::Filter::Globals - Add global fields and indices to all tables.
 
 use strict;
 use vars qw/$VERSION/;
-$VERSION=0.1;
+$VERSION = '1.59';
 
 sub filter {
     my $schema = shift;

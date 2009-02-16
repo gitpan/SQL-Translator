@@ -1,8 +1,6 @@
 package SQL::Translator::Schema::Procedure;
 
 # ----------------------------------------------------------------------
-# $Id: Procedure.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# ----------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -51,6 +49,10 @@ use strict;
 use SQL::Translator::Utils 'parse_list_arg';
 
 use base 'SQL::Translator::Schema::Object';
+
+use vars qw($VERSION);
+
+$VERSION = '1.59';
 
 # ----------------------------------------------------------------------
 

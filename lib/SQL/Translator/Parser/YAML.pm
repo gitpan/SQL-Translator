@@ -1,8 +1,6 @@
 package SQL::Translator::Parser::YAML;
 
 # -------------------------------------------------------------------
-# $Id: YAML.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -21,6 +19,8 @@ package SQL::Translator::Parser::YAML;
 # -------------------------------------------------------------------
 
 use strict;
+use vars qw($VERSION);
+$VERSION = '1.59';
 
 use SQL::Translator::Schema;
 use SQL::Translator::Utils qw(header_comment);

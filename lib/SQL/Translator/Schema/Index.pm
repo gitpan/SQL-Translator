@@ -1,8 +1,6 @@
 package SQL::Translator::Schema::Index;
 
 # ----------------------------------------------------------------------
-# $Id: Index.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# ----------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -51,7 +49,9 @@ use SQL::Translator::Utils 'parse_list_arg';
 
 use base 'SQL::Translator::Schema::Object';
 
-use vars qw($TABLE_COUNT $VIEW_COUNT);
+use vars qw($VERSION $TABLE_COUNT $VIEW_COUNT);
+
+$VERSION = '1.59';
 
 my %VALID_INDEX_TYPE = (
   UNIQUE         => 1,

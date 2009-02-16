@@ -1,8 +1,6 @@
 package SQL::Translator::Producer;
 
 # -------------------------------------------------------------------
-# $Id: Producer.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-4 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -21,6 +19,8 @@ package SQL::Translator::Producer;
 # -------------------------------------------------------------------
 
 use strict;
+use vars qw($VERSION);
+$VERSION = '1.59';
 
 sub produce { "" }
 

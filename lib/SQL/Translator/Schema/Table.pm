@@ -1,8 +1,6 @@
 package SQL::Translator::Schema::Table;
 
 # ----------------------------------------------------------------------
-# $Id: Table.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# ----------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -49,7 +47,9 @@ use Data::Dumper;
 
 use base 'SQL::Translator::Schema::Object';
 
-use vars qw( $FIELD_ORDER );
+use vars qw( $VERSION $FIELD_ORDER );
+
+$VERSION = '1.59';
 
 # Stringify to our name, being careful not to pass any args through so we don't
 # accidentally set it to undef. We also have to tweak bool so the object is

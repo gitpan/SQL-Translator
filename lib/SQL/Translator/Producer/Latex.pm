@@ -1,8 +1,6 @@
 package SQL::Translator::Producer::Latex;
 
 # -------------------------------------------------------------------
-# $Id: Latex.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-6 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -58,7 +56,8 @@ automatically arrange them horizontally or vertically.
 
 use strict;
 
-use vars qw[ $DEBUG @EXPORT_OK ];
+use vars qw[ $DEBUG $VERSION @EXPORT_OK ];
+$VERSION = '1.59';
 $DEBUG   = 0 unless defined $DEBUG;
 
 use SQL::Translator::Utils 'debug';

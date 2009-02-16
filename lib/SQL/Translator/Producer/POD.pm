@@ -1,8 +1,6 @@
 package SQL::Translator::Producer::POD;
 
 # -------------------------------------------------------------------
-# $Id: POD.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -41,6 +39,8 @@ interesting formats using Pod::POM or Template::Toolkit's POD plugin.
 =cut
 
 use strict;
+use vars qw[ $VERSION ];
+$VERSION = '1.59';
 
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(header_comment);

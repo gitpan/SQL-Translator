@@ -1,8 +1,6 @@
 package SQL::Translator::Schema::Constants;
 
 # ----------------------------------------------------------------------
-# $Id: Constants.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# ----------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -61,8 +59,9 @@ This module exports the following constants for Schema features;
 
 use strict;
 use base qw( Exporter );
-use vars qw( @EXPORT );
+use vars qw( @EXPORT $VERSION );
 require Exporter;
+$VERSION = '1.59';
 
 @EXPORT = qw[ 
     CHECK_C

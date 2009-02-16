@@ -1,8 +1,6 @@
 package Test::SQL::Translator;
 
 # ----------------------------------------------------------------------
-# $Id: Translator.pm 1442 2009-01-29 16:29:37Z jawnsy $
-# ----------------------------------------------------------------------
 # Copyright (C) 2003 The SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -34,7 +32,7 @@ use warnings;
 use base qw(Exporter);
 
 use vars qw($VERSION @EXPORT @EXPORT_OK);
-$VERSION = 1.8;
+$VERSION = '1.59';
 @EXPORT = qw(
     schema_ok
     table_ok

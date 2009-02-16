@@ -1,8 +1,6 @@
 package SQL::Translator::Producer::TT::Base;
 
 # -------------------------------------------------------------------
-# $Id: Base.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -31,7 +29,8 @@ class.
 
 use strict;
 
-use vars qw[ @EXPORT_OK ];
+use vars qw[ $VERSION @EXPORT_OK ];
+$VERSION = '1.59';
 
 use Template;
 use Data::Dumper;

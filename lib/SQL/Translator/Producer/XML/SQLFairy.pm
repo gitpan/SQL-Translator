@@ -1,8 +1,6 @@
 package SQL::Translator::Producer::XML::SQLFairy;
 
 # -------------------------------------------------------------------
-# $Id: SQLFairy.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
 #                    darren chamberlain <darren@cpan.org>,
 #                    Chris Mungall <cjm@fruitfly.org>,
@@ -164,7 +162,8 @@ To convert your old format files simply pass them through the translator :)
 =cut
 
 use strict;
-use vars qw[ @EXPORT_OK ];
+use vars qw[ $VERSION @EXPORT_OK ];
+$VERSION = '1.59';
 
 use Exporter;
 use base qw(Exporter);

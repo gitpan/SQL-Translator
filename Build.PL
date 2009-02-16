@@ -1,5 +1,3 @@
-# $Id: Build.PL 1434 2009-01-17 15:32:51Z jawnsy $
-
 use strict;
 use lib './lib';
 use Module::Build;
@@ -25,7 +23,6 @@ my $builder = Module::Build->new(
     'Class::MakeMethods'       => 0,
     'Digest::SHA1'             => 2.00,
     'IO::Dir'                  => 0,
-    'Log::Log4perl'            => 0,
     'Parse::RecDescent'        => 1.94,
     'Pod::Usage'               => 0,
     'Class::Accessor::Fast'    => 0,

@@ -1,8 +1,6 @@
 package SQL::Translator::Producer::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -101,7 +99,8 @@ Set the fields charater set and collation order.
 
 use strict;
 use warnings;
-use vars qw[ $DEBUG %used_names ];
+use vars qw[ $VERSION $DEBUG %used_names ];
+$VERSION = '1.59';
 $DEBUG   = 0 unless defined $DEBUG;
 
 # Maximum length for most identifiers is 64, according to:
@@ -139,6 +138,11 @@ my %translate  = (
     'long integer' => 'integer',
     'text'         => 'text',
     'datetime'     => 'datetime',
+
+    #
+    # PostgreSQL types
+    #
+    bytea => 'BLOB',
 );
 
 

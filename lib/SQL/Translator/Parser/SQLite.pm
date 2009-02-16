@@ -1,8 +1,6 @@
 package SQL::Translator::Parser::SQLite;
 
 # -------------------------------------------------------------------
-# $Id: SQLite.pm 1445 2009-02-07 17:50:03Z ashberlin $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -151,7 +149,8 @@ like-op::=
 =cut
 
 use strict;
-use vars qw[ $DEBUG $GRAMMAR @EXPORT_OK ];
+use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
+$VERSION = '1.59';
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;

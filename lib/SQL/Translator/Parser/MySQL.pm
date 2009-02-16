@@ -1,8 +1,6 @@
 package SQL::Translator::Parser::MySQL;
 
 # -------------------------------------------------------------------
-# $Id: MySQL.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -148,7 +146,8 @@ More information about the MySQL comment-syntax: L<http://dev.mysql.com/doc/refm
 =cut
 
 use strict;
-use vars qw[ $DEBUG $GRAMMAR @EXPORT_OK ];
+use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
+$VERSION = '1.59';
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;

@@ -1,8 +1,6 @@
 package SQL::Translator::Producer::SQLite;
 
 # -------------------------------------------------------------------
-# $Id: SQLite.pm 1445 2009-02-07 17:50:03Z ashberlin $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -43,8 +41,9 @@ use Data::Dumper;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug header_comment);
 
-use vars qw[ $DEBUG $WARN ];
+use vars qw[ $VERSION $DEBUG $WARN ];
 
+$VERSION = '1.59';
 $DEBUG = 0 unless defined $DEBUG;
 $WARN = 0 unless defined $WARN;
 

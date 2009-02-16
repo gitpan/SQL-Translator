@@ -1,8 +1,6 @@
 package SQL::Translator::Schema::Object;
 
 # ----------------------------------------------------------------------
-# $Id: Object.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# ----------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -40,6 +38,11 @@ use Class::Base;
 use base 'Class::Data::Inheritable';
 use base 'Class::Base';
 use Class::MakeMethods::Utility::Ref qw( ref_compare );
+
+use vars qw[ $VERSION ];
+
+$VERSION = '1.59';
+
 
 =head1 Construction
 

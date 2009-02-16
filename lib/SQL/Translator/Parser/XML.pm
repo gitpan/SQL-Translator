@@ -1,8 +1,6 @@
 package SQL::Translator::Parser::XML;
 
 # -------------------------------------------------------------------
-# $Id: XML.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -43,7 +41,8 @@ Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
 # -------------------------------------------------------------------
 
 use strict;
-use vars qw[ $DEBUG ];
+use vars qw[ $VERSION $DEBUG ];
+$VERSION = '1.59';
 $DEBUG = 1 unless defined $DEBUG;
 
 use SQL::Translator::Parser::XML::SQLFairy;

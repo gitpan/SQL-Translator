@@ -1,8 +1,6 @@
 package SQL::Translator::Parser::DBI;
 
 # -------------------------------------------------------------------
-# $Id: DBI.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -120,7 +118,8 @@ query Oracle directly and skip the parsing of a text file, too.
 
 use strict;
 use DBI;
-use vars qw(@EXPORT);
+use vars qw($VERSION @EXPORT);
+$VERSION = '1.59';
 
 use constant DRIVERS => {
     mysql            => 'MySQL',

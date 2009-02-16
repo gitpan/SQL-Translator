@@ -6,7 +6,6 @@ bin/sqlt-diff-old
 bin/sqlt-dumper
 bin/sqlt-graph
 bin/sqlt.cgi
-bin/sqltsh
 BUGS
 Build.PL
 Changes
@@ -90,14 +89,12 @@ lib/SQL/Translator/Schema/Procedure.pm
 lib/SQL/Translator/Schema/Table.pm
 lib/SQL/Translator/Schema/Trigger.pm
 lib/SQL/Translator/Schema/View.pm
-lib/SQL/Translator/Shell.pm
 lib/SQL/Translator/Utils.pm
 lib/Test/SQL/Translator.pm
 LICENSE
 Makefile.PL
 MANIFEST			This list of files
 MANIFEST.SKIP
-META.yml
 README
 t/02mysql-parser.t
 t/03mysql-to-oracle.t
@@ -140,7 +137,6 @@ t/38-filter-names.t
 t/38-mysql-producer.t
 t/39-filter-globals.t
 t/40oracle-parser-dbi.t
-t/42shell.t
 t/43xml-to-db2.t
 t/44-xml-to-db2-array.t
 t/45db2-producer.t
@@ -186,3 +182,4 @@ t/data/xml/samefield.xml
 t/data/xml/schema.xml
 t/lib/Producer/BaseTest.pm
 TODO
+META.yml

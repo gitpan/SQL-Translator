@@ -1,8 +1,6 @@
 package SQL::Translator;
 
 # ----------------------------------------------------------------------
-# $Id: Translator.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# ----------------------------------------------------------------------
 # Copyright (C) 2002-2009 The SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -26,14 +24,13 @@ use base 'Class::Base';
 
 require 5.004;
 
-$VERSION  = '0.09003';
+$VERSION  = '0.09004';
 $DEBUG    = 0 unless defined $DEBUG;
 $ERROR    = "";
 
 use Carp qw(carp);
 
 use Data::Dumper;
-use Class::Base;
 use File::Find;
 use File::Spec::Functions qw(catfile);
 use File::Basename qw(dirname);

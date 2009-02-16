@@ -1,8 +1,6 @@
 package SQL::Translator::Producer::PostgreSQL;
 
 # -------------------------------------------------------------------
-# $Id: PostgreSQL.pm 1440 2009-01-17 16:31:57Z jawnsy $
-# -------------------------------------------------------------------
 # Copyright (C) 2002-2009 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
@@ -38,7 +36,8 @@ producer.
 
 use strict;
 use warnings;
-use vars qw[ $DEBUG $WARN %used_names ];
+use vars qw[ $DEBUG $WARN $VERSION %used_names ];
+$VERSION = '1.59';
 $DEBUG = 0 unless defined $DEBUG;
 
 use base qw(SQL::Translator::Producer);
