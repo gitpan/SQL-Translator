@@ -172,7 +172,7 @@ $ans = <<EOXML;
 <schema name="" database="" xmlns="http://sqlfairy.sourceforge.net/sqlfairy.xml">
   <extra />
   <tables>
-    <table name="Basic" order="2">
+    <table name="Basic" order="1">
       <extra />
       <fields></fields>
       <indices></indices>
@@ -182,7 +182,7 @@ $ans = <<EOXML;
   </tables>
   <views></views>
   <triggers>
-    <trigger name="foo_trigger" database_event="insert" on_table="Basic" perform_action_when="after" order="1">
+    <trigger name="foo_trigger" database_events="insert" on_table="Basic" perform_action_when="after" order="1">
       <action>update modified=timestamp();</action>
       <extra hello="world" />
     </trigger>
@@ -290,10 +290,10 @@ $ans = <<EOXML;
 <schema name="" database="" xmlns="http://sqlfairy.sourceforge.net/sqlfairy.xml">
   <extra />
   <tables>
-    <table name="Basic" order="3">
+    <table name="Basic" order="1">
       <extra />
       <fields>
-        <field name="foo" data_type="integer" size="10" is_nullable="1" is_auto_increment="0" is_primary_key="0" is_foreign_key="0" order="5">
+        <field name="foo" data_type="integer" size="10" is_nullable="1" is_auto_increment="0" is_primary_key="0" is_foreign_key="0" order="1">
           <extra ZEROFILL="1" />
           <comments></comments>
         </field>

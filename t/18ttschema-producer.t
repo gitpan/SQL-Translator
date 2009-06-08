@@ -17,8 +17,10 @@ use FindBin qw/$Bin/;
 
 BEGIN {
     eval {require Template;};
-        plan skip_all => "Template v2.15 is is incompatible with SQL::Translator 0.08+" 
-        if !$@ && Template->VERSION >= 2.15;
+
+    if ( $@ ) {
+        plan skip_all => 'Template not installed?'
+    }
 
     maybe_plan(6, 
         'XML::XPath', 
@@ -36,13 +38,12 @@ use SQL::Translator::Producer::TTSchema;
 {
     my $obj;
     $obj = SQL::Translator->new(
-        show_warnings  => 1,
+        show_warnings  => 0,
         from           => "XML-SQLFairy",
         filename       => "$Bin/data/xml/schema.xml",
         to             => "TTSchema",
         producer_args  => {
             ttfile  => "$Bin/data/template/basic.tt",
-#            ttfile  => "$Bin/data/template/test.tt",
             tt_vars => {
                 foo   => 'bar',
                 hello => 'world',
@@ -51,7 +52,6 @@ use SQL::Translator::Producer::TTSchema;
     );
     my $out;
     lives_ok { $out = $obj->translate; }  "Translate ran";
-#    print STDERR "Output: $out\n";
     ok $out ne ""                        ,"Produced something!";
     local $/ = undef; # slurp
     eq_or_diff $out, <DATA>              ,"Output looks right";
@@ -65,7 +65,7 @@ use SQL::Translator::Producer::TTSchema;
     [%- END %]};
     my $obj;
     $obj = SQL::Translator->new(
-        show_warnings  => 1,
+        show_warnings  => 0,
         from           => "XML-SQLFairy",
         filename       => "$Bin/data/xml/schema.xml",
         to             => "TTSchema",
@@ -146,7 +146,7 @@ Fields
     
     email
         data_type:             varchar
-        size:                  255
+        size:                  500
         is_nullable:           1
         default_value:         
         is_primary_key:        0
@@ -293,7 +293,7 @@ Fields
         is_foreign_key:        0
         foreign_key_reference: 
         is_valid:              1
-        order:                 10
+        order:                 1
         table:                 Another
     
 

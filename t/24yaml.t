@@ -153,7 +153,7 @@ schema:
           is_primary_key: 0
           is_unique: 0
           name: age
-          order: 10
+          order: 4
           size:
             - 0
         name:
@@ -164,7 +164,7 @@ schema:
           is_primary_key: 0
           is_unique: 0
           name: name
-          order: 9
+          order: 3
           size:
             - 30
         person_id:
@@ -175,7 +175,7 @@ schema:
           is_primary_key: 1
           is_unique: 0
           name: person_id
-          order: 8
+          order: 2
           size:
             - 0
         pet_id:
@@ -186,7 +186,7 @@ schema:
           is_primary_key: 1
           is_unique: 0
           name: pet_id
-          order: 7
+          order: 1
           size:
             - 0
       indices: []
@@ -200,7 +200,8 @@ schema:
         steps:
           - update pet set name=name
         when: ~
-      database_event: insert
+      database_events:
+        - insert
       fields: ~
       name: pet_trig
       on_table: pet
@@ -236,8 +237,6 @@ my $tr   = SQL::Translator->new(
     parser   => 'SQLite',
     producer => 'YAML',
     data     => $data,
-#    debug    => 1,
-#    trace    => 1,
 );
 
 my $out;

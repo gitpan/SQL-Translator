@@ -21,7 +21,7 @@ my $xmlfile = "$Bin/data/xml/schema.xml";
 my $sqlt;
 $sqlt = SQL::Translator->new(
     no_comments => 1,
-    show_warnings  => 1,
+    show_warnings  => 0,
     add_drop_table => 1,
 );
 
@@ -44,7 +44,7 @@ CREATE TABLE Basic (
   id INTEGER PRIMARY KEY NOT NULL,
   title varchar(100) NOT NULL DEFAULT 'hello',
   description text DEFAULT '',
-  email varchar(255),
+  email varchar(500),
   explicitnulldef varchar,
   explicitemptystring varchar DEFAULT '',
   -- Hello emptytagdef
@@ -53,9 +53,9 @@ CREATE TABLE Basic (
   timest timestamp
 );
 
-CREATE INDEX titleindex_Basic ON Basic (title);
+CREATE INDEX titleindex ON Basic (title);
 
-CREATE UNIQUE INDEX emailuniqueindex_Basic ON Basic (email);
+CREATE UNIQUE INDEX emailuniqueindex ON Basic (email);
 
 DROP TABLE Another;
 
@@ -65,11 +65,19 @@ CREATE TABLE Another (
 
 DROP VIEW IF EXISTS email_list;
 CREATE VIEW email_list AS
-    SELECT email FROM Basic WHERE email IS NOT NULL;
+    SELECT email FROM Basic WHERE (email IS NOT NULL);
 
 DROP TRIGGER IF EXISTS foo_trigger;
 
 CREATE TRIGGER foo_trigger after insert on Basic BEGIN update modified=timestamp(); END;
+
+DROP TRIGGER IF EXISTS bar_trigger_insert;
+
+CREATE TRIGGER bar_trigger_insert before insert on Basic BEGIN update modified2=timestamp(); END;
+
+DROP TRIGGER IF EXISTS bar_trigger_update;
+
+CREATE TRIGGER bar_trigger_update before update on Basic BEGIN update modified2=timestamp(); END;
 
 COMMIT;
 SQL
@@ -89,7 +97,7 @@ eq_or_diff(\@sql,
   id INTEGER PRIMARY KEY NOT NULL,
   title varchar(100) NOT NULL DEFAULT \'hello\',
   description text DEFAULT \'\',
-  email varchar(255),
+  email varchar(500),
   explicitnulldef varchar,
   explicitemptystring varchar DEFAULT \'\',
   -- Hello emptytagdef
@@ -97,18 +105,23 @@ eq_or_diff(\@sql,
   another_id int(10) DEFAULT \'2\',
   timest timestamp
 )',
-          'CREATE INDEX titleindex_Basic02 ON Basic (title)',
-          'CREATE UNIQUE INDEX emailuniqueindex_Basic02 ON Basic (email)',
+          'CREATE INDEX titleindex ON Basic (title)',
+          'CREATE UNIQUE INDEX emailuniqueindex ON Basic (email)',
           'DROP TABLE Another',
           'CREATE TABLE Another (
   id INTEGER PRIMARY KEY NOT NULL
 )',
           'DROP VIEW IF EXISTS email_list;
 CREATE VIEW email_list AS
-    SELECT email FROM Basic WHERE email IS NOT NULL',
+    SELECT email FROM Basic WHERE (email IS NOT NULL)',
           'DROP TRIGGER IF EXISTS foo_trigger',
           'CREATE TRIGGER foo_trigger after insert on Basic BEGIN update modified=timestamp(); END',
-          'COMMIT'
+          'DROP TRIGGER IF EXISTS bar_trigger_insert',
+          'CREATE TRIGGER bar_trigger_insert before insert on Basic BEGIN update modified2=timestamp(); END',
+          'DROP TRIGGER IF EXISTS bar_trigger_update',
+          'CREATE TRIGGER bar_trigger_update before update on Basic BEGIN update modified2=timestamp(); END',
+          'COMMIT',
+
           ], 'SQLite translate in list context matches');
 
 

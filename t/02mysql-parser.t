@@ -11,17 +11,18 @@ use SQL::Translator::Utils qw//;
 use Test::SQL::Translator qw(maybe_plan);
 
 BEGIN {
-    maybe_plan(265, "SQL::Translator::Parser::MySQL");
+    maybe_plan(317, "SQL::Translator::Parser::MySQL");
     SQL::Translator::Parser::MySQL->import('parse');
 }
 
 {
     my $tr = SQL::Translator->new;
-    my $data = q|create table sessions (
+    my $data = q|create table "sessions" (
         id char(32) not null default '0' primary key,
         a_session text,
         ssn varchar(12) unique key,
-        age int key
+        age int key,
+        fulltext key `session_fulltext` (a_session)
     );|;
 
     my $val = parse($tr, $data);
@@ -51,7 +52,9 @@ BEGIN {
     is( $f2->is_primary_key, 0, 'Field is not PK' );
 
     my @indices = $table->get_indices;
-    is( scalar @indices, 1, 'Right number of indices (1)' );
+    is( scalar @indices, 2, 'Right number of indices (2)' );
+    my $i = pop @indices;
+    is( $i->type, 'FULLTEXT', 'Found fulltext' );
 
     my @constraints = $table->get_constraints;
     is( scalar @constraints, 2, 'Right number of constraints (2)' );
@@ -67,7 +70,7 @@ BEGIN {
     my $tr = SQL::Translator->new;
     my $data = parse($tr, 
         q[
-            CREATE TABLE check (
+            CREATE TABLE `check` (
               check_id int(7) unsigned zerofill NOT NULL default '0000000' 
                 auto_increment primary key,
               successful date NOT NULL default '0000-00-00',
@@ -507,6 +510,32 @@ BEGIN {
 				`m`.`user_id` AS `user_access` 
 				from (`asset` `a` join `M_ACCESS_CONTROL` `m` on((`a`.`acl_id` = `m`.`acl_id`))) */;
 			DELIMITER ;;
+			/*!50001 CREATE */
+			/*! VIEW `vs_asset2` AS 
+				select `a`.`asset_id` AS `asset_id`,`a`.`fq_name` AS `fq_name`,
+				`cfgmgmt_mig`.`ap_extract_folder`(`a`.`fq_name`) AS `folder_name`,
+				`cfgmgmt_mig`.`ap_extract_asset`(`a`.`fq_name`) AS `asset_name`,
+				`a`.`annotation` AS `annotation`,`a`.`asset_type` AS `asset_type`,
+				`a`.`foreign_asset_id` AS `foreign_asset_id`,
+				`a`.`foreign_asset_id2` AS `foreign_asset_id2`,`a`.`dateCreated` AS `date_created`,
+				`a`.`dateModified` AS `date_modified`,`a`.`container_id` AS `container_id`,
+				`a`.`creator_id` AS `creator_id`,`a`.`modifier_id` AS `modifier_id`,
+				`m`.`user_id` AS `user_access` 
+				from (`asset` `a` join `M_ACCESS_CONTROL` `m` on((`a`.`acl_id` = `m`.`acl_id`))) */;
+			DELIMITER ;;
+			/*!50001 CREATE OR REPLACE */
+			/*! VIEW `vs_asset3` AS 
+				select `a`.`asset_id` AS `asset_id`,`a`.`fq_name` AS `fq_name`,
+				`cfgmgmt_mig`.`ap_extract_folder`(`a`.`fq_name`) AS `folder_name`,
+				`cfgmgmt_mig`.`ap_extract_asset`(`a`.`fq_name`) AS `asset_name`,
+				`a`.`annotation` AS `annotation`,`a`.`asset_type` AS `asset_type`,
+				`a`.`foreign_asset_id` AS `foreign_asset_id`,
+				`a`.`foreign_asset_id2` AS `foreign_asset_id2`,`a`.`dateCreated` AS `date_created`,
+				`a`.`dateModified` AS `date_modified`,`a`.`container_id` AS `container_id`,
+				`a`.`creator_id` AS `creator_id`,`a`.`modifier_id` AS `modifier_id`,
+				`m`.`user_id` AS `user_access` 
+				from (`asset` `a` join `M_ACCESS_CONTROL` `m` on((`a`.`acl_id` = `m`.`acl_id`))) */;
+			DELIMITER ;;
 			/*!50003 CREATE*/ /*!50020 DEFINER=`cmdomain`@`localhost`*/ /*!50003 FUNCTION `ap_from_millitime_nullable`( millis_since_1970 BIGINT ) RETURNS timestamp
     			DETERMINISTIC
 				BEGIN
@@ -589,9 +618,11 @@ BEGIN {
     is( $t1f2->extra('on update'), 'CURRENT_TIMESTAMP', 'Field has right on update qualifier' );
     
     my @views = $schema->get_views;
-    is( scalar @views, 1, 'Right number of views (1)' );
-    my $view1 = shift @views;
+    is( scalar @views, 3, 'Right number of views (3)' );
+    my ($view3, $view1, $view2) = @views;
     is( $view1->name, 'vs_asset', 'Found "vs_asset" view' );
+    is( $view2->name, 'vs_asset2', 'Found "vs_asset2" view' );
+    is( $view3->name, 'vs_asset3', 'Found "vs_asset3" view' );
 	like($view1->sql, qr/ALGORITHM=UNDEFINED/, "Detected algorithm");
 	like($view1->sql, qr/vs_asset/, "Detected view vs_asset");
 	unlike($view1->sql, qr/cfgmgmt_mig/, "Did not detect cfgmgmt_mig");
@@ -725,4 +756,96 @@ ok ($@, 'Exception thrown on invalid version string');
     my $c = shift @constraints;
     is( $c->type, PRIMARY_KEY, 'Constraint is a PK' );
     is( join(',', $c->fields), 'id', 'Constraint is on "id"' );
+}
+
+{
+    my @data = (
+        q|create table quote (
+            id int(11) NOT NULL auto_increment,
+            PRIMARY KEY (id)
+        ) ENGINE="innodb";|,
+        q|create table quote (
+            id int(11) NOT NULL auto_increment,
+            PRIMARY KEY (id)
+        ) ENGINE='innodb';|,
+        q|create table quote (
+            id int(11) NOT NULL auto_increment,
+            PRIMARY KEY (id)
+        ) ENGINE=innodb;|,
+    );
+    for my $data (@data) {
+        my $tr = SQL::Translator->new;
+
+        my $val = parse($tr, $data);
+        my $schema = $tr->schema;
+        is( $schema->is_valid, 1, 'Schema is valid' );
+        my @tables = $schema->get_tables;
+        is( scalar @tables, 1, 'Right number of tables (1)' );
+        my $table  = shift @tables;
+        is( $table->name, 'quote', 'Found "quote" table' );
+
+        my $tableTypeFound = 0;
+        for my $t_option_ref ( $table->options ) {
+        my($key, $value) = %{$t_option_ref};
+        if ( $key eq 'ENGINE' ) {
+            is($value, 'innodb', 'Table has right table engine option' );
+            $tableTypeFound = 1;
+        }
+        }
+
+        fail('Table did not have a type option') unless $tableTypeFound;
+
+        my @fields = $table->get_fields;
+        my $f1 = shift @fields;
+        is( $f1->name, 'id', 'First field name is "id"' );
+        is( $f1->data_type, 'int', 'Type is "int"' );
+        is( $f1->size, 11, 'Size is "11"' );
+        is( $f1->is_nullable, 0, 'Field cannot be null' );
+        is( $f1->is_primary_key, 1, 'Field is PK' );
+    }
+}
+
+{
+    my $tr = SQL::Translator->new;
+    my $data = q|create table "sessions" (
+        id char(32) not null default '0' primary key,
+        ssn varchar(12) NOT NULL default 'test single quotes like in you''re',
+        user varchar(20) NOT NULL default 'test single quotes escaped like you\'re',
+    );|;
+
+    my $val = parse($tr, $data);
+    my $schema = $tr->schema;
+    is( $schema->is_valid, 1, 'Schema is valid' );
+    my @tables = $schema->get_tables;
+    is( scalar @tables, 1, 'Right number of tables (1)' );
+    my $table  = shift @tables;
+    is( $table->name, 'sessions', 'Found "sessions" table' );
+
+    my @fields = $table->get_fields;
+    is( scalar @fields, 3, 'Right number of fields (3)' );
+    my $f1 = shift @fields;
+    my $f2 = shift @fields;
+    my $f3 = shift @fields;
+    is( $f1->name, 'id', 'First field name is "id"' );
+    is( $f1->data_type, 'char', 'Type is "char"' );
+    is( $f1->size, 32, 'Size is "32"' );
+    is( $f1->is_nullable, 0, 'Field cannot be null' );
+    is( $f1->default_value, '0', 'Default value is "0"' );
+    is( $f1->is_primary_key, 1, 'Field is PK' );
+
+    is( $f2->name, 'ssn', 'Second field name is "ssn"' );
+    is( $f2->data_type, 'varchar', 'Type is "varchar"' );
+    is( $f2->size, 12, 'Size is "12"' );
+    is( $f2->is_nullable, 0, 'Field can not be null' );
+    is( $f2->default_value, "test single quotes like in you''re", "Single quote in default value is escaped properly" );
+    is( $f2->is_primary_key, 0, 'Field is not PK' );
+
+    # this is more of a sanity test because the original sqlt regex for default looked for an escaped quote represented as \'
+    # however in mysql 5.x (and probably other previous versions) still actually outputs that as '' 
+    is( $f3->name, 'user', 'Second field name is "user"' );
+    is( $f3->data_type, 'varchar', 'Type is "varchar"' );
+    is( $f3->size, 20, 'Size is "20"' );
+    is( $f3->is_nullable, 0, 'Field can not be null' );
+    is( $f3->default_value, "test single quotes escaped like you\\'re", "Single quote in default value is escaped properly" );
+    is( $f3->is_primary_key, 0, 'Field is not PK' );
 }

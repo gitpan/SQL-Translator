@@ -19,7 +19,7 @@ use FindBin qw/$Bin/;
 #=============================================================================
 
 BEGIN {
-    maybe_plan(32,
+    maybe_plan(40,
         'YAML',
         'SQL::Translator::Producer::MySQL',
         'Test::Differences',
@@ -74,7 +74,7 @@ schema:
           name: idx_unique_name
 
     thing2:
-      name: thing2
+      name: some.thing2
       extra:
       order: 2
       fields:
@@ -142,8 +142,8 @@ my @stmts = (
   UNIQUE `idx_unique_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_danish_ci",
 
-"DROP TABLE IF EXISTS `thing2`",
-"CREATE TABLE `thing2` (
+"DROP TABLE IF EXISTS `some`.`thing2`",
+"CREATE TABLE `some`.`thing2` (
   `id` integer,
   `foo` integer,
   `foo2` integer,
@@ -399,4 +399,48 @@ is (
     SELECT id, name FROM thing
   )";
   is($view1_sql2, $view_sql_noreplace, 'correct "CREATE VIEW" SQL');
+  
+  {
+    my %extra = $view1->extra;
+    is_deeply \%extra,
+      {
+        'mysql_algorithm' => 'MERGE',
+        'mysql_definer'   => 'CURRENT_USER',
+        'mysql_security'  => 'DEFINER'
+      },
+      'Extra attributes';
+  }
+
+  $view1->remove_extra(qw/mysql_definer mysql_security/);
+  {
+    my %extra = $view1->extra;
+    is_deeply \%extra, { 'mysql_algorithm' => 'MERGE', }, 'Extra attributes after first reset_extra call';
+  }
+
+  $view1->remove_extra();
+  {
+    my %extra = $view1->extra;
+    is_deeply \%extra, {}, 'Extra attributes completely removed';
+  }
+}
+
+{
+
+    # certain types do not support a size, see also:
+    # http://dev.mysql.com/doc/refman/5.1/de/create-table.html
+    for my $type (qw/date time timestamp datetime year/) {
+        my $field = SQL::Translator::Schema::Field->new(
+            name              => "my$type",
+            table             => $table,
+            data_type         => $type,
+            size              => 10,
+            default_value     => undef,
+            is_auto_increment => 0,
+            is_nullable       => 1,
+            is_foreign_key    => 0,
+            is_unique         => 0
+        );
+        my $sql = SQL::Translator::Producer::MySQL::create_field($field);
+        is($sql, "my$type $type", "Skip length param for type $type");
+    }
 }

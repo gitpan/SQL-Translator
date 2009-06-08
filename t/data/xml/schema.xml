@@ -24,7 +24,7 @@ Created on Fri Aug 15 15:08:18 2003
           <field
               name="description"
               size="0" data_type="text" order="3" default_value="" />
-          <field name="email" size="255" data_type="varchar" order="4">
+          <field name="email" size="500" data_type="varchar" order="4">
               <extra foo="bar" hello="world" bar="baz" />
           </field>
           <field name="explicitnulldef" size="0" data_type="varchar" order="5" />
@@ -86,7 +86,7 @@ Created on Fri Aug 15 15:08:18 2003
 
   <views>
       <view name="email_list" fields="email" order="1">
-          <sql>SELECT email FROM Basic WHERE email IS NOT NULL</sql>
+          <sql>SELECT email FROM Basic WHERE (email IS NOT NULL)</sql>
           <extra foo="bar" hello="world" bar="baz" />
       </view>
   </views>
@@ -96,6 +96,11 @@ Created on Fri Aug 15 15:08:18 2003
           perform_action_when="after" order="1">
           <action>update modified=timestamp();</action>
           <extra foo="bar" hello="world" bar="baz" />
+      </trigger>
+      <trigger name="bar_trigger" database_events="insert , update" on_table="Basic"
+          perform_action_when="before" order="1">
+          <action>update modified2=timestamp();</action>
+          <extra hello="aliens" />
       </trigger>
   </triggers>
 

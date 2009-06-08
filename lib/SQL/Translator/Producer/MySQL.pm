@@ -45,7 +45,7 @@ provides the desired version for the target database. By default MySQL v3 is
 assumed, and statements pertaining to any features introduced in later versions
 (e.g. CREATE VIEW) are not produced.
 
-Valid version specifiers for C<mysql_parser_version> are listed L<here|SQL::Translator::Utils/parse_mysql_version> 
+Valid version specifiers for C<mysql_version> are listed L<here|SQL::Translator::Utils/parse_mysql_version> 
 
 =head2 Table Types
 
@@ -144,6 +144,13 @@ my %translate  = (
     #
     bytea => 'BLOB',
 );
+
+#
+# Column types that do not support lenth attribute
+#
+my @no_length_attr = qw/
+  date time timestamp datetime year
+  /;
 
 
 sub preprocess_schema {
@@ -369,7 +376,7 @@ sub create_table
     my $qt = $options->{quote_table_names} || '';
     my $qf = $options->{quote_field_names} || '';
 
-    my $table_name = $table->name;
+    my $table_name = quote_table_name($table->name, $qt);
     debug("PKG: Looking at table '$table_name'\n");
 
     #
@@ -377,9 +384,9 @@ sub create_table
     #
     my $create = '';
     my $drop;
-    $create .= "--\n-- Table: $qt$table_name$qt\n--\n" unless $options->{no_comments};
-    $drop = qq[DROP TABLE IF EXISTS $qt$table_name$qt] if $options->{add_drop_table};
-    $create .= "CREATE TABLE $qt$table_name$qt (\n";
+    $create .= "--\n-- Table: $table_name\n--\n" unless $options->{no_comments};
+    $drop = qq[DROP TABLE IF EXISTS $table_name] if $options->{add_drop_table};
+    $create .= "CREATE TABLE $table_name (\n";
 
     #
     # Fields
@@ -426,6 +433,14 @@ sub create_table
 #    $create .= ";\n\n";
 
     return $drop ? ($drop,$create) : $create;
+}
+
+sub quote_table_name {
+  my ($table_name, $qt) = @_;
+
+  $table_name =~ s/\./$qt.$qt/g;
+
+  return "$qt$table_name$qt";
 }
 
 sub generate_table_options 
@@ -539,7 +554,7 @@ sub create_field
     if ( lc($data_type) eq 'enum' || lc($data_type) eq 'set') {
         $field_def .= '(' . $commalist . ')';
     }
-    elsif ( defined $size[0] && $size[0] > 0 ) {
+    elsif ( defined $size[0] && $size[0] > 0 && ! grep $data_type eq $_, @no_length_attr  ) {
         $field_def .= '(' . join( ', ', @size ) . ')';
     }
 
@@ -604,9 +619,15 @@ sub create_index
     my $qf = $options->{quote_field_names} || '';
 
     return join( ' ', 
-                 lc $index->type eq 'normal' ? 'INDEX' : $index->type . ' INDEX',
-                 truncate_id_uniquely( $index->name, $options->{max_id_length} || $DEFAULT_MAX_ID_LENGTH ),
-                 '(' . $qf . join( "$qf, $qf", $index->fields ) . $qf . ')'
+                  lc $index->type eq 'normal' 
+                    ? 'INDEX' 
+                    : $index->type . ' INDEX'
+                  ,
+                  $index->name 
+                    ? (truncate_id_uniquely( $index->name, $options->{max_id_length} || $DEFAULT_MAX_ID_LENGTH ) )
+                    : ()
+                  ,
+                  '(' . $qf . join( "$qf, $qf", $index->fields ) . $qf . ')'
                  );
 
 }

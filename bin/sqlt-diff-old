@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 # vim: set ft=perl:
 
 # -------------------------------------------------------------------
@@ -89,6 +89,7 @@ your target database.
 # -------------------------------------------------------------------
 
 use strict;
+use warnings;
 use Pod::Usage;
 use Data::Dumper;
 use SQL::Translator;
@@ -118,6 +119,15 @@ for my $arg ( @ARGV ) {
 
 pod2usage(1) if $help;
 pod2usage('Please specify only two schemas to diff') if scalar @input > 2;
+pod2usage('No input') if !@input;
+
+if ( my $interactive = -t STDIN && -t STDOUT ) {
+    print STDERR join("\n",
+        "sqlt-diff-old is deprecated. Please sqlt-diff, and tell us ",
+        "about any problems or patch SQL::Translator::Diff",
+        '',
+    );
+}
 
 my $tr            = SQL::Translator->new;
 my @parsers       = $tr->list_parsers;
@@ -451,8 +461,6 @@ if ( @diffs ) {
     }
 }
 
-print STDERR "sqlt-diff-old is deprecated, please try and use sqlt-diff, and tell us about any problems or patch SQL::Translator::Diff\n";
-    
 if ( @diffs ) {
     print join( "\n", 
         "-- Convert schema '$s2_name' to '$s1_name':\n", @diffs, "\n"
@@ -541,7 +549,7 @@ sub constraint_to_string {
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>.
 
 =head1 SEE ALSO
 

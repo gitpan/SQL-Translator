@@ -190,8 +190,8 @@ sub produce {
     my $qf = '';
     $qf = '"' if ($translator->quote_field_names);
     
-    my $output;
-    $output .= header_comment unless ($no_comments);
+    my @output;
+    push @output, header_comment unless ($no_comments);
 
     my (@table_defs, @fks);
     for my $table ( $schema->get_tables ) {
@@ -216,10 +216,10 @@ sub produce {
       });
     }
 
-    $output  = join(";\n\n", @table_defs) . ";\n\n";
+    push @output, map { "$_;\n\n" } @table_defs;
     if ( @fks ) {
-        $output .= "--\n-- Foreign Key Definitions\n--\n\n" unless $no_comments;
-        $output .= join( ";\n\n", @fks ) . ";\n";
+        push @output, "--\n-- Foreign Key Definitions\n--\n\n" unless $no_comments;
+        push @output, map { "$_;\n\n" } @fks;
     }
 
     if ( $WARN ) {
@@ -235,7 +235,9 @@ sub produce {
         }
     }
 
-    return $output;
+    return wantarray
+        ? @output
+        : join ('', @output);
 }
 
 # -------------------------------------------------------------------
@@ -327,7 +329,6 @@ sub create_table
     my $postgres_version = $options->{postgres_version} || 0;
 
     my $table_name = $table->name or next;
-    $table_name    = mk_name( $table_name, '', undef, 1 );
     my ( $fql_tbl_name ) = ( $table_name =~ s/\W(.*)$// ) ? $1 : q{};
     my $table_name_ur = $qt ? $table_name
         : $fql_tbl_name ? join('.', $table_name, unreserve($fql_tbl_name))
@@ -403,14 +404,14 @@ sub create_table
     if ($add_drop_table) {
         if ($postgres_version >= 8.2) {
             $create_statement .= qq[DROP TABLE IF EXISTS $qt$table_name_ur$qt CASCADE;\n];
-            $create_statement .= join ("\n", @type_drops) . "\n"
-                if $postgres_version >= 8.3;
+            $create_statement .= join (";\n", @type_drops) . ";\n"
+                if $postgres_version >= 8.3 && scalar @type_drops;
         } else {
             $create_statement .= qq[DROP TABLE $qt$table_name_ur$qt CASCADE;\n];
         }
     }
-    $create_statement .= join("\n", @type_defs) . "\n"
-        if $postgres_version >= 8.3;
+    $create_statement .= join(";\n", @type_defs) . ";\n"
+        if $postgres_version >= 8.3 && scalar @type_defs;
     $create_statement .= qq[CREATE ${temporary}TABLE $qt$table_name_ur$qt (\n].
                             join( ",\n", map { "  $_" } @field_defs, @constraint_defs ).
                             "\n)"
@@ -447,7 +448,7 @@ sub create_view {
     }
 
     if ( my $sql = $view->sql ) {
-        $create .= " AS (\n    ${sql}\n  )";
+        $create .= " AS\n    ${sql}\n";
     }
 
     if ( $extra->{check_option} ) {
@@ -474,9 +475,7 @@ sub create_view {
         my $type_drops = $options->{type_drops} || [];
 
         $field_name_scope{$table_name} ||= {};
-        my $field_name    = mk_name(
-                                    $field->name, '', $field_name_scope{$table_name}, 1 
-                                    );
+        my $field_name    = $field->name;
         my $field_name_ur = $qf ? $field_name : unreserve($field_name, $table_name );
         $field->name($field_name_ur);
         my $field_comments = $field->comments 
@@ -737,6 +736,12 @@ sub alter_field
                        $to_field->name) if(!$to_field->is_nullable and
                                            $from_field->is_nullable);
 
+    push @out, sprintf('ALTER TABLE %s ALTER COLUMN %s DROP NOT NULL',
+                      $to_field->table->name,
+                      $to_field->name)
+       if ( !$from_field->is_nullable and $to_field->is_nullable );
+
+
     my $from_dt = convert_datatype($from_field);
     my $to_dt   = convert_datatype($to_field);
     push @out, sprintf('ALTER TABLE %s ALTER COLUMN %s TYPE %s',
@@ -751,12 +756,32 @@ sub alter_field
 
     my $old_default = $from_field->default_value;
     my $new_default = $to_field->default_value;
+    my $default_value = $to_field->default_value;
+    
+    # fixes bug where output like this was created:
+    # ALTER TABLE users ALTER COLUMN column SET DEFAULT ThisIsUnescaped;
+    if(ref $default_value eq "SCALAR" ) {
+        $default_value = $$default_value;
+    } elsif( defined $default_value && $to_dt =~ /^(character|text)/xsmi ) {
+        $default_value =~ s/'/''/xsmg;
+        $default_value = q(') . $default_value . q(');
+    }
+    
     push @out, sprintf('ALTER TABLE %s ALTER COLUMN %s SET DEFAULT %s',
                        $to_field->table->name,
                        $to_field->name,
-                       $to_field->default_value)
+                       $default_value)
         if ( defined $new_default &&
              (!defined $old_default || $old_default ne $new_default) );
+
+     # fixes bug where removing the DEFAULT statement of a column
+     # would result in no change
+    
+     push @out, sprintf('ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT',
+                       $to_field->table->name,
+                       $to_field->name)
+        if ( !defined $new_default && defined $old_default );
+    
 
     return wantarray ? @out : join("\n", @out);
 }
@@ -836,9 +861,16 @@ sub alter_drop_constraint {
 sub alter_create_constraint {
     my ($index, $options) = @_;
     my $qt = $options->{quote_table_names} || '';
-    return $index->type eq FOREIGN_KEY ? join(q{}, @{create_constraint(@_)})
+    my ($defs, $fks) = create_constraint(@_);
+    
+    # return if there are no constraint definitions so we don't run
+    # into output like this:
+    # ALTER TABLE users ADD ;
+        
+    return unless(@{$defs} || @{$fks});
+    return $index->type eq FOREIGN_KEY ? join(q{}, @{$fks})
         : join( ' ', 'ALTER TABLE', $qt.$index->table->name.$qt,
-              'ADD', join(q{}, map { @{$_} } create_constraint(@_))
+              'ADD', join(q{}, @{$defs}, @{$fks})
           );
 }
 
