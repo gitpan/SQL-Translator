@@ -8,26 +8,25 @@ my $deps = {
     'Class::Data::Inheritable' => 0.02,
     'Class::MakeMethods'       => 0,
     'Digest::SHA1'             => 2.00,
-    'Carp::Clan',              => 0,
+    'Carp::Clan'               => 0,
     'IO::Dir'                  => 0,
+    'IO::Scalar'               => 2.110,
     'Parse::RecDescent'        => 1.096000,   # PBP ftw
     'Pod::Usage'               => 0,
     'Class::Accessor::Fast'    => 0,
     'DBI'                      => 0,
     'File::ShareDir'           => 1.0,
     'File::Spec'               => 0,
+    'XML::Writer'              => 0.500,
   },
   recommends => {
     'Template'                => 2.10,
     'GD'                      => 0,
     'GraphViz'                => 0,
     'Graph::Directed'         => 0,
-    'IO::File'                => 0,
-    'IO::Scalar'              => 0,
     'Spreadsheet::ParseExcel' => 0.41,
     'Text::ParseWords'        => 0,
     'Text::RecordParser'      => 0.02,
-    'XML::Writer'             => 0.500,
     'XML::LibXML'             => 1.61,
   },
   test_requires => {
@@ -63,12 +62,12 @@ for my $type (qw/requires recommends test_requires/) {
 tests_recursive ();
 
 install_script (qw|
-  bin/sqlt-diagram
-  bin/sqlt-diff
-  bin/sqlt-diff-old
-  bin/sqlt-dumper
-  bin/sqlt-graph
-  bin/sqlt
+  script/sqlt-diagram
+  script/sqlt-diff
+  script/sqlt-diff-old
+  script/sqlt-dumper
+  script/sqlt-graph
+  script/sqlt
 |);
 
 install_share();
@@ -77,4 +76,63 @@ auto_provides();
 
 auto_install();
 
+if ($Module::Install::AUTHOR) {
+  _recompile_grammars();
+  _recreate_rt_source();
+}
+
 WriteAll();
+
+
+sub _recompile_grammars {
+  # placeholder, will be used to recompile P::RD parsers before shipping
+  # will also allow to lose dependency on P::RD
+}
+
+sub _recreate_rt_source {
+  my $base_xml = "t/data/roundtrip.xml";
+  my $autogen_yaml = "t/data/roundtrip_autogen.yaml";
+
+  print "Updating $autogen_yaml\n";
+
+  unlink $autogen_yaml;
+
+  eval {
+
+    use lib 'lib';
+
+    require SQL::Translator;
+    require SQL::Translator::Parser::XML;
+
+    open (my $fh, '>', $autogen_yaml) or die "$autogen_yaml: $!\n";
+
+    my $tr = SQL::Translator->new;
+    my $yaml = $tr->translate (
+      parser => 'XML',
+      file => $base_xml,
+      producer => 'YAML',
+    ) or  die sprintf ("Unable to translate %s to YAML: %s\n",
+              $base_xml,
+              $tr->error || 'error unknown'
+          );
+
+    print $fh $yaml;
+    close $fh;
+  };
+
+  if ($@) {
+    print <<EOE;
+
+=========================================================================
+===============              FATAL ERROR                =================
+=========================================================================
+
+Unable to update the roundtrip schema (attempt triggered by AUTHOR mode).
+Aborting Makefile generation.
+
+$@
+
+EOE
+    exit 1;
+  }
+}

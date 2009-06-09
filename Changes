@@ -1,6 +1,9 @@
 # ----------------------------------------------------------
 # x.xxxxx xxxx-xx-xx
 # ----------------------------------------------------------
+* Multiple test and dependency adhustments to make smokers happy
+* Fix YAML producer wrt extra attribute
+* Added support for "time(stamp) (p) with time zone" for Pg producer (mo)
 
 
 # ----------------------------------------------------------
