@@ -37,7 +37,7 @@ producer.
 use strict;
 use warnings;
 use vars qw[ $DEBUG $WARN $VERSION %used_names ];
-$VERSION = '1.59';
+$VERSION = '1.60';
 $DEBUG = 0 unless defined $DEBUG;
 
 use base qw(SQL::Translator::Producer);
@@ -45,7 +45,7 @@ use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug header_comment);
 use Data::Dumper;
 
-my %translate;
+my ( %translate, %index_name );
 my $max_id_length;
 
 BEGIN {
@@ -174,21 +174,17 @@ and table_constraint is:
 
 # -------------------------------------------------------------------
 sub produce {
-    my $translator     = shift;
-    local $DEBUG             = $translator->debug;
-    local $WARN              = $translator->show_warnings;
-    my $no_comments    = $translator->no_comments;
-    my $add_drop_table = $translator->add_drop_table;
-    my $schema         = $translator->schema;
-    my $pargs          = $translator->producer_args;
-    local %used_names  = ();
-
+    my $translator       = shift;
+    local $DEBUG         = $translator->debug;
+    local $WARN          = $translator->show_warnings;
+    my $no_comments      = $translator->no_comments;
+    my $add_drop_table   = $translator->add_drop_table;
+    my $schema           = $translator->schema;
+    my $pargs            = $translator->producer_args;
     my $postgres_version = $pargs->{postgres_version} || 0;
 
-    my $qt = '';
-    $qt = '"' if ($translator->quote_table_names);
-    my $qf = '';
-    $qf = '"' if ($translator->quote_field_names);
+    my $qt = $translator->quote_table_names ? q{"} : q{};
+    my $qf = $translator->quote_field_names ? q{"} : q{};
     
     my @output;
     push @output, header_comment unless ($no_comments);
@@ -196,15 +192,16 @@ sub produce {
     my (@table_defs, @fks);
     for my $table ( $schema->get_tables ) {
 
-        my ($table_def, $fks) = create_table($table, 
-                                             { quote_table_names => $qt,
-                                               quote_field_names => $qf,
-                                               no_comments => $no_comments,
-                                               postgres_version => $postgres_version,
-                                               add_drop_table => $add_drop_table,});
+        my ($table_def, $fks) = create_table($table, { 
+            quote_table_names => $qt,
+            quote_field_names => $qf,
+            no_comments       => $no_comments,
+            postgres_version  => $postgres_version,
+            add_drop_table    => $add_drop_table,
+        });
+
         push @table_defs, $table_def;
         push @fks, @$fks;
-
     }
 
     for my $view ( $schema->get_views ) {
@@ -302,21 +299,21 @@ sub unreserve {
 
 # -------------------------------------------------------------------
 sub next_unused_name {
-    my $name = shift || '';
-    if ( !defined( $used_names{$name} ) ) {
-        $used_names{$name} = $name;
-        return $name;
+    my $orig_name = shift or return;
+    my $name      = $orig_name;
+
+    my $suffix_gen = sub {
+        my $suffix = 0;
+        return ++$suffix ? '' : $suffix;
+    };
+
+    for (;;) {
+        $name = $orig_name . $suffix_gen->();
+        last if $used_names{ $name }++;
     }
 
-    my $i = 2;
-    while ( defined( $used_names{ $name . $i } ) ) {
-        ++$i;
-    }
-    $name .= $i;
-    $used_names{$name} = $name;
     return $name;
 }
-
 
 sub create_table 
 {
@@ -528,123 +525,123 @@ sub create_view {
     }
 }
 
-    sub create_index
-    {
-        my ($index, $options) = @_;
+sub create_index
+{
+    my ($index, $options) = @_;
 
-        my $qt = $options->{quote_table_names} ||'';
-        my $qf = $options->{quote_field_names} ||'';
-        my $table_name = $index->table->name;
+    my $qt = $options->{quote_table_names} ||'';
+    my $qf = $options->{quote_field_names} ||'';
+    my $table_name = $index->table->name;
 #        my $table_name_ur = $qt ? unreserve($table_name) : $table_name;
 
-        my ($index_def, @constraint_defs);
+    my ($index_def, @constraint_defs);
 
-        my $name = $index->name || '';
-        if ( $name ) {
-            $name = next_unused_name($name);
-        }
+    my $name = next_unused_name(
+        $index->name 
+        || join('_', $table_name, 'idx', ++$index_name{ $table_name })
+    );
 
-        my $type = $index->type || NORMAL;
-        my @fields     = 
-            map { $_ =~ s/\(.+\)//; $_ }
-        map { $qt ? $_ : unreserve($_, $table_name ) }
-        $index->fields;
-        next unless @fields;
+    my $type = $index->type || NORMAL;
+    my @fields     = 
+        map { $_ =~ s/\(.+\)//; $_ }
+    map { $qt ? $_ : unreserve($_, $table_name ) }
+    $index->fields;
+    next unless @fields;
 
-        my $def_start = qq[CONSTRAINT "$name" ];
-        if ( $type eq PRIMARY_KEY ) {
-            push @constraint_defs, "${def_start}PRIMARY KEY ".
-                '(' .$qf . join( $qf. ', '.$qf, @fields ) . $qf . ')';
-        }
-        elsif ( $type eq UNIQUE ) {
-            push @constraint_defs, "${def_start}UNIQUE " .
-                '(' . $qf . join( $qf. ', '.$qf, @fields ) . $qf.')';
-        }
-        elsif ( $type eq NORMAL ) {
-            $index_def = 
-                "CREATE INDEX ${qf}${name}${qf} on ${qt}${table_name}${qt} (".
-                join( ', ', map { qq[$qf$_$qf] } @fields ).  
-                ')'
-                ; 
-        }
-        else {
-            warn "Unknown index type ($type) on table $table_name.\n"
-                if $WARN;
-        }
-
-        return $index_def, \@constraint_defs;
+    my $def_start = qq[CONSTRAINT "$name" ];
+    if ( $type eq PRIMARY_KEY ) {
+        push @constraint_defs, "${def_start}PRIMARY KEY ".
+            '(' .$qf . join( $qf. ', '.$qf, @fields ) . $qf . ')';
+    }
+    elsif ( $type eq UNIQUE ) {
+        push @constraint_defs, "${def_start}UNIQUE " .
+            '(' . $qf . join( $qf. ', '.$qf, @fields ) . $qf.')';
+    }
+    elsif ( $type eq NORMAL ) {
+        $index_def = 
+            "CREATE INDEX ${qf}${name}${qf} on ${qt}${table_name}${qt} (".
+            join( ', ', map { qq[$qf$_$qf] } @fields ).  
+            ')'
+            ; 
+    }
+    else {
+        warn "Unknown index type ($type) on table $table_name.\n"
+            if $WARN;
     }
 
-    sub create_constraint
-    {
-        my ($c, $options) = @_;
+    return $index_def, \@constraint_defs;
+}
 
-        my $qf = $options->{quote_field_names} ||'';
-        my $qt = $options->{quote_table_names} ||'';
-        my $table_name = $c->table->name;
-        my (@constraint_defs, @fks);
+sub create_constraint
+{
+    my ($c, $options) = @_;
 
-        my $name = $c->name || '';
-        if ( $name ) {
-            $name = next_unused_name($name);
-        }
+    my $qf = $options->{quote_field_names} ||'';
+    my $qt = $options->{quote_table_names} ||'';
+    my $table_name = $c->table->name;
+    my (@constraint_defs, @fks);
 
-        my @fields     = 
-            map { $_ =~ s/\(.+\)//; $_ }
-        map { $qt ? $_ : unreserve( $_, $table_name )}
-        $c->fields;
-
-        my @rfields     = 
-            map { $_ =~ s/\(.+\)//; $_ }
-        map { $qt ? $_ : unreserve( $_, $table_name )}
-        $c->reference_fields;
-
-        next if !@fields && $c->type ne CHECK_C;
-        my $def_start = $name ? qq[CONSTRAINT "$name" ] : '';
-        if ( $c->type eq PRIMARY_KEY ) {
-            push @constraint_defs, "${def_start}PRIMARY KEY ".
-                '('.$qf . join( $qf.', '.$qf, @fields ) . $qf.')';
-        }
-        elsif ( $c->type eq UNIQUE ) {
-            $name = next_unused_name($name);
-            push @constraint_defs, "${def_start}UNIQUE " .
-                '('.$qf . join( $qf.', '.$qf, @fields ) . $qf.')';
-        }
-        elsif ( $c->type eq CHECK_C ) {
-            my $expression = $c->expression;
-            push @constraint_defs, "${def_start}CHECK ($expression)";
-        }
-        elsif ( $c->type eq FOREIGN_KEY ) {
-            my $def .= "ALTER TABLE ${qt}${table_name}${qt} ADD FOREIGN KEY (" . 
-                join( ', ', map { qq[$qf$_$qf] } @fields ) . ')' .
-                "\n  REFERENCES " . $qt . $c->reference_table . $qt;
-
-            if ( @rfields ) {
-                $def .= ' ('.$qf . join( $qf.', '.$qf, @rfields ) . $qf.')';
-            }
-
-            if ( $c->match_type ) {
-                $def .= ' MATCH ' . 
-                    ( $c->match_type =~ /full/i ) ? 'FULL' : 'PARTIAL';
-            }
-
-            if ( $c->on_delete ) {
-                $def .= ' ON DELETE '.join( ' ', $c->on_delete );
-            }
-
-            if ( $c->on_update ) {
-                $def .= ' ON UPDATE '.join( ' ', $c->on_update );
-            }
-
-            if ( $c->deferrable ) {
-                $def .= ' DEFERRABLE';
-            }
-
-            push @fks, "$def";
-        }
-
-        return \@constraint_defs, \@fks;
+    my $name = $c->name || '';
+    if ( $name ) {
+        $name = next_unused_name($name);
     }
+
+    my @fields     = 
+        map { $_ =~ s/\(.+\)//; $_ }
+    map { $qt ? $_ : unreserve( $_, $table_name )}
+    $c->fields;
+
+    my @rfields     = 
+        map { $_ =~ s/\(.+\)//; $_ }
+    map { $qt ? $_ : unreserve( $_, $table_name )}
+    $c->reference_fields;
+
+    next if !@fields && $c->type ne CHECK_C;
+    my $def_start = $name ? qq[CONSTRAINT "$name" ] : '';
+    if ( $c->type eq PRIMARY_KEY ) {
+        push @constraint_defs, "${def_start}PRIMARY KEY ".
+            '('.$qf . join( $qf.', '.$qf, @fields ) . $qf.')';
+    }
+    elsif ( $c->type eq UNIQUE ) {
+        $name = next_unused_name($name);
+        push @constraint_defs, "${def_start}UNIQUE " .
+            '('.$qf . join( $qf.', '.$qf, @fields ) . $qf.')';
+    }
+    elsif ( $c->type eq CHECK_C ) {
+        my $expression = $c->expression;
+        push @constraint_defs, "${def_start}CHECK ($expression)";
+    }
+    elsif ( $c->type eq FOREIGN_KEY ) {
+        my $def .= "ALTER TABLE ${qt}${table_name}${qt} ADD FOREIGN KEY (" . 
+            join( ', ', map { qq[$qf$_$qf] } @fields ) . ')' .
+            "\n  REFERENCES " . $qt . $c->reference_table . $qt;
+
+        if ( @rfields ) {
+            $def .= ' ('.$qf . join( $qf.', '.$qf, @rfields ) . $qf.')';
+        }
+
+        if ( $c->match_type ) {
+            $def .= ' MATCH ' . 
+                ( $c->match_type =~ /full/i ) ? 'FULL' : 'PARTIAL';
+        }
+
+        if ( $c->on_delete ) {
+            $def .= ' ON DELETE '.join( ' ', $c->on_delete );
+        }
+
+        if ( $c->on_update ) {
+            $def .= ' ON UPDATE '.join( ' ', $c->on_update );
+        }
+
+        if ( $c->deferrable ) {
+            $def .= ' DEFERRABLE';
+        }
+
+        push @fks, "$def";
+    }
+
+    return \@constraint_defs, \@fks;
+}
 
 sub convert_datatype
 {
@@ -702,23 +699,22 @@ sub convert_datatype
             $data_type = 'integer';
         }
     }
-    my @type_without_size = qw/bigint boolean box bytea cidr circle date inet
-                               integer smallint text line lseg macaddr money
-                               path point polygon real/;
-    foreach (@type_without_size) {
-        if ( $data_type =~ qr/$_/ ) {
-            undef @size; last;
-        }
+
+    my $type_with_size = join('|',
+        'bit', 'varbit', 'character', 'bit varying', 'character varying',
+        'time', 'timestamp', 'interval'
+    );
+
+    if ( $data_type !~ /$type_with_size/ ) {
+        @size = (); 
     }
 
     if (defined $size[0] && $size[0] > 0 && $data_type =~ /^time/i ) {
         $data_type =~ s/^(time.*?)( with.*)?$/$1($size[0])/;
         $data_type .= $2 if(defined $2);
     } elsif ( defined $size[0] && $size[0] > 0 ) {
-            $data_type .= '(' . join( ',', @size ) . ')';
+        $data_type .= '(' . join( ',', @size ) . ')';
     }
-    
-
 
     return $data_type;
 }
@@ -897,6 +893,6 @@ SQL::Translator, SQL::Translator::Producer::Oracle.
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>.
 
 =cut

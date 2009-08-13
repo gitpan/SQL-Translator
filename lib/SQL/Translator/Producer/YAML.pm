@@ -39,7 +39,7 @@ takes a long time.
 
 use strict;
 use vars qw($VERSION);
-$VERSION = '1.59';
+$VERSION = '1.60';
 
 use YAML qw(Dump);
 
@@ -213,6 +213,6 @@ SQL::Translator, YAML, http://www.yaml.org/.
 =head1 AUTHORS
 
 darren chamberlain E<lt>darren@cpan.orgE<gt>,
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>.
 
 =cut

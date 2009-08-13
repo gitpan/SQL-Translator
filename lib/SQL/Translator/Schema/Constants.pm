@@ -61,7 +61,7 @@ use strict;
 use base qw( Exporter );
 use vars qw( @EXPORT $VERSION );
 require Exporter;
-$VERSION = '1.59';
+$VERSION = '1.60';
 
 @EXPORT = qw[ 
     CHECK_C
@@ -104,6 +104,6 @@ use constant UNIQUE => 'UNIQUE';
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>.
 
 =cut

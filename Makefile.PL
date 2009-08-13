@@ -18,23 +18,23 @@ my $deps = {
     'File::ShareDir'           => 1.0,
     'File::Spec'               => 0,
     'XML::Writer'              => 0.500,
+    'XML::LibXML'              => 1.69,
+    'YAML'                     => 0.66,
   },
   recommends => {
-    'Template'                => 2.10,
-    'GD'                      => 0,
-    'GraphViz'                => 0,
-    'Graph::Directed'         => 0,
-    'Spreadsheet::ParseExcel' => 0.41,
-    'Text::ParseWords'        => 0,
-    'Text::RecordParser'      => 0.02,
-    'XML::LibXML'             => 1.61,
+    'Template'                 => 2.10,
+    'GD'                       => 0,
+    'GraphViz'                 => 0,
+    'Graph::Directed'          => 0,
+    'Spreadsheet::ParseExcel'  => 0.41,
+    'Text::ParseWords'         => 0,
+    'Text::RecordParser'       => 0.02,
   },
   test_requires => {
-    'File::Basename'          => 0,
-    'Test::More'              => 0.6,
-    'Test::Differences'       => 0,
-    'Test::Exception'         => 0,
-    'YAML'                    => 0.39,
+    'File::Basename'           => 0,
+    'Test::More'               => 0.6,
+    'Test::Differences'        => 0,
+    'Test::Exception'          => 0,
   },
 };
 
@@ -43,7 +43,7 @@ perl_version '5.005';
 name        'SQL-Translator';
 author      'Ken Youens-Clark <kclark@cpan.org>';
 abstract    'SQL DDL transformations and more';
-license     'http://fsf.org/licensing/licenses/gpl.html';
+license     'gpl';
 repository  'https://sqlfairy.svn.sourceforge.net/svnroot/sqlfairy';
 bugtracker  'http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator';
 

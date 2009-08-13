@@ -40,7 +40,7 @@ use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug);
 
 use vars qw[ $VERSION $DEBUG ];
-$VERSION = '1.59';
+$VERSION = '1.60';
 $DEBUG   = 0 unless defined $DEBUG;
 
 use constant VALID_FONT_SIZE => {
@@ -521,6 +521,7 @@ sub produce {
     #
     if ( $out_file ) {
         open my $fh, '>', $out_file or die "Can't write '$out_file': $!\n";
+        binmode $fh;
         print $fh $gd->$output_type;
         close $fh;
     }

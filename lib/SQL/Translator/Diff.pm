@@ -1,14 +1,16 @@
 package SQL::Translator::Diff;
 
-
 ## SQLT schema diffing code
 use strict;
 use warnings;
-
 use Data::Dumper;
 use SQL::Translator::Schema::Constants;
 
 use base 'Class::Accessor::Fast';
+
+use vars qw[ $VERSION ];
+
+$VERSION = 1.60;
 
 # Input/option accessors
 __PACKAGE__->mk_accessors(qw/
@@ -258,8 +260,12 @@ sub produce_diff_sql {
       if ( $self->output_db !~ /^(?:MySQL|SQLite|PostgreSQL)$/ ) {
         unshift(@diffs, "-- Output database @{[$self->output_db]} is untested/unsupported!!!");
       }
-      return join '', map { $_ ? ( $_ =~ /;$/xms ? $_ : "$_;\n\n" ) : "\n" }
-      ("-- Convert schema '$src_name' to '$tar_name':", @diffs);
+
+      my @return = 
+        map { $_ ? ( $_ =~ /;$/xms ? $_ : "$_;\n\n" ) : "\n" }
+        ("-- Convert schema '$src_name' to '$tar_name':", @diffs);
+
+      return wantarray ? @return : join('', @return);
     }
     return undef;
 

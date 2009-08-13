@@ -1,8 +1,6 @@
 AUTHORS
 BUGS
 Changes
-images/sql-fairy.jpg
-images/sql_fairy.pdf
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
 inc/Module/Install/AutoInstall.pm
@@ -164,6 +162,7 @@ t/53-oracle-delay-constraints.t
 t/54-oracle-alter-field.t
 t/55-oracle-add-field.t
 t/56-sqlite-producer.t
+t/57-class-dbi.t
 t/60roundtrip.t
 t/61translator_agnostic.t
 t/62roundtrip_datacheck.t
@@ -199,4 +198,3 @@ t/data/template/table.tt
 t/data/xml/samefield.xml
 t/data/xml/schema.xml
 t/lib/Producer/BaseTest.pm
-TODO

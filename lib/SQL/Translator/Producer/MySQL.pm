@@ -100,7 +100,7 @@ Set the fields charater set and collation order.
 use strict;
 use warnings;
 use vars qw[ $VERSION $DEBUG %used_names ];
-$VERSION = '1.59';
+$VERSION = '1.60';
 $DEBUG   = 0 unless defined $DEBUG;
 
 # Maximum length for most identifiers is 64, according to:
@@ -110,7 +110,8 @@ my $DEFAULT_MAX_ID_LENGTH = 64;
 
 use Data::Dumper;
 use SQL::Translator::Schema::Constants;
-use SQL::Translator::Utils qw(debug header_comment truncate_id_uniquely parse_mysql_version);
+use SQL::Translator::Utils qw(debug header_comment 
+    truncate_id_uniquely parse_mysql_version);
 
 #
 # Use only lowercase for the keys (e.g. "long" and not "LONG")
@@ -554,7 +555,11 @@ sub create_field
     if ( lc($data_type) eq 'enum' || lc($data_type) eq 'set') {
         $field_def .= '(' . $commalist . ')';
     }
-    elsif ( defined $size[0] && $size[0] > 0 && ! grep $data_type eq $_, @no_length_attr  ) {
+    elsif ( 
+        defined $size[0] && $size[0] > 0 
+        && 
+        ! grep lc($data_type) eq $_, @no_length_attr  
+    ) {
         $field_def .= '(' . join( ', ', @size ) . ')';
     }
 
@@ -614,22 +619,24 @@ sub alter_create_index
 
 sub create_index
 {
-    my ($index, $options) = @_;
+    my ( $index, $options ) = @_;
 
     my $qf = $options->{quote_field_names} || '';
 
-    return join( ' ', 
-                  lc $index->type eq 'normal' 
-                    ? 'INDEX' 
-                    : $index->type . ' INDEX'
-                  ,
-                  $index->name 
-                    ? (truncate_id_uniquely( $index->name, $options->{max_id_length} || $DEFAULT_MAX_ID_LENGTH ) )
-                    : ()
-                  ,
-                  '(' . $qf . join( "$qf, $qf", $index->fields ) . $qf . ')'
-                 );
-
+    return join(
+        ' ',
+        map { $_ || () }
+        lc $index->type eq 'normal' ? 'INDEX' : $index->type . ' INDEX',
+        $index->name
+        ? (
+            truncate_id_uniquely(
+                $index->name,
+                $options->{max_id_length} || $DEFAULT_MAX_ID_LENGTH
+            )
+          )
+        : '',
+        '(' . $qf . join( "$qf, $qf", $index->fields ) . $qf . ')'
+    );
 }
 
 sub alter_drop_index
@@ -939,6 +946,6 @@ SQL::Translator, http://www.mysql.com/.
 =head1 AUTHORS
 
 darren chamberlain E<lt>darren@cpan.orgE<gt>,
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>.
 
 =cut

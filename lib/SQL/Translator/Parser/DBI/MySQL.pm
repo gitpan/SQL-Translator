@@ -41,7 +41,7 @@ use SQL::Translator::Schema::Constants;
 use SQL::Translator::Parser::MySQL;
 
 use vars qw[ $DEBUG $VERSION @EXPORT_OK ];
-$VERSION = '1.59';
+$VERSION = '1.60';
 $DEBUG   = 0 unless defined $DEBUG;
 
 # -------------------------------------------------------------------
@@ -49,7 +49,9 @@ sub parse {
     my ( $tr, $dbh ) = @_;
     my $schema       = $tr->schema;
     my @table_names  = @{ $dbh->selectcol_arrayref('show tables') };
-    my @skip_tables = defined $tr->parser_args->{skip}?split(/,/, $tr->parser_args->{skip}):();
+    my @skip_tables  = defined $tr->parser_args->{skip}
+                       ? split(/,/, $tr->parser_args->{skip})
+                       : ();
 
     $dbh->{'FetchHashKeyName'} = 'NAME_lc';
 

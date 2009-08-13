@@ -49,7 +49,7 @@ use base 'SQL::Translator::Schema::Object';
 
 use vars qw( $VERSION );
 
-$VERSION = '1.59';
+$VERSION = '1.60';
 
 # Stringify to our name, being careful not to pass any args through so we don't
 # accidentally set it to undef. We also have to tweak bool so the object is
@@ -1122,7 +1122,7 @@ sub DESTROY {
 
 =head1 AUTHORS
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>,
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>,
 Allen Day E<lt>allenday@ucla.eduE<gt>.
 
 =cut

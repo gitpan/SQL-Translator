@@ -1,10 +1,7 @@
 package SQL::Translator::Producer::XML::SQLFairy;
 
 # -------------------------------------------------------------------
-# Copyright (C) 2003 Ken Y. Clark <kclark@cpan.org>,
-#                    darren chamberlain <darren@cpan.org>,
-#                    Chris Mungall <cjm@fruitfly.org>,
-#                    Mark Addison <mark.addison@itn.co.uk>.
+# Copyright (C) 2003-9 SQLFair Authors.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -163,7 +160,7 @@ To convert your old format files simply pass them through the translator :)
 
 use strict;
 use vars qw[ $VERSION @EXPORT_OK ];
-$VERSION = '1.59';
+$VERSION = '1.60';
 
 use Exporter;
 use base qw(Exporter);
@@ -411,7 +408,7 @@ sub xml_obj {
 
 =head1 AUTHORS
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>,
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>,
 Darren Chamberlain E<lt>darren@cpan.orgE<gt>,
 Mark Addison E<lt>mark.addison@itn.co.ukE<gt>.
 

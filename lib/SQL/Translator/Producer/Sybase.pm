@@ -37,7 +37,7 @@ This module will produce text output of the schema suitable for Sybase.
 
 use strict;
 use vars qw[ $DEBUG $WARN $VERSION ];
-$VERSION = '1.59';
+$VERSION = '1.60';
 $DEBUG = 1 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -443,6 +443,6 @@ SQL::Translator.
 
 Sam Angiuoli E<lt>angiuoli@users.sourceforge.netE<gt>,
 Paul Harrington E<lt>harringp@deshaw.comE<gt>,
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>.
 
 =cut

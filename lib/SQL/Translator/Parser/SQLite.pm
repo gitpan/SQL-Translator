@@ -150,7 +150,7 @@ like-op::=
 
 use strict;
 use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = '1.59';
+$VERSION = '1.60';
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
@@ -224,7 +224,7 @@ comment : /\/\*/ /[^\*]+/ /\*\//
 #
 # Create Index
 #
-create : CREATE TEMPORARY(?) UNIQUE(?) INDEX WORD ON table_name parens_field_list conflict_clause(?) SEMICOLON
+create : CREATE TEMPORARY(?) UNIQUE(?) INDEX NAME ON table_name parens_field_list conflict_clause(?) SEMICOLON
     {
         my $db_name    = $item[7]->{'db_name'} || '';
         my $table_name = $item[7]->{'name'};
@@ -304,6 +304,9 @@ column_def: comment(s?) NAME type(?) column_constraint(s?)
             elsif ( $c->{'type'} eq 'default' ) {
                 $column->{'default'} = $c->{'value'};
             }
+            elsif ( $c->{'type'} eq 'autoincrement' ) {
+                $column->{'is_auto_inc'} = 1;
+            }
         }
 
         $column;
@@ -357,6 +360,22 @@ column_constraint : NOT_NULL conflict_clause(?)
             value => $item[2],
         }
     }
+    |
+    REFERENCES ref_def
+    {
+        $return   = {
+            type             => 'foreign_key',
+            reference_table  => $item[2]{'reference_table'},
+            reference_fields => $item[2]{'reference_fields'},
+        }
+    }
+    |
+    AUTOINCREMENT
+    {
+        $return = {
+            type => 'autoincrement',
+        }
+    }
 
 constraint_def : PRIMARY_KEY parens_field_list conflict_clause(?)
     {
@@ -387,6 +406,9 @@ constraint_def : PRIMARY_KEY parens_field_list conflict_clause(?)
             on_conflict => $item[5][0],
         }
     }
+
+ref_def : /(\w+)\s*\((\w+)\)/
+    { $return = { reference_table => $1, reference_fields => $2 } }
 
 table_name : qualified_name
     
@@ -540,11 +562,15 @@ WORD : /\w+/
 
 WHEN : /when/i
 
+REFERENCES : /references/i
+
+AUTOINCREMENT : /autoincrement/i
+
 UNIQUE : /unique/i { 1 }
 
 SEMICOLON : ';'
 
-NAME : /'?(\w+)'?/ { $return = $1 }
+NAME : /["']?(\w+)["']?/ { $return = $1 }
 
 VALUE : /[-+]?\.?\d+(?:[eE]\d+)?/
     { $item[1] }
@@ -630,8 +656,10 @@ sub parse {
                 reference_table  => $cdata->{'reference_table'},
                 reference_fields => $cdata->{'reference_fields'},
                 match_type       => $cdata->{'match_type'} || '',
-                on_delete        => $cdata->{'on_delete'} || $cdata->{'on_delete_do'},
-                on_update        => $cdata->{'on_update'} || $cdata->{'on_update_do'},
+                on_delete        => $cdata->{'on_delete'} 
+                                 || $cdata->{'on_delete_do'},
+                on_update        => $cdata->{'on_update'} 
+                                 || $cdata->{'on_update_do'},
             ) or die $table->error;
         }
     }
@@ -667,7 +695,7 @@ sub parse {
 
 =head1 AUTHOR
 
-Ken Y. Clark E<lt>kclark@cpan.orgE<gt>.
+Ken Youens-Clark E<lt>kclark@cpan.orgE<gt>.
 
 =head1 SEE ALSO
 
