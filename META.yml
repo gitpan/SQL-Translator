@@ -30,6 +30,8 @@ recommends:
   Template: 2.1
   Text::ParseWords: 0
   Text::RecordParser: 0.02
+  XML::LibXML: 1.69
+  YAML: 0.66
 requires:
   Carp::Clan: 0
   Class::Accessor::Fast: 0
@@ -44,13 +46,11 @@ requires:
   IO::Scalar: 2.11
   Parse::RecDescent: 1.096
   Pod::Usage: 0
-  XML::LibXML: 1.69
   XML::Writer: 0.5
-  YAML: 0.66
   perl: 5.005
 resources:
   Ratings: http://cpanratings.perl.org/d/SQL-Translator
   bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator
   license: http://opensource.org/licenses/gpl-license.php
   repository: https://sqlfairy.svn.sourceforge.net/svnroot/sqlfairy
-version: 0.10
+version: 0.11000
