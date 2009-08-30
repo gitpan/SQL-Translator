@@ -12,7 +12,7 @@ build_requires:
 configure_requires:
   ExtUtils::MakeMaker: 6.42
 distribution_type: module
-generated_by: 'Module::Install version 0.90'
+generated_by: 'Module::Install version 0.91'
 license: gpl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -28,7 +28,7 @@ provides:
     file: lib/SQL/Translator/Parser/DB2/Grammar.pm
   SQL::Translator:
     file: lib/SQL/Translator.pm
-    version: 0.11001
+    version: 0.11002
   SQL::Translator::Diff:
     file: lib/SQL/Translator/Diff.pm
   SQL::Translator::Filter::DefaultExtra:
@@ -247,7 +247,7 @@ requires:
   File::Spec: 0
   IO::Dir: 0
   IO::Scalar: 2.11
-  Parse::RecDescent: 1.096
+  Parse::RecDescent: 1.962002
   Pod::Usage: 0
   XML::Writer: 0.5
   perl: 5.005
@@ -256,4 +256,4 @@ resources:
   bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator
   license: http://opensource.org/licenses/gpl-license.php
   repository: https://sqlfairy.svn.sourceforge.net/svnroot/sqlfairy
-version: 0.11001
+version: 0.11002
