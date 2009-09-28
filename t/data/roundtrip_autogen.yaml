@@ -85,7 +85,7 @@ schema:
           fields:
             - another_id
           match_type: ''
-          name: ''
+          name: Basic
           on_delete: ''
           on_update: ''
           options: []
@@ -257,4 +257,4 @@ translator:
   producer_type: SQL::Translator::Producer::YAML
   show_warnings: 0
   trace: 0
-  version: 0.11002
+  version: 0.11003

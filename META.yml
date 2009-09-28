@@ -28,7 +28,7 @@ provides:
     file: lib/SQL/Translator/Parser/DB2/Grammar.pm
   SQL::Translator:
     file: lib/SQL/Translator.pm
-    version: 0.11002
+    version: 0.11003
   SQL::Translator::Diff:
     file: lib/SQL/Translator/Diff.pm
   SQL::Translator::Filter::DefaultExtra:
@@ -231,7 +231,7 @@ recommends:
   Graph::Directed: 0
   GraphViz: 0
   Spreadsheet::ParseExcel: 0.41
-  Template: 2.1
+  Template: 2.2
   Text::ParseWords: 0
   Text::RecordParser: 0.02
   XML::LibXML: 1.69
@@ -256,4 +256,4 @@ resources:
   bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator
   license: http://opensource.org/licenses/gpl-license.php
   repository: https://sqlfairy.svn.sourceforge.net/svnroot/sqlfairy
-version: 0.11002
+version: 0.11003
