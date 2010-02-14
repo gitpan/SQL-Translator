@@ -59,8 +59,10 @@ my $want = [
           'CREATE SEQUENCE sq_Another_id',
           'CREATE TABLE Another (
   id number(10) NOT NULL,
+  num number(10,2),
   PRIMARY KEY (id)
 )',
+'DROP VIEW email_list',
           'CREATE VIEW email_list AS
 SELECT email FROM Basic WHERE (email IS NOT NULL)',
           'ALTER TABLE Basic ADD CONSTRAINT Basic_another_id_fk FOREIGN KEY (another_id) REFERENCES Another (id)',
@@ -125,8 +127,11 @@ CREATE SEQUENCE sq_Another_id01;
 
 CREATE TABLE Another (
   id number(10) NOT NULL,
+  num number(10,2),
   PRIMARY KEY (id)
 );
+
+DROP VIEW email_list;
 
 CREATE VIEW email_list AS
 SELECT email FROM Basic WHERE (email IS NOT NULL);
@@ -165,4 +170,6 @@ BEGIN
  INTO :new.id
  FROM dual;
 END;
-/|);
+/
+
+|);

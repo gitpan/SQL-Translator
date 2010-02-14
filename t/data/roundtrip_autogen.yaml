@@ -109,6 +109,17 @@ schema:
           order: 8
           size:
             - 10
+        decimal:
+          data_type: decimal
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: decimal
+          order: 11
+          size:
+            - 10
+            - 2
         description:
           data_type: text
           default_value: ''
@@ -177,6 +188,17 @@ schema:
           order: 1
           size:
             - 10
+        numeric:
+          data_type: numeric
+          default_value: ~
+          is_nullable: 1
+          is_primary_key: 0
+          is_unique: 0
+          name: numeric
+          order: 10
+          size:
+            - 9
+            - 1
         timest:
           data_type: timestamp
           default_value: ~
@@ -257,4 +279,4 @@ translator:
   producer_type: SQL::Translator::Producer::YAML
   show_warnings: 0
   trace: 0
-  version: 0.11003
+  version: 0.11004
