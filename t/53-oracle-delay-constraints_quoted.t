@@ -21,8 +21,8 @@ $sqlt = SQL::Translator->new(
     show_warnings  => 0,
     add_drop_table => 0,
     producer_args  => { 'delay_constraints' => 1 },
-    quote_table_names => 0,
-    quote_field_names => 0,
+    quote_table_names => 1,
+    quote_field_names => 1,
 );
 
 my $sql_string = $sqlt->translate(
@@ -32,4 +32,4 @@ my $sql_string = $sqlt->translate(
 );
 
 ok($sql_string, 'Translation successfull');
-ok($sql_string =~ /ADD CONSTRAINT pk_d_operator PRIMARY KEY/, 'constraints delayed');
+ok($sql_string =~ /ADD CONSTRAINT "pk_d_operator" PRIMARY KEY/, 'constraints delayed');

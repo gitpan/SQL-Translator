@@ -19,6 +19,8 @@ my $xmlfile = "$Bin/data/xml/schema.xml";
 my $sqlt;
 $sqlt = SQL::Translator->new(
     no_comments => 1,
+    quote_table_names => 0,
+    quote_field_names => 0,
     show_warnings  => 0,
     add_drop_table => 1,
 );
@@ -44,7 +46,7 @@ my $want = [
           'CREATE TABLE Basic (
   id number(10) NOT NULL,
   title varchar2(100) DEFAULT \'hello\' NOT NULL,
-  description clob DEFAULT \'\',
+  description varchar2(4000) DEFAULT \'\',
   email varchar2(500),
   explicitnulldef varchar2,
   explicitemptystring varchar2 DEFAULT \'\',
@@ -52,7 +54,7 @@ my $want = [
   another_id number(10) DEFAULT \'2\',
   timest date,
   PRIMARY KEY (id),
-  CONSTRAINT emailuniqueindex UNIQUE (email)
+  CONSTRAINT Basic_emailuniqueindex UNIQUE (email)
 )',
           'DROP TABLE Another CASCADE CONSTRAINTS',
           'DROP SEQUENCE sq_Another_id',
@@ -108,7 +110,7 @@ CREATE SEQUENCE sq_Basic_id01;
 CREATE TABLE Basic (
   id number(10) NOT NULL,
   title varchar2(100) DEFAULT 'hello' NOT NULL,
-  description clob DEFAULT '',
+  description varchar2(4000) DEFAULT '',
   email varchar2(500),
   explicitnulldef varchar2,
   explicitemptystring varchar2 DEFAULT '',
@@ -116,7 +118,7 @@ CREATE TABLE Basic (
   another_id number(10) DEFAULT '2',
   timest date,
   PRIMARY KEY (id),
-  CONSTRAINT emailuniqueindex UNIQUE (email)
+  CONSTRAINT Basic_emailuniqueindex UNIQUE (email)
 );
 
 DROP TABLE Another CASCADE CONSTRAINTS;

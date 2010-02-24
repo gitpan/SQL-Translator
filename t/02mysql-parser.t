@@ -83,7 +83,7 @@ BEGIN {
               date timestamp,
               time_stamp2 timestamp,
               KEY (i1),
-              UNIQUE (date, i1),
+              UNIQUE (date, i1) USING BTREE,
               KEY date_idx (date),
               KEY name_idx (name(10))
             ) TYPE=MyISAM PACK_KEYS=1;
@@ -234,9 +234,9 @@ BEGIN {
               tax                       decimal(8,2),
               shipping_charge           decimal(8,2),
               price_paid                decimal(8,2),
-              PRIMARY KEY (order_id),
-              KEY (status),
-              KEY (billing_address_id),
+              PRIMARY KEY (order_id) USING BTREE,
+              KEY (status) USING BTREE,
+              KEY USING BTREE (billing_address_id),
               KEY (shipping_address_id),
               KEY (member_id, store_id),
               FOREIGN KEY (status)              REFERENCES order_status(id) MATCH FULL ON DELETE CASCADE ON UPDATE CASCADE,
