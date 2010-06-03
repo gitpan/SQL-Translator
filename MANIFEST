@@ -193,6 +193,7 @@ t/data/roundtrip.xml
 t/data/roundtrip_autogen.yaml
 t/data/sqlite/create.sql
 t/data/sqlite/create2.sql
+t/data/sqlite/named.sql
 t/data/sqlserver/create.sql
 t/data/sybase/create.sql
 t/data/template/basic.tt

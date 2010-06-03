@@ -39,7 +39,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use SQL::Translator::Schema::Constants;
-use SQL::Translator::Utils qw(debug header_comment);
+use SQL::Translator::Utils qw(debug header_comment parse_dbms_version);
 
 use vars qw[ $VERSION $DEBUG $WARN ];
 
@@ -58,16 +58,21 @@ sub produce {
     my $add_drop_table = $translator->add_drop_table;
     my $schema         = $translator->schema;
     my $producer_args  = $translator->producer_args;
-    my $sqlite_version = $producer_args->{sqlite_version} || 0;
+    my $sqlite_version = parse_dbms_version(
+        $producer_args->{sqlite_version}, 'perl'
+    );
     my $no_txn         = $producer_args->{no_transaction};
 
     debug("PKG: Beginning production\n");
 
     %global_names = ();   #reset
 
+
+    my $head = (header_comment() . "\n") unless $no_comments;
+
     my @create = ();
-    push @create, header_comment unless ($no_comments);
-    $create[0] .= "\n\nBEGIN TRANSACTION" unless $no_txn;
+
+    push @create, "BEGIN TRANSACTION" unless $no_txn;
 
     for my $table ( $schema->get_tables ) {
         push @create, create_table($table, { no_comments => $no_comments,
@@ -89,12 +94,16 @@ sub produce {
       });
     }
 
+    push @create, "COMMIT" unless $no_txn;
+
     if (wantarray) {
-      push @create, "COMMIT" unless $no_txn;
-      return @create;
+      return ($head||(), @create);
     } else {
-      push @create, "COMMIT;\n" unless $no_txn;
-      return join(";\n\n", @create );
+      return join ('',
+        $head||(),
+        join(";\n\n", @create ),
+        ";\n",
+      );
     }
 }
 
@@ -128,19 +137,26 @@ sub create_view {
 
     # Header.  Should this look like what mysqldump produces?
     my $extra = $view->extra;
-    my $create = '';
-    $create .= "--\n-- View: ${view_name}\n--\n" unless $options->{no_comments};
-    $create .= "DROP VIEW IF EXISTS $view_name;\n" if $add_drop_view;
-    $create .= 'CREATE';
-    $create .= " TEMPORARY" if exists($extra->{temporary}) && $extra->{temporary};
-    $create .= ' VIEW';
-    $create .= " IF NOT EXISTS" if exists($extra->{if_not_exists}) && $extra->{if_not_exists};
-    $create .= " ${view_name}";
+    my @create;
+    push @create, "DROP VIEW IF EXISTS $view_name" if $add_drop_view;
+
+    my $create_view = 'CREATE';
+    $create_view .= " TEMPORARY" if exists($extra->{temporary}) && $extra->{temporary};
+    $create_view .= ' VIEW';
+    $create_view .= " IF NOT EXISTS" if exists($extra->{if_not_exists}) && $extra->{if_not_exists};
+    $create_view .= " ${view_name}";
 
     if( my $sql = $view->sql ){
-      $create .= " AS\n    ${sql}";
+      $create_view .= " AS\n    ${sql}";
     }
-    return $create;
+    push @create, $create_view;
+
+    # Tack the comment onto the first statement.
+    unless ($options->{no_comments}) {
+      $create[0] = "--\n-- View: ${view_name}\n--\n" . $create[0];
+    }
+
+    return @create;
 }
 
 
@@ -162,7 +178,7 @@ sub create_table
     #
     # Header.
     #
-    my $exists = ($sqlite_version >= 3.3) ? ' IF EXISTS' : '';
+    my $exists = ($sqlite_version >= 3.003) ? ' IF EXISTS' : '';
     my @create;
     my ($comment, $create_table) = "";
     $comment =  "--\n-- Table: $table_name\n--\n" unless $no_comments;
@@ -289,19 +305,16 @@ sub create_field
     # Null?
     $field_def .= ' NOT NULL' unless $field->is_nullable;
 
-    # Default?  XXX Need better quoting!
-    my $default = $field->default_value;
-    if (defined $default) {
-        SQL::Translator::Producer->_apply_default_value(
-            \$field_def,
-            $default, 
-            [
-             'NULL'              => \'NULL',
-             'now()'             => 'now()',
-             'CURRENT_TIMESTAMP' => 'CURRENT_TIMESTAMP',
-            ],
-        );
-    }
+    # Default?
+    SQL::Translator::Producer->_apply_default_value(
+        $field,
+        \$field_def,
+        [
+         'NULL'              => \'NULL',
+         'now()'             => 'now()',
+         'CURRENT_TIMESTAMP' => 'CURRENT_TIMESTAMP',
+        ],
+    );
 
     return $field_def;
 

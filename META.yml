@@ -12,7 +12,7 @@ build_requires:
 configure_requires:
   ExtUtils::MakeMaker: 6.42
 distribution_type: module
-generated_by: 'Module::Install version 0.93'
+generated_by: 'Module::Install version 0.98'
 license: gpl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -40,17 +40,23 @@ requires:
   Class::MakeMethods: 0
   DBI: 0
   Digest::SHA1: 2
+  ExtUtils::MakeMaker: 6.11
+  File::Basename: 0
   File::ShareDir: 1
   File::Spec: 0
   IO::Dir: 0
   IO::Scalar: 2.11
   Parse::RecDescent: 1.962002
   Pod::Usage: 0
+  Test::Differences: 0
+  Test::Exception: 0
+  Test::More: 0.6
   XML::Writer: 0.5
+  YAML: 0.66
   perl: 5.005
 resources:
   Ratings: http://cpanratings.perl.org/d/SQL-Translator
   bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator
   license: http://opensource.org/licenses/gpl-license.php
   repository: https://sqlfairy.svn.sourceforge.net/svnroot/sqlfairy
-version: 0.11005
+version: 0.11006

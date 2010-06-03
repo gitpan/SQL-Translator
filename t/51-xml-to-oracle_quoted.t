@@ -5,6 +5,7 @@ use FindBin qw/$Bin/;
 use Test::More;
 use Test::SQL::Translator;
 use Test::Exception;
+use Test::Differences;
 use Data::Dumper;
 use SQL::Translator;
 use SQL::Translator::Schema::Constants;
@@ -46,15 +47,16 @@ my $want = [
           'CREATE TABLE "Basic" (
   "id" number(10) NOT NULL,
   "title" varchar2(100) DEFAULT \'hello\' NOT NULL,
-  "description" varchar2(4000) DEFAULT \'\',
+  "description" clob DEFAULT \'\',
   "email" varchar2(500),
-  "explicitnulldef" varchar2,
-  "explicitemptystring" varchar2 DEFAULT \'\',
-  "emptytagdef" varchar2 DEFAULT \'\',
+  "explicitnulldef" varchar2(4000),
+  "explicitemptystring" varchar2(4000) DEFAULT \'\',
+  "emptytagdef" varchar2(4000) DEFAULT \'\',
   "another_id" number(10) DEFAULT \'2\',
   "timest" date,
   PRIMARY KEY ("id"),
-  CONSTRAINT "Basic_emailuniqueindex" UNIQUE ("email")
+  CONSTRAINT "u_Basic_emailuniqueindex" UNIQUE ("email"),
+  CONSTRAINT "u_Basic_very_long_index_name_o" UNIQUE ("title")
 )',
           'DROP TABLE "Another" CASCADE CONSTRAINTS',
           'DROP SEQUENCE "sq_Another_id"',
@@ -101,7 +103,7 @@ END;
 
 is_deeply(\@sql, $want, 'Got correct Oracle statements in list context');
 
-is($sql_string, q|DROP TABLE "Basic" CASCADE CONSTRAINTS;
+eq_or_diff($sql_string, q|DROP TABLE "Basic" CASCADE CONSTRAINTS;
 
 DROP SEQUENCE "sq_Basic_id01";
 
@@ -110,15 +112,16 @@ CREATE SEQUENCE "sq_Basic_id01";
 CREATE TABLE "Basic" (
   "id" number(10) NOT NULL,
   "title" varchar2(100) DEFAULT 'hello' NOT NULL,
-  "description" varchar2(4000) DEFAULT '',
+  "description" clob DEFAULT '',
   "email" varchar2(500),
-  "explicitnulldef" varchar2,
-  "explicitemptystring" varchar2 DEFAULT '',
-  "emptytagdef" varchar2 DEFAULT '',
+  "explicitnulldef" varchar2(4000),
+  "explicitemptystring" varchar2(4000) DEFAULT '',
+  "emptytagdef" varchar2(4000) DEFAULT '',
   "another_id" number(10) DEFAULT '2',
   "timest" date,
   PRIMARY KEY ("id"),
-  CONSTRAINT "Basic_emailuniqueindex" UNIQUE ("email")
+  CONSTRAINT "u_Basic_emailuniqueindex01" UNIQUE ("email"),
+  CONSTRAINT "u_Basic_very_long_index_name01" UNIQUE ("title")
 );
 
 DROP TABLE "Another" CASCADE CONSTRAINTS;

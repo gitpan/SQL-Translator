@@ -34,8 +34,6 @@ my $sql = $sqlt->translate(
 ) or die $sqlt->error;
 
 eq_or_diff($sql, << "SQL");
-
-
 BEGIN TRANSACTION;
 
 DROP TABLE Basic;
@@ -49,13 +47,15 @@ CREATE TABLE Basic (
   explicitemptystring varchar DEFAULT '',
   -- Hello emptytagdef
   emptytagdef varchar DEFAULT '',
-  another_id int(10) DEFAULT '2',
+  another_id int(10) DEFAULT 2,
   timest timestamp
 );
 
 CREATE INDEX titleindex ON Basic (title);
 
 CREATE UNIQUE INDEX emailuniqueindex ON Basic (email);
+
+CREATE UNIQUE INDEX very_long_index_name_on_title_field_which_should_be_truncated_for_various_rdbms ON Basic (title);
 
 DROP TABLE Another;
 
@@ -65,6 +65,7 @@ CREATE TABLE Another (
 );
 
 DROP VIEW IF EXISTS email_list;
+
 CREATE VIEW email_list AS
     SELECT email FROM Basic WHERE (email IS NOT NULL);
 
@@ -92,7 +93,7 @@ my @sql = $sqlt->translate(
 
 eq_or_diff(\@sql, 
           [
-          "\n\nBEGIN TRANSACTION",
+          'BEGIN TRANSACTION',
           'DROP TABLE Basic',
           'CREATE TABLE Basic (
   id INTEGER PRIMARY KEY NOT NULL,
@@ -103,18 +104,19 @@ eq_or_diff(\@sql,
   explicitemptystring varchar DEFAULT \'\',
   -- Hello emptytagdef
   emptytagdef varchar DEFAULT \'\',
-  another_id int(10) DEFAULT \'2\',
+  another_id int(10) DEFAULT 2,
   timest timestamp
 )',
           'CREATE INDEX titleindex ON Basic (title)',
           'CREATE UNIQUE INDEX emailuniqueindex ON Basic (email)',
+          'CREATE UNIQUE INDEX very_long_index_name_on_title_field_which_should_be_truncated_for_various_rdbms ON Basic (title)',
           'DROP TABLE Another',
           'CREATE TABLE Another (
   id INTEGER PRIMARY KEY NOT NULL,
   num numeric(10,2)
 )',
-          'DROP VIEW IF EXISTS email_list;
-CREATE VIEW email_list AS
+          'DROP VIEW IF EXISTS email_list',
+          'CREATE VIEW email_list AS
     SELECT email FROM Basic WHERE (email IS NOT NULL)',
           'DROP TRIGGER IF EXISTS foo_trigger',
           'CREATE TRIGGER foo_trigger after insert on Basic BEGIN update modified=timestamp(); END',

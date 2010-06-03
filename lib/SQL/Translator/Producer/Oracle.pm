@@ -118,9 +118,9 @@ my %translate  = (
     # MySQL types
     #
     bigint     => 'number',
-    double     => 'number',
+    double     => 'float',
     decimal    => 'number',
-    float      => 'number',
+    float      => 'float',
     int        => 'number',
     integer    => 'number',
     mediumint  => 'number',
@@ -133,7 +133,7 @@ my %translate  = (
     mediumblob => 'blob',
     longblob   => 'blob',
     tinytext   => 'varchar2',
-    text       => [ 'varchar2', 4000 ],
+    text       => 'clob',
     longtext   => 'clob',
     mediumtext => 'clob',
     enum       => 'varchar2',
@@ -184,6 +184,7 @@ my %translate  = (
 #
 my %max_size = (
     char      => 2000,
+    float     => 126,
     nchar     => 2000,
     nvarchar2 => 4000,
     number    => [ 38, 127 ],
@@ -348,7 +349,7 @@ sub create_table {
               if ($name) {
                 # Force prepend of table_name as ORACLE doesn't allow duplicate
                 # CONSTRAINT names even for different tables (ORA-02264)
-                $name = "${table_name}_$name" unless $name =~ /^$table_name/;
+                $name = mk_name( "${table_name}_$name", 'u' ) unless $name =~ /^$table_name/;
               }
               else {
                 $name = mk_name( $table_name, 'u' );
@@ -622,6 +623,16 @@ sub create_field {
     #
     if ( $data_type =~ /(date|clob)/i ) {
         undef @size;
+    }
+
+    #
+    # Fixes ORA-00906: missing right parenthesis
+		# if size is 0 or undefined
+    #
+    for (qw/varchar2/) {
+        if ( $data_type =~ /^($_)$/i ) {
+            $size[0] ||= $max_size{$_};
+        }
     }
 
     $field_def .= " $data_type";

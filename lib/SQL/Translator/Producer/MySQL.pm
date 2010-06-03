@@ -81,9 +81,9 @@ Set the type of the table e.g. 'InnoDB', 'MyISAM'. This will be
 automatically set for tables involved in foreign key constraints if it is
 not already set explicitly. See L<"Table Types">.
 
-Please note that the C<ENGINE> option is the prefered method of specifying
+Please note that the C<ENGINE> option is the preferred method of specifying
 the MySQL storage engine to use, but this method still works for backwards
-compatability.
+compatibility.
 
 =item B<table.mysql_charset>, B<table.mysql_collate>
 
@@ -364,7 +364,9 @@ sub create_view {
       $create .= " ( ${list} )";
     }
     if( my $sql = $view->sql ){
-      $create .= " AS (\n    ${sql}\n  )";
+      # do not wrap parenthesis around the selector, mysql doesn't like this
+      # http://bugs.mysql.com/bug.php?id=9198
+      $create .= " AS\n    ${sql}\n";
     }
 #    $create .= "";
     return $create;
@@ -580,17 +582,14 @@ sub create_field
     # Null?
     $field_def .= ' NOT NULL' unless $field->is_nullable;
 
-    # Default?  XXX Need better quoting!
-    my $default = $field->default_value;
-    if ( defined $default ) {
-        SQL::Translator::Producer->_apply_default_value(
-          \$field_def,
-          $default, 
-          [
-            'NULL'       => \'NULL',
-          ],
-        );
-    }
+    # Default?
+    SQL::Translator::Producer->_apply_default_value(
+      $field,
+      \$field_def,
+      [
+        'NULL'       => \'NULL',
+      ],
+    );
 
     if ( my $comments = $field->comments ) {
         $field_def .= qq[ comment '$comments'];
@@ -628,12 +627,10 @@ sub create_index
         map { $_ || () }
         lc $index->type eq 'normal' ? 'INDEX' : $index->type . ' INDEX',
         $index->name
-        ? (
-            truncate_id_uniquely(
+        ? $qf . truncate_id_uniquely(
                 $index->name,
                 $options->{max_id_length} || $DEFAULT_MAX_ID_LENGTH
-            )
-          )
+          ) . $qf
         : '',
         '(' . $qf . join( "$qf, $qf", $index->fields ) . $qf . ')'
     );
