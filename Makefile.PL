@@ -1,4 +1,4 @@
-use inc::Module::Install 0.91;
+use inc::Module::Install 1.00;
 use strict;
 use warnings;
 
@@ -20,6 +20,7 @@ my $deps = {
     'DBI'                      => 0,
     'File::ShareDir'           => 1.0,
     'File::Spec'               => 0,
+    'Scalar::Util'             => 0,
     'XML::Writer'              => 0.500,
   },
   recommends => {
@@ -54,7 +55,6 @@ resources Ratings => 'http://cpanratings.perl.org/d/SQL-Translator';
 
 all_from    'lib/SQL/Translator.pm';
 
-
 for my $type (qw/requires recommends test_requires/) {
   no strict qw/refs/;
   my $f = \&$type;
@@ -86,7 +86,6 @@ if ($Module::Install::AUTHOR) {
 }
 
 WriteAll();
-
 
 sub _recompile_grammars {
   # placeholder, will be used to recompile P::RD parsers before shipping
@@ -125,18 +124,21 @@ sub _recreate_rt_source {
   };
 
   if ($@) {
-    print <<EOE;
+    warn <<EOE;
 
 =========================================================================
-===============              FATAL ERROR                =================
+===============              WARNING !!!                =================
 =========================================================================
 
 Unable to update the roundtrip schema (attempt triggered by AUTHOR mode).
-Aborting Makefile generation.
+We will still generate a Makefile, but be aware that if you build a dist
+this way, it *WILL* be broken.
 
+-------------------------------------------------------------------------
 $@
 
+Press Enter to continue.
 EOE
-    exit 1;
+  <>;
   }
 }

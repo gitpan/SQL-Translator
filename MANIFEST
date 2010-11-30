@@ -163,11 +163,14 @@ t/53-oracle-delay-constraints.t
 t/53-oracle-delay-constraints_quoted.t
 t/54-oracle-alter-field.t
 t/55-oracle-add-field.t
+t/55-oracle-producer.t
 t/56-sqlite-producer.t
 t/57-class-dbi.t
 t/60roundtrip.t
 t/61translator_agnostic.t
 t/62roundtrip_datacheck.t
+t/63-spacial-pgsql.t
+t/64xml-to-mysql.t
 t/data/access/gdpdm.ddl
 t/data/diff/create1.yml
 t/data/diff/create2.yml
