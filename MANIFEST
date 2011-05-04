@@ -67,6 +67,7 @@ lib/SQL/Translator/Producer/TTSchema.pm
 lib/SQL/Translator/Producer/XML.pm
 lib/SQL/Translator/Producer/XML/SQLFairy.pm
 lib/SQL/Translator/Producer/YAML.pm
+lib/SQL/Translator/ProducerUtils.pm
 lib/SQL/Translator/Schema.pm
 lib/SQL/Translator/Schema/Constants.pm
 lib/SQL/Translator/Schema/Constraint.pm
@@ -171,6 +172,7 @@ t/61translator_agnostic.t
 t/62roundtrip_datacheck.t
 t/63-spacial-pgsql.t
 t/64xml-to-mysql.t
+t/65-producerutils.t
 t/data/access/gdpdm.ddl
 t/data/diff/create1.yml
 t/data/diff/create2.yml

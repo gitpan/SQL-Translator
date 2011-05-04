@@ -60,6 +60,9 @@ $DEBUG = 1 unless defined $DEBUG;
 use Data::Dumper;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug header_comment);
+use SQL::Translator::ProducerUtils;
+
+my $util = SQL::Translator::ProducerUtils->new( quote_chars => ['[', ']'] );
 
 my %translate  = (
     date      => 'datetime',
@@ -78,37 +81,17 @@ my %translate  = (
     #bit       => 'bit',
     #tinyint   => 'smallint',
     #float     => 'double precision',
-    #serial    => 'numeric', 
+    #serial    => 'numeric',
     #boolean   => 'varchar',
     #char      => 'char',
     #long      => 'varchar',
 );
-
-# TODO - This is still the Sybase list!
-my %reserved = map { $_, 1 } qw[
-    ALL ANALYSE ANALYZE AND ANY AS ASC 
-    BETWEEN BINARY BOTH
-    CASE CAST CHECK COLLATE COLUMN CONSTRAINT CROSS
-    CURRENT_DATE CURRENT_TIME CURRENT_TIMESTAMP CURRENT_USER 
-    DEFAULT DEFERRABLE DESC DISTINCT DO
-    ELSE END EXCEPT
-    FALSE FOR FOREIGN FREEZE FROM FULL 
-    GROUP HAVING 
-    ILIKE IN INITIALLY INNER INTERSECT INTO IS ISNULL 
-    JOIN LEADING LEFT LIKE LIMIT 
-    NATURAL NEW NOT NOTNULL NULL
-    OFF OFFSET OLD ON ONLY OR ORDER OUTER OVERLAPS
-    PRIMARY PUBLIC REFERENCES RIGHT 
-    SELECT SESSION_USER SOME TABLE THEN TO TRAILING TRUE 
-    UNION UNIQUE USER USING VERBOSE WHEN WHERE
-];
 
 # If these datatypes have size appended the sql fails.
 my @no_size = qw/tinyint smallint int integer bigint text bit image datetime/;
 
 my $max_id_length    = 128;
 my %global_names;
-my %unreserve;
 
 =pod
 
@@ -128,26 +111,25 @@ sub produce {
     my $schema         = $translator->schema;
 
     %global_names = (); #reset
-    %unreserve = ();
 
     my $output;
     $output .= header_comment."\n" unless ($no_comments);
 
-    # Generate the DROP statements. We do this in one block here as if we
-    # have fkeys we need to drop in the correct order otherwise they will fail
-    # due to the dependancies the fkeys setup. (There is no way to turn off
-    # fkey checking while we sort the schema like MySQL's set
-    # foreign_key_checks=0)
-    # We assume the tables are in the correct order to set them up as you need
-    # to have created a table to fkey to it. So the reverse order should drop
-    # them properly, fingers crossed...
+    # Generate the DROP statements.
     if ($add_drop_table) {
+        my @tables = sort { $b->order <=> $a->order } $schema->get_tables;
+        $output .= "--\n-- Turn off constraints\n--\n\n" unless $no_comments;
+        foreach my $table (@tables) {
+            my $name = $table->name;
+            my $q_name = unreserve($name);
+            $output .= "IF EXISTS (SELECT name FROM sysobjects WHERE name = '$name' AND type = 'U') ALTER TABLE $q_name NOCHECK CONSTRAINT all;\n"
+        }
+        $output .= "\n";
         $output .= "--\n-- Drop tables\n--\n\n" unless $no_comments;
-        foreach my $table (
-            sort { $b->order <=> $a->order } $schema->get_tables
-        ) {
-            my $name = unreserve($table->name);
-            $output .= qq{IF EXISTS (SELECT name FROM sysobjects WHERE name = '$name' AND type = 'U') DROP TABLE $name;\n\n}
+        foreach my $table (@tables) {
+            my $name = $table->name;
+            my $q_name = unreserve($name);
+            $output .= "IF EXISTS (SELECT name FROM sysobjects WHERE name = '$name' AND type = 'U') DROP TABLE $q_name;\n"
         }
     }
 
@@ -172,7 +154,7 @@ sub produce {
         my %field_name_scope;
         for my $field ( $table->get_fields ) {
             my $field_name    = $field->name;
-            my $field_name_ur = unreserve( $field_name, $table_name );
+            my $field_name_ur = unreserve( $field_name );
             my $field_def     = qq["$field_name_ur"];
             $field_def        =~ s/\"//g;
             if ( $field_def =~ /identity/ ){
@@ -261,7 +243,7 @@ sub produce {
               ],
             );
 
-            push @field_defs, $field_def;            
+            push @field_defs, $field_def;
         }
 
         #
@@ -270,11 +252,12 @@ sub produce {
         my @constraint_decs = ();
         for my $constraint ( $table->get_constraints ) {
             my $name    = $constraint->name || '';
+            my $name_ur = unreserve($name);
             # Make sure we get a unique name
             my $type    = $constraint->type || NORMAL;
-            my @fields  = map { unreserve( $_, $table_name ) }
+            my @fields  = map { unreserve( $_ ) }
                 $constraint->fields;
-            my @rfields = map { unreserve( $_, $table_name ) }
+            my @rfields = map { unreserve( $_ ) }
                 $constraint->reference_fields;
             next unless @fields;
 
@@ -290,10 +273,10 @@ sub produce {
                   undef $_ if $_ eq 'RESTRICT'
                 }
 
-                $c_def = 
-                    "ALTER TABLE $table_name ADD CONSTRAINT $name FOREIGN KEY".
+                $c_def =
+                    "ALTER TABLE $table_name_ur ADD CONSTRAINT $name_ur FOREIGN KEY".
                     ' (' . join( ', ', @fields ) . ') REFERENCES '.
-                    $constraint->reference_table.
+                    unreserve($constraint->reference_table).
                     ' (' . join( ', ', @rfields ) . ')'
                 ;
 
@@ -312,16 +295,25 @@ sub produce {
 
 
             if ( $type eq PRIMARY_KEY ) {
-                $name ||= mk_name( $table_name . '_pk' );
-                $c_def = 
+                $name = ($name ? unreserve($name) : mk_name( $table_name . '_pk' ));
+                $c_def =
                     "CONSTRAINT $name PRIMARY KEY ".
                     '(' . join( ', ', @fields ) . ')';
             }
             elsif ( $type eq UNIQUE ) {
-                $name ||= mk_name( $table_name . '_uc' );
-                $c_def = 
-                    "CONSTRAINT $name UNIQUE " .
-                    '(' . join( ', ', @fields ) . ')';
+                $name = $name_ur || mk_name( $table_name . '_uc' );
+                my @nullable = grep { $_->is_nullable } $constraint->fields;
+                if (!@nullable) {
+                  $c_def =
+                      "CONSTRAINT $name UNIQUE " .
+                      '(' . join( ', ', @fields ) . ')';
+                } else {
+                   push @index_defs,
+                       "CREATE UNIQUE NONCLUSTERED INDEX $name_ur ON $table_name_ur (" .
+                          join( ', ', @fields ) . ')' .
+                          ' WHERE ' . join( ' AND ', map unreserve($_->name) . ' IS NOT NULL', @nullable ) . ';';
+                   next;
+                }
             }
             push @constraint_defs, $c_def;
         }
@@ -331,14 +323,15 @@ sub produce {
         #
         for my $index ( $table->get_indices ) {
             my $idx_name = $index->name || mk_name($table_name . '_idx');
+            my $idx_name_ur = unreserve($idx_name);
             push @index_defs,
-                "CREATE INDEX $idx_name ON $table_name (".
-                join( ', ', $index->fields ) . ");";
+                "CREATE INDEX $idx_name_ur ON $table_name_ur (".
+                join( ', ', map unreserve($_), $index->fields ) . ");";
         }
 
         my $create_statement = "";
         $create_statement .= qq[CREATE TABLE $table_name_ur (\n].
-            join( ",\n", 
+            join( ",\n",
                 map { "  $_" } @field_defs, @constraint_defs
             ).
             "\n);"
@@ -379,7 +372,7 @@ sub produce {
         $output .= "\n\n";
         $output .= "--\n-- Procedure: $name\n--\n\n" unless $no_comments;
         my $text = $_->sql();
-		$text =~ s/\r//g;
+      $text =~ s/\r//g;
         $output .= "$text\nGO\n";
     }
 =cut
@@ -395,7 +388,7 @@ sub mk_name {
     if ( my $prev = $scope->{ $name } ) {
         my $name_orig = $name;
         $name        .= sprintf( "%02d", ++$prev );
-        substr($name, $max_id_length - 3) = "00" 
+        substr($name, $max_id_length - 3) = "00"
             if length( $name ) > $max_id_length;
 
         warn "The name '$name_orig' has been changed to ",
@@ -403,31 +396,14 @@ sub mk_name {
 
         $scope->{ $name_orig }++;
     }
-    $name = substr( $name, 0, $max_id_length ) 
+    $name = substr( $name, 0, $max_id_length )
                         if ((length( $name ) > $max_id_length) && $critical);
     $scope->{ $name }++;
-    return $name;
+    return unreserve($name);
 }
 
 # -------------------------------------------------------------------
-sub unreserve {
-    my $name            = shift || '';
-    my $schema_obj_name = shift || '';
-    my ( $suffix ) = ( $name =~ s/(\W.*)$// ) ? $1 : '';
-
-    # also trap fields that don't begin with a letter
-    return $name if !$reserved{ uc $name } && $name =~ /^[a-z]/i; 
-
-    if ( $schema_obj_name ) {
-        ++$unreserve{"$schema_obj_name.$name"};
-    }
-    else {
-        ++$unreserve{"$name (table name)"};
-    }
-
-    my $unreserve = sprintf '%s_', $name;
-    return $unreserve.$suffix;
-}
+sub unreserve { $util->quote($_[0]) }
 
 1;
 
