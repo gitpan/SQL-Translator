@@ -1,23 +1,5 @@
 package SQL::Translator::Parser::MySQL;
 
-# -------------------------------------------------------------------
-# Copyright (C) 2002-2009 SQLFairy Authors
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation; version 2.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-# 02111-1307  USA
-# -------------------------------------------------------------------
-
 =head1 NAME
 
 SQL::Translator::Parser::MySQL - parser for MySQL
@@ -39,11 +21,11 @@ Here's the word from the MySQL site
 
   CREATE [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name [(create_definition,...)]
   [table_options] [select_statement]
-  
+
   or
-  
+
   CREATE [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name LIKE old_table_name;
-  
+
   create_definition:
     col_name type [NOT NULL | NULL] [DEFAULT default_value] [AUTO_INCREMENT]
               [PRIMARY KEY] [reference_definition]
@@ -55,7 +37,7 @@ Here's the word from the MySQL site
     or    [CONSTRAINT symbol] FOREIGN KEY [index_name] (index_col_name,...)
               [reference_definition]
     or    CHECK (expr)
-  
+
   type:
           TINYINT[(length)] [UNSIGNED] [ZEROFILL]
     or    SMALLINT[(length)] [UNSIGNED] [ZEROFILL]
@@ -84,19 +66,19 @@ Here's the word from the MySQL site
     or    LONGTEXT
     or    ENUM(value1,value2,value3,...)
     or    SET(value1,value2,value3,...)
-  
+
   index_col_name:
           col_name [(length)]
-  
+
   reference_definition:
           REFERENCES tbl_name [(index_col_name,...)]
                      [MATCH FULL | MATCH PARTIAL]
                      [ON DELETE reference_option]
                      [ON UPDATE reference_option]
-  
+
   reference_option:
           RESTRICT | CASCADE | SET NULL | NO ACTION | SET DEFAULT
-  
+
   table_options:
           TYPE = {BDB | HEAP | ISAM | InnoDB | MERGE | MRG_MYISAM | MYISAM }
   or      ENGINE = {BDB | HEAP | ISAM | InnoDB | MERGE | MRG_MYISAM | MYISAM }
@@ -146,33 +128,28 @@ More information about the MySQL comment-syntax: L<http://dev.mysql.com/doc/refm
 =cut
 
 use strict;
-use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = '1.59';
+use warnings;
+
+our $VERSION = '1.59';
+
+our $DEBUG;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
-use Parse::RecDescent;
-use Exporter;
 use Storable qw(dclone);
 use DBI qw(:sql_types);
-use base qw(Exporter);
+use SQL::Translator::Utils qw/parse_mysql_version ddl_parser_instance/;
 
-use SQL::Translator::Utils qw/parse_mysql_version/;
+use base qw(Exporter);
+our @EXPORT_OK = qw(parse);
 
 our %type_mapping = ();
 
-@EXPORT_OK = qw(parse);
-
-# Enable warnings within the Parse::RecDescent module.
-$::RD_ERRORS = 1; # Make sure the parser dies when it encounters an error
-$::RD_WARN   = 1; # Enable warnings. This will warn on unused rules &c.
-$::RD_HINT   = 1; # Give out hints to help fix problems.
-
 use constant DEFAULT_PARSER_VERSION => 30000;
 
-$GRAMMAR = << 'END_OF_GRAMMAR';
+our $GRAMMAR = << 'END_OF_GRAMMAR';
 
-{ 
+{
     my ( $database_name, %tables, $table_order, @table_comments, %views,
         $view_order, %procedures, $proc_order );
     my $delimiter = ';';
@@ -180,17 +157,17 @@ $GRAMMAR = << 'END_OF_GRAMMAR';
 
 #
 # The "eofile" rule makes the parser fail if any "statement" rule
-# fails.  Otherwise, the first successful match by a "statement" 
+# fails.  Otherwise, the first successful match by a "statement"
 # won't cause the failure needed to know that the parse, as a whole,
 # failed. -ky
 #
-startrule : statement(s) eofile { 
-    { 
-        database_name => $database_name, 
-        tables        => \%tables, 
-        views         => \%views, 
+startrule : statement(s) eofile {
+    {
+        database_name => $database_name,
+        tables        => \%tables,
+        views         => \%views,
         procedures    => \%procedures,
-    } 
+    }
 }
 
 eofile : /^\Z/
@@ -220,9 +197,13 @@ drop : /drop/i TABLE /[^;]+/ "$delimiter"
 drop : /drop/i WORD(s) "$delimiter"
     { @table_comments = () }
 
+bit:
+    /(b'[01]{1,64}')/ |
+    /(b"[01]{1,64}")/
+
 string :
-  # MySQL strings, unlike common SQL strings, can be double-quoted or 
-  # single-quoted, and you can escape the delmiters by doubling (but only the 
+  # MySQL strings, unlike common SQL strings, can be double-quoted or
+  # single-quoted, and you can escape the delmiters by doubling (but only the
   # delimiter) or by backslashing.
 
    /'(\\.|''|[^\\\'])*'/ |
@@ -245,7 +226,7 @@ alter : ALTER TABLE table_name alter_specification(s /,/) "$delimiter"
         my $table_name                       = $item{'table_name'};
     die "Cannot ALTER table '$table_name'; it does not exist"
         unless $tables{ $table_name };
-        for my $definition ( @{ $item[4] } ) { 
+        for my $definition ( @{ $item[4] } ) {
         $definition->{'extra'}->{'alter'} = 1;
         push @{ $tables{ $table_name }{'constraints'} }, $definition;
     }
@@ -258,8 +239,11 @@ create : CREATE /database/i WORD "$delimiter"
     { @table_comments = () }
 
 create : CREATE TEMPORARY(?) TABLE opt_if_not_exists(?) table_name '(' create_definition(s /,/) /(,\s*)?\)/ table_option(s?) "$delimiter"
-    { 
+    {
         my $table_name                       = $item{'table_name'};
+        die "There is more than one definition for $table_name"
+            if ($tables{$table_name});
+
         $tables{ $table_name }{'order'}      = ++$table_order;
         $tables{ $table_name }{'table_name'} = $table_name;
 
@@ -272,10 +256,10 @@ create : CREATE TEMPORARY(?) TABLE opt_if_not_exists(?) table_name '(' create_de
         for my $definition ( @{ $item[7] } ) {
             if ( $definition->{'supertype'} eq 'field' ) {
                 my $field_name = $definition->{'name'};
-                $tables{ $table_name }{'fields'}{ $field_name } = 
+                $tables{ $table_name }{'fields'}{ $field_name } =
                     { %$definition, order => $i };
                 $i++;
-        
+
                 if ( $definition->{'is_primary_key'} ) {
                     push @{ $tables{ $table_name }{'constraints'} },
                         {
@@ -333,7 +317,7 @@ create : CREATE PROCEDURE NAME not_delimiter "$delimiter"
         my $func_name = $item[3];
         my $owner = '';
         my $sql = "$item[1] $item[2] $item[3] $item[4]";
-        
+
         $procedures{ $func_name }{'order'}  = ++$proc_order;
         $procedures{ $func_name }{'name'}   = $func_name;
         $procedures{ $func_name }{'owner'}  = $owner;
@@ -349,10 +333,10 @@ create : CREATE replace(?) algorithm(?) /view/i NAME not_delimiter "$delimiter"
         my $view_name = $item[5];
         my $sql = join(q{ }, grep { defined and length } $item[1], $item[2]->[0], $item[3]->[0])
             . " $item[4] $item[5] $item[6]";
-        
+
         # Hack to strip database from function calls in SQL
         $sql =~ s#`\w+`\.(`\w+`\()##g;
-        
+
         $views{ $view_name }{'order'}  = ++$view_order;
         $views{ $view_name }{'name'}   = $view_name;
         $views{ $view_name }{'sql'}    = $sql;
@@ -367,14 +351,14 @@ algorithm : /algorithm/i /=/ WORD
 
 not_delimiter : /.*?(?=$delimiter)/is
 
-create_definition : constraint 
+create_definition : constraint
     | index
     | field
     | comment
     | <error>
 
-comment : /^\s*(?:#|-{2}).*\n/ 
-    { 
+comment : /^\s*(?:#|-{2}).*\n/
+    {
         my $comment =  $item[1];
         $comment    =~ s/^\s*(#|--)\s*//;
         $comment    =~ s/\s*$//;
@@ -388,9 +372,9 @@ comment : /\/\*/ /.*?\*\//s
         $comment    =~ s/^\s*|\s*$//g;
         $return = $comment;
     }
-    
-field_comment : /^\s*(?:#|-{2}).*\n/ 
-    { 
+
+field_comment : /^\s*(?:#|-{2}).*\n/
+    {
         my $comment =  $item[1];
         $comment    =~ s/^\s*(#|--)\s*//;
         $comment    =~ s/\s*$//;
@@ -409,21 +393,21 @@ field_comment2 : /comment/i /'.*?'/
 blank : /\s*/
 
 field : field_comment(s?) field_name data_type field_qualifier(s?) field_comment2(?) reference_definition(?) on_update(?) field_comment(s?)
-    { 
+    {
         my %qualifiers  = map { %$_ } @{ $item{'field_qualifier(s?)'} || [] };
         if ( my @type_quals = @{ $item{'data_type'}{'qualifiers'} || [] } ) {
             $qualifiers{ $_ } = 1 for @type_quals;
         }
 
-        my $null = defined $qualifiers{'not_null'} 
+        my $null = defined $qualifiers{'not_null'}
                    ? $qualifiers{'not_null'} : 1;
         delete $qualifiers{'not_null'};
 
         my @comments = ( @{ $item[1] }, @{ $item[5] }, @{ $item[8] } );
 
-        $return = { 
+        $return = {
             supertype   => 'field',
-            name        => $item{'field_name'}, 
+            name        => $item{'field_name'},
             data_type   => $item{'data_type'}{'type'},
             size        => $item{'data_type'}{'size'},
             list        => $item{'data_type'}{'list'},
@@ -431,46 +415,46 @@ field : field_comment(s?) field_name data_type field_qualifier(s?) field_comment
             constraints => $item{'reference_definition(?)'},
             comments    => [ @comments ],
             %qualifiers,
-        } 
+        }
     }
     | <error>
 
 field_qualifier : not_null
-    { 
-        $return = { 
+    {
+        $return = {
              null => $item{'not_null'},
-        } 
+        }
     }
 
 field_qualifier : default_val
-    { 
-        $return = { 
+    {
+        $return = {
              default => $item{'default_val'},
-        } 
+        }
     }
 
 field_qualifier : auto_inc
-    { 
-        $return = { 
+    {
+        $return = {
              is_auto_inc => $item{'auto_inc'},
-        } 
+        }
     }
 
 field_qualifier : primary_key
-    { 
-        $return = { 
+    {
+        $return = {
              is_primary_key => $item{'primary_key'},
-        } 
+        }
     }
 
 field_qualifier : unsigned
-    { 
-        $return = { 
+    {
+        $return = {
              is_unsigned => $item{'unsigned'},
-        } 
+        }
     }
 
-field_qualifier : /character set/i WORD 
+field_qualifier : /character set/i WORD
     {
         $return = {
             'CHARACTER SET' => $item[2],
@@ -524,19 +508,19 @@ match_type : /match full/i { 'full' }
 on_delete : /on delete/i reference_option
     { $item[2] }
 
-on_update : 
+on_update :
     /on update/i 'CURRENT_TIMESTAMP'
     { $item[2] }
     |
     /on update/i reference_option
     { $item[2] }
 
-reference_option: /restrict/i | 
-    /cascade/i   | 
-    /set null/i  | 
-    /no action/i | 
+reference_option: /restrict/i |
+    /cascade/i   |
+    /set null/i  |
+    /no action/i |
     /set default/i
-    { $item[1] }  
+    { $item[1] }
 
 index : normal_index
     | fulltext_index
@@ -550,7 +534,7 @@ field_name   : NAME
 index_name   : NAME
 
 data_type    : WORD parens_value_list(s?) type_qualifier(s?)
-    { 
+    {
         my $type = $item[1];
         my $size; # field size, applicable only to non-set fields
         my $list; # set list, applicable only to sets (duh)
@@ -565,12 +549,12 @@ data_type    : WORD parens_value_list(s?) type_qualifier(s?)
         }
 
 
-        $return        = { 
+        $return        = {
             type       => $type,
             size       => $size,
             list       => $list,
             qualifiers => $item[3],
-        } 
+        }
     }
 
 parens_field_list : '(' field_name(s /,/) ')'
@@ -586,7 +570,7 @@ field_type   : WORD
 
 create_index : /create/i /index/i
 
-not_null     : /not/i /null/i 
+not_null     : /not/i /null/i
     { $return = 0 }
     |
     /null/i
@@ -594,15 +578,26 @@ not_null     : /not/i /null/i
 
 unsigned     : /unsigned/i { $return = 0 }
 
-default_val : 
+default_val :
     /default/i 'CURRENT_TIMESTAMP'
     {
         $return =  \$item[2];
     }
     |
-    /default/i /'(?:.*?(?:\\'|''))*.*?'|(?:')?[\w\d:.-]*(?:')?/
+    /default/i string
     {
-        $item[2] =~ s/^\s*'|'\s*$//g;
+        $item[2] =~ s/^\s*'|'\s*$//g or $item[2] =~ s/^\s*"|"\s*$//g;
+        $return  =  $item[2];
+    }
+    |
+    /default/i bit
+    {
+        $item[2] =~ s/b['"]([01]+)['"]/$1/g;
+        $return  =  $item[2];
+    }
+    |
+    /default/i /[\w\d:.-]+/
+    {
         $return  =  $item[2];
     }
 
@@ -641,31 +636,41 @@ foreign_key_def_begin : /constraint/i /foreign key/i WORD
     /foreign key/i
     { $return = '' }
 
-primary_key_def : primary_key index_name_not_using(?) index_type(?) '(' name_with_opt_paren(s /,/) ')' index_type(?)
-    { 
-        $return       = { 
+primary_key_def : primary_key index_type(?) '(' name_with_opt_paren(s /,/) ')' index_type(?)
+    {
+        $return       = {
             supertype => 'constraint',
-            name      => $item[2][0],
             type      => 'primary_key',
-            fields    => $item[5],
-            options   => $item[3][0] || $item[7][0],
+            fields    => $item[4],
+            options   => $item[2][0] || $item[6][0],
+        };
+    }
+    # In theory, and according to the doc, names should not be allowed here, but
+    # MySQL accept (and ignores) them, so we are not going to be less :)
+    | primary_key index_name_not_using(?) '(' name_with_opt_paren(s /,/) ')' index_type(?)
+    {
+        $return       = {
+            supertype => 'constraint',
+            type      => 'primary_key',
+            fields    => $item[4],
+            options   => $item[6][0],
         };
     }
 
 unique_key_def : UNIQUE KEY(?) index_name_not_using(?) index_type(?) '(' name_with_opt_paren(s /,/) ')' index_type(?)
-    { 
-        $return       = { 
+    {
+        $return       = {
             supertype => 'constraint',
             name      => $item[3][0],
             type      => 'unique',
             fields    => $item[6],
             options   => $item[4][0] || $item[8][0],
-        } 
+        }
     }
 
 normal_index : KEY index_name_not_using(?) index_type(?) '(' name_with_opt_paren(s /,/) ')' index_type(?)
-    { 
-        $return       = { 
+    {
+        $return       = {
             supertype => 'index',
             type      => 'normal',
             name      => $item[2][0],
@@ -680,23 +685,23 @@ index_name_not_using : QUOTED_NAME
 index_type : /using (btree|hash|rtree)/i { $return = uc $1 }
 
 fulltext_index : /fulltext/i KEY(?) index_name(?) '(' name_with_opt_paren(s /,/) ')'
-    { 
-        $return       = { 
+    {
+        $return       = {
             supertype => 'index',
             type      => 'fulltext',
             name      => $item{'index_name(?)'}[0],
             fields    => $item[5],
-        } 
+        }
     }
 
 spatial_index : /spatial/i KEY(?) index_name(?) '(' name_with_opt_paren(s /,/) ')'
-    { 
-        $return       = { 
+    {
+        $return       = {
             supertype => 'index',
             type      => 'spatial',
             name      => $item{'index_name(?)'}[0],
             fields    => $item[5],
-        } 
+        }
     }
 
 name_with_opt_paren : NAME parens_value_list(s?)
@@ -714,7 +719,7 @@ table_option : /comment/i /=/ /'.*?'/
         $return     = { comment => $comment };
     }
     | /(default )?(charset|character set)/i /\s*=?\s*/ WORD
-    { 
+    {
         $return = { 'CHARACTER SET' => $item[3] };
     }
     | /collate/i WORD
@@ -722,7 +727,7 @@ table_option : /comment/i /=/ /'.*?'/
         $return = { 'COLLATE' => $item[2] }
     }
     | /union/i /\s*=\s*/ '(' table_name(s /,/) ')'
-    { 
+    {
         $return = { $item[1] => $item[4] };
     }
     | WORD /\s*=\s*/ MAYBE_QUOTED_WORD
@@ -764,13 +769,13 @@ QUOTED_NAME : BACKTICK /[^`]+/ BACKTICK
     { $item[2] }
 
 NAME: QUOTED_NAME
-    | /\w+/ 
+    | /\w+/
 
 VALUE : /[-+]?\.?\d+(?:[eE]\d+)?/
     { $item[1] }
-    | /'.*?'/   
-    { 
-        # remove leading/trailing quotes 
+    | /'.*?'/
+    {
+        # remove leading/trailing quotes
         my $val = $item[1];
         $val    =~ s/^['"]|['"]$//g;
         $return = $val;
@@ -781,29 +786,30 @@ VALUE : /[-+]?\.?\d+(?:[eE]\d+)?/
 CURRENT_TIMESTAMP : /current_timestamp(\(\))?/i
     | /now\(\)/i
     { 'CURRENT_TIMESTAMP' }
-    
+
 END_OF_GRAMMAR
 
-# -------------------------------------------------------------------
 sub parse {
     my ( $translator, $data ) = @_;
-    my $parser = Parse::RecDescent->new($GRAMMAR);
+
+    # Enable warnings within the Parse::RecDescent module.
+    local $::RD_ERRORS = 1 unless defined $::RD_ERRORS; # Make sure the parser dies when it encounters an error
+    local $::RD_WARN   = 1 unless defined $::RD_WARN; # Enable warnings. This will warn on unused rules &c.
+    local $::RD_HINT   = 1 unless defined $::RD_HINT; # Give out hints to help fix problems.
+
     local $::RD_TRACE  = $translator->trace ? 1 : undef;
     local $DEBUG       = $translator->debug;
 
-    unless (defined $parser) {
-        return $translator->error("Error instantiating Parse::RecDescent ".
-            "instance: Bad grammer");
-    }
-    
+    my $parser = ddl_parser_instance('MySQL');
+
     # Preprocess for MySQL-specific and not-before-version comments
     # from mysqldump
     my $parser_version = parse_mysql_version(
         $translator->parser_args->{mysql_parser_version}, 'mysql'
     ) || DEFAULT_PARSER_VERSION;
 
-    while ( $data =~ 
-        s#/\*!(\d{5})?(.*?)\*/#($1 && $1 > $parser_version ? '' : $2)#es 
+    while ( $data =~
+        s#/\*!(\d{5})?(.*?)\*/#($1 && $1 > $parser_version ? '' : $2)#es
     ) {
         # do nothing; is there a better way to write this? -- ky
     }
@@ -815,22 +821,22 @@ sub parse {
     my $schema = $translator->schema;
     $schema->name($result->{'database_name'}) if $result->{'database_name'};
 
-    my @tables = sort { 
-        $result->{'tables'}{ $a }{'order'} 
-        <=> 
+    my @tables = sort {
+        $result->{'tables'}{ $a }{'order'}
+        <=>
         $result->{'tables'}{ $b }{'order'}
     } keys %{ $result->{'tables'} };
 
     for my $table_name ( @tables ) {
         my $tdata =  $result->{tables}{ $table_name };
-        my $table =  $schema->add_table( 
+        my $table =  $schema->add_table(
             name  => $tdata->{'table_name'},
         ) or die $schema->error;
 
         $table->comments( $tdata->{'comments'} );
 
-        my @fields = sort { 
-            $tdata->{'fields'}->{$a}->{'order'} 
+        my @fields = sort {
+            $tdata->{'fields'}->{$a}->{'order'}
             <=>
             $tdata->{'fields'}->{$b}->{'order'}
         } keys %{ $tdata->{'fields'} };
@@ -917,21 +923,21 @@ sub parse {
                 reference_table  => $cdata->{'reference_table'},
                 reference_fields => $cdata->{'reference_fields'},
                 match_type       => $cdata->{'match_type'} || '',
-                on_delete        => $cdata->{'on_delete'} 
+                on_delete        => $cdata->{'on_delete'}
                                  || $cdata->{'on_delete_do'},
-                on_update        => $cdata->{'on_update'} 
+                on_update        => $cdata->{'on_update'}
                                  || $cdata->{'on_update_do'},
             ) or die $table->error;
         }
 
-        # After the constrains and PK/idxs have been created, 
+        # After the constrains and PK/idxs have been created,
         # we normalize fields
         normalize_field($_) for $table->get_fields;
     }
-    
-    my @procedures = sort { 
-        $result->{procedures}->{ $a }->{'order'} 
-        <=> 
+
+    my @procedures = sort {
+        $result->{procedures}->{ $a }->{'order'}
+        <=>
         $result->{procedures}->{ $b }->{'order'}
     } keys %{ $result->{procedures} };
 
@@ -942,9 +948,9 @@ sub parse {
             sql   => $result->{procedures}->{$proc_name}->{sql},
         );
     }
-    my @views = sort { 
-        $result->{views}->{ $a }->{'order'} 
-        <=> 
+    my @views = sort {
+        $result->{views}->{ $a }->{'order'}
+        <=>
         $result->{views}->{ $b }->{'order'}
     } keys %{ $result->{views} };
 
@@ -958,32 +964,33 @@ sub parse {
     return 1;
 }
 
-# Takes a field, and returns 
+# Takes a field, and returns
 sub normalize_field {
     my ($field) = @_;
-    my ($size, $type, $list, $changed) = @_;
-  
+    my ($size, $type, $list, $unsigned, $changed);
+
     $size = $field->size;
     $type = $field->data_type;
     $list = $field->extra->{list} || [];
+    $unsigned = defined($field->extra->{unsigned});
 
     if ( !ref $size && $size eq 0 ) {
         if ( lc $type eq 'tinyint' ) {
-            $changed = $size != 4;
-            $size = 4;
+            $changed = $size != 4 - $unsigned;
+            $size = 4 - $unsigned;
         }
         elsif ( lc $type eq 'smallint' ) {
-            $changed = $size != 6;
-            $size = 6;
+            $changed = $size != 6 - $unsigned;
+            $size = 6 - $unsigned;
         }
         elsif ( lc $type eq 'mediumint' ) {
-            $changed = $size != 9;
-            $size = 9;
+            $changed = $size != 9 - $unsigned;
+            $size = 9 - $unsigned;
         }
         elsif ( $type =~ /^int(eger)?$/i ) {
-            $changed = $size != 11 || $type ne 'int';
+            $changed = $size != 11 - $unsigned || $type ne 'int';
             $type = 'int';
-            $size = 11;
+            $size = 11 - $unsigned;
         }
         elsif ( lc $type eq 'bigint' ) {
             $changed = $size != 20;
@@ -991,8 +998,8 @@ sub normalize_field {
         }
         elsif ( lc $type =~ /(float|double|decimal|numeric|real|fixed|dec)/ ) {
             my $old_size = (ref $size || '') eq 'ARRAY' ? $size : [];
-            $changed     = @$old_size != 2 
-                        || $old_size->[0] != 8 
+            $changed     = @$old_size != 2
+                        || $old_size->[0] != 8
                         || $old_size->[1] != 2;
             $size        = [8,2];
         }

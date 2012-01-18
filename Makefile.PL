@@ -9,14 +9,12 @@ my $deps = {
   requires => {
     'Class::Base'              => 0,
     'Class::Data::Inheritable' => 0.02,
-    'Class::MakeMethods'       => 0,
-    'Digest::SHA1'             => 2.00,
+    'Digest::SHA'              => 0,
     'Carp::Clan'               => 0,
     'IO::Dir'                  => 0,
     'IO::Scalar'               => 2.110,
-    'Parse::RecDescent'        => 1.962002,
+    'Parse::RecDescent'        => 1.964001,
     'Pod::Usage'               => 0,
-    'Class::Accessor::Fast'    => 0,
     'DBI'                      => 0,
     'File::ShareDir'           => 1.0,
     'File::Spec'               => 0,
@@ -64,8 +62,6 @@ for my $type (qw/requires recommends test_requires/) {
   }
 }
 
-tests_recursive ();
-
 install_script (qw|
   script/sqlt-diagram
   script/sqlt-diff
@@ -77,7 +73,28 @@ install_script (qw|
 
 install_share();
 
-auto_provides();
+tests_recursive ();
+
+
+# temporary(?) until I get around to fix M::I wrt xt/
+# needs Module::Install::AuthorTests
+eval {
+  # this should not be necessary since the autoloader is supposed
+  # to work, but there were reports of it failing
+  require Module::Install::AuthorTests;
+  recursive_author_tests (qw/xt/);
+  1;
+} || do {
+  if ($Module::Install::AUTHOR) {
+    my $err = $@;
+
+    # better error message in case of missing dep
+    eval { require Module::Install::AuthorTests }
+      || die "\nYou need Module::Install::AuthorTests installed to run this Makefile.PL in author mode:\n\n$@\n";
+
+    die $err;
+  }
+};
 
 auto_install();
 
@@ -89,8 +106,54 @@ if ($Module::Install::AUTHOR) {
 WriteAll();
 
 sub _recompile_grammars {
-  # placeholder, will be used to recompile P::RD parsers before shipping
-  # will also allow to lose dependency on P::RD
+  require File::Spec;
+
+  my $compiled_parser_dir = File::Spec->catdir(qw/
+    share PrecompiledParsers Parse RecDescent DDL SQLT
+  /);
+
+  # Currently consider only single-name parsers containing a grammar marker
+  # This is somewhat fragile, but better than loading all kinds of parsers
+  # to some of which we may not even have the deps
+  my $parser_libdir = 'lib/SQL/Translator/Parser';
+  for my $parser_fn (glob "$parser_libdir/*.pm") {
+    die "$parser_fn does not look like a readable file\n"
+      unless ( -f $parser_fn and -r $parser_fn );
+
+    my ($type) = $parser_fn =~ /^\Q$parser_libdir\E\/(.+)\.pm$/i
+      or die "$parser_fn not named in expected format\n";
+
+    my $parser_source = do { local (@ARGV, $/) = $parser_fn; <> };
+    next unless $parser_source =~ /\$GRAMMAR.+?END_OF_GRAMMAR/s;
+
+
+    my $precomp_parser_fn = File::Spec->catfile($compiled_parser_dir, "$type.pm");
+
+    next if (
+      -f $precomp_parser_fn
+        and
+      (stat($parser_fn))[9] <= (stat($precomp_parser_fn))[9]
+    );
+
+
+    print "Precompiling parser for $type\n";
+
+    require $parser_fn;
+    require Parse::RecDescent;
+
+    Parse::RecDescent->Precompile(
+      do {
+        no strict 'refs';
+        ${"SQL::Translator::Parser::${type}::GRAMMAR"}
+          || die "No \$GRAMMAR global found in SQL::Translator::Parser::$type ($parser_fn)\n"
+      },
+      "Parse::RecDescent::DDL::SQLT::$type"
+    );
+
+    rename( "$type.pm", $precomp_parser_fn )
+      or die "Unable to move $type.pm to $compiled_parser_dir: $!\n";
+  }
+
 }
 
 sub _recreate_rt_source {

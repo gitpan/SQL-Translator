@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # -------------------------------------------------------------------
-# Copyright (C) 2002-2009 SQLFairy Authors
+# Copyright (C) 2002-2011 SQLFairy Authors
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -18,7 +18,7 @@
 # 02111-1307  USA
 # -------------------------------------------------------------------
 
-=head1 NAME 
+=head1 NAME
 
 sqlt-diagram - Automatically create a diagram from a database schema
 
@@ -37,13 +37,13 @@ sqlt-diagram - Automatically create a diagram from a database schema
                        default "medium")
     --gutter           Gutter size between tables
     --color            Add colors
-    --show-fk-only     Only show fields that act as primary 
+    --show-fk-only     Only show fields that act as primary
                        or foreign keys
 
     --natural-join     Perform natural joins
     --natural-join-pk  Perform natural joins from primary keys only
     -s|--skip          Fields to skip in natural joins
-    --skip-tables      Comma-separated list of table names to exclude 
+    --skip-tables      Comma-separated list of table names to exclude
     --skip-tables-like Comma-separated list of regexen to exclude tables
     --debug            Print debugging information
 
@@ -82,17 +82,17 @@ $VERSION = '1.59';
 #
 # Get arguments.
 #
-my ( 
-    $out_file, $image_type, $db_driver, $title, $num_columns, 
+my (
+    $out_file, $output_type, $db_driver, $title, $num_columns,
     $no_lines, $font_size, $add_color, $debug, $show_fk_only,
-    $gutter, $natural_join, $join_pk_only, $skip_fields, 
+    $gutter, $natural_join, $join_pk_only, $skip_fields,
     $skip_tables, $skip_tables_like, $help
 );
 
 GetOptions(
     'd|db|f|from=s'      => \$db_driver,
     'o|output:s'         => \$out_file,
-    'i|image:s'          => \$image_type,
+    'i|image:s'          => \$output_type,
     't|title:s'          => \$title,
     'c|columns:i'        => \$num_columns,
     'n|no-lines'         => \$no_lines,
@@ -114,13 +114,13 @@ pod2usage(1) if $help;
 pod2usage( -message => "No db driver specified" ) unless $db_driver;
 pod2usage( -message => 'No input file'          ) unless @files;
 
-my $translator       =  SQL::Translator->new( 
+my $translator       =  SQL::Translator->new(
     from             => $db_driver,
     to               => 'Diagram',
     debug            => $debug || 0,
     producer_args    => {
         out_file         => $out_file,
-        image_type       => $image_type,
+        output_type      => $output_type,
         gutter           => $gutter || 0,
         title            => $title,
         num_columns      => $num_columns,
@@ -135,6 +135,8 @@ my $translator       =  SQL::Translator->new(
         skip_tables_like => $skip_tables_like,
     },
 ) or die SQL::Translator->error;
+
+binmode STDOUT unless $out_file;
 
 for my $file (@files) {
     my $output = $translator->translate( $file ) or die

@@ -32,10 +32,10 @@ my $field1 = SQL::Translator::Schema::Field->new( name      => 'myfield',
                                                   table     => $table,
                                                   data_type => 'geometry',
                                                   extra     => {
-												      dimensions    => 2,
-												      geometry_type => 'POINT',
-												      srid          => -1
-													},
+                                                      dimensions    => 2,
+                                                      geometry_type => 'POINT',
+                                                      srid          => -1
+                                                  },
                                                   default_value     => undef,
                                                   is_auto_increment => 0,
                                                   is_nullable       => 1,
@@ -69,19 +69,19 @@ my $field2 = SQL::Translator::Schema::Field->new( name      => 'myfield',
 
 my $alter_field = SQL::Translator::Producer::PostgreSQL::alter_field($field1,
                                                                 $field2);
-is($alter_field, qq[DELETE FROM geometry_columns WHERE f_table_schema = 'myschema' AND f_table_name = 'mytable' AND f_geometry_column = 'myfield'
+is($alter_field, qq[DELETE FROM geometry_columns WHERE f_table_schema = 'myschema' AND f_table_name = 'mytable' AND f_geometry_column = 'myfield';
 ALTER TABLE mytable DROP CONSTRAINT enforce_dims_myfield
 ALTER TABLE mytable DROP CONSTRAINT enforce_srid_myfield
-ALTER TABLE mytable DROP CONSTRAINT enforce_geotype_myfield
-ALTER TABLE mytable ALTER COLUMN myfield SET NOT NULL
+ALTER TABLE mytable DROP CONSTRAINT enforce_geotype_myfield;
+ALTER TABLE mytable ALTER COLUMN myfield SET NOT NULL;
 ALTER TABLE mytable ALTER COLUMN myfield TYPE character varying(25)],
  'Alter field geometry to non geometry works');
 
 my $alter_field2 = SQL::Translator::Producer::PostgreSQL::alter_field($field2,
                                                                 $field1);
-is($alter_field2, qq[ALTER TABLE mytable ALTER COLUMN myfield DROP NOT NULL
-ALTER TABLE mytable ALTER COLUMN myfield TYPE geometry
-INSERT INTO geometry_columns VALUES ('','myschema','mytable','myfield','2','-1','POINT')
+is($alter_field2, qq[ALTER TABLE mytable ALTER COLUMN myfield DROP NOT NULL;
+ALTER TABLE mytable ALTER COLUMN myfield TYPE geometry;
+INSERT INTO geometry_columns VALUES ('','myschema','mytable','myfield','2','-1','POINT');
 ALTER TABLE mytable ADD CONSTRAINT enforce_dims_myfield CHECK ((ST_NDims(myfield) = 2))
 ALTER TABLE mytable ADD CONSTRAINT enforce_srid_myfield CHECK ((ST_SRID(myfield) = -1))
 ALTER TABLE mytable ADD CONSTRAINT enforce_geotype_myfield CHECK ((GeometryType(myfield) = 'POINT'::text OR myfield IS NULL))],
@@ -107,9 +107,9 @@ my $field4 = SQL::Translator::Schema::Field->new( name      => 'field4',
                                                   table     => $table,
                                                   data_type => 'geography',
                                                   extra     => {
-												      geography_type => 'POINT',
-												      srid          => -1
-													},
+                                                      geography_type => 'POINT',
+                                                      srid           => -1
+                                                  },
                                                   default_value     => undef,
                                                   is_auto_increment => 0,
                                                   is_nullable       => 1,

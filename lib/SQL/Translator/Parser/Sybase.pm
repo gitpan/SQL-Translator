@@ -1,23 +1,5 @@
 package SQL::Translator::Parser::Sybase;
 
-# -------------------------------------------------------------------
-# Copyright (C) 2002-2009 SQLFairy Authors
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation; version 2.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-# 02111-1307  USA
-# -------------------------------------------------------------------
-
 =head1 NAME
 
 SQL::Translator::Parser::Sybase - parser for Sybase
@@ -36,25 +18,22 @@ DBI-Sybase parser included with SQL::Translator.
 =cut
 
 use strict;
+use warnings;
 
-use vars qw[ $DEBUG $VERSION $GRAMMAR @EXPORT_OK ];
-$VERSION = '1.59';
+our $VERSION = '1.59';
+
+our $DEBUG;
 $DEBUG   = 0 unless defined $DEBUG;
 
 use Data::Dumper;
-use Parse::RecDescent;
-use Exporter;
+use SQL::Translator::Utils qw/ddl_parser_instance/;
+
 use base qw(Exporter);
+our @EXPORT_OK = qw(parse);
 
-@EXPORT_OK = qw(parse);
+our $GRAMMAR = <<'END_OF_GRAMMAR';
 
-$::RD_ERRORS = 1;
-$::RD_WARN   = 1;
-$::RD_HINT   = 1;
-
-$GRAMMAR = q{
-
-{ 
+{
     my ( %tables, @table_comments, $table_order );
 }
 
@@ -75,7 +54,7 @@ statement : create_table
     | exec
     | <error>
 
-use : /use/i WORD GO 
+use : /use/i WORD GO
     { @table_comments = () }
 
 setuser : /setuser/i NAME GO
@@ -103,7 +82,7 @@ exec : exec_statement(s) GO
 exec_statement : /exec/i /[^\n]+/
 
 comment : comment_start comment_middle comment_end
-    { 
+    {
         my $comment = $item[2];
         $comment =~ s/^\s*|\s*$//mg;
         $comment =~ s/^\**\s*//mg;
@@ -120,7 +99,7 @@ comment_middle : m{([^*]+|\*(?!/))*}
 # Create table.
 #
 create_table : /create/i /table/i ident '(' create_def(s /,/) ')' lock(?) on_system(?) GO
-    { 
+    {
         my $table_owner = $item[3]{'owner'};
         my $table_name  = $item[3]{'name'};
 
@@ -138,10 +117,10 @@ create_table : /create/i /table/i ident '(' create_def(s /,/) ')' lock(?) on_sys
         for my $def ( @{ $item[5] } ) {
             if ( $def->{'supertype'} eq 'field' ) {
                 my $field_name = $def->{'name'};
-                $tables{ $table_name }{'fields'}{ $field_name } = 
+                $tables{ $table_name }{'fields'}{ $field_name } =
                     { %$def, order => $i };
                 $i++;
-        
+
                 if ( $def->{'is_primary_key'} ) {
                     push @{ $tables{ $table_name }{'constraints'} }, {
                         type   => 'primary_key',
@@ -158,7 +137,7 @@ create_table : /create/i /table/i ident '(' create_def(s /,/) ')' lock(?) on_sys
         }
     }
 
-create_constraint : /create/i constraint 
+create_constraint : /create/i constraint
     {
         @table_comments = ();
         push @{ $tables{ $item[2]{'table'} }{'constraints'} }, $item[2];
@@ -185,18 +164,18 @@ create_def : field
 
 blank : /\s*/
 
-field : field_name data_type nullable(?) 
-    { 
-        $return = { 
+field : field_name data_type nullable(?)
+    {
+        $return = {
             supertype      => 'field',
-            name           => $item{'field_name'}, 
+            name           => $item{'field_name'},
             data_type      => $item{'data_type'}{'type'},
             size           => $item{'data_type'}{'size'},
-            nullable       => $item[3][0], 
-#            default        => $item{'default_val'}[0], 
-#            is_auto_inc    => $item{'auto_inc'}[0], 
-#            is_primary_key => $item{'primary_key'}[0], 
-        } 
+            nullable       => $item[3][0],
+#            default        => $item{'default_val'}[0],
+#            is_auto_inc    => $item{'auto_inc'}[0],
+#            is_primary_key => $item{'primary_key'}[0],
+        }
     }
 
 constraint : primary_key_constraint
@@ -208,12 +187,12 @@ index_name : WORD
 
 table_name : WORD
 
-data_type : WORD field_size(?) 
-    { 
-        $return = { 
-            type => $item[1], 
+data_type : WORD field_size(?)
+    {
+        $return = {
+            type => $item[1],
             size => $item[2][0]
-        } 
+        }
     }
 
 lock : /lock/i /datarows/i
@@ -233,31 +212,31 @@ nullable : /not/i /null/i
     | /null/i
     { $return = 1 }
 
-default_val : /default/i /(?:')?[\w\d.-]*(?:')?/ 
+default_val : /default/i /(?:')?[\w\d.-]*(?:')?/
     { $item[2]=~s/'//g; $return=$item[2] }
 
 auto_inc : /auto_increment/i { 1 }
 
-primary_key_constraint : /primary/i /key/i index_name(?) parens_field_list 
-    { 
-        $return = { 
+primary_key_constraint : /primary/i /key/i index_name(?) parens_field_list
+    {
+        $return = {
             supertype => 'constraint',
             name      => $item{'index_name'}[0],
             type      => 'primary_key',
             fields    => $item[4],
-        } 
+        }
     }
 
 unique_constraint : /unique/i clustered(?) INDEX(?) index_name(?) on_table(?) parens_field_list
-    { 
-        $return = { 
+    {
+        $return = {
             supertype => 'constraint',
             type      => 'unique',
             clustered => $item[2][0],
             name      => $item[4][0],
             table     => $item[5][0],
             fields    => $item[6],
-        } 
+        }
     }
 
 clustered : /clustered/i
@@ -274,15 +253,15 @@ on_system : /on/i /system/i
     { $return = 1 }
 
 index : clustered(?) INDEX index_name(?) on_table(?) parens_field_list
-    { 
-        $return = { 
+    {
+        $return = {
             supertype => 'index',
             type      => 'normal',
             clustered => $item[1][0],
             name      => $item[3][0],
             table     => $item[4][0],
             fields    => $item[5],
-        } 
+        }
     }
 
 parens_field_list : '(' field_name(s /,/) ')'
@@ -306,39 +285,39 @@ COMMA : ','
 
 QUOTE : /'/
 
-};
+END_OF_GRAMMAR
 
-# -------------------------------------------------------------------
 sub parse {
     my ( $translator, $data ) = @_;
-    my $parser = Parse::RecDescent->new($GRAMMAR);
+
+    # Enable warnings within the Parse::RecDescent module.
+    local $::RD_ERRORS = 1 unless defined $::RD_ERRORS; # Make sure the parser dies when it encounters an error
+    local $::RD_WARN   = 1 unless defined $::RD_WARN; # Enable warnings. This will warn on unused rules &c.
+    local $::RD_HINT   = 1 unless defined $::RD_HINT; # Give out hints to help fix problems.
 
     local $::RD_TRACE  = $translator->trace ? 1 : undef;
     local $DEBUG       = $translator->debug;
 
-    unless (defined $parser) {
-        return $translator->error("Error instantiating Parse::RecDescent ".
-            "instance: Bad grammer");
-    }
+    my $parser = ddl_parser_instance('Sybase');
 
     my $result = $parser->startrule($data);
     return $translator->error( "Parse failed." ) unless defined $result;
     warn Dumper( $result ) if $DEBUG;
 
     my $schema = $translator->schema;
-    my @tables = sort { 
+    my @tables = sort {
         $result->{ $a }->{'order'} <=> $result->{ $b }->{'order'}
     } keys %{ $result };
 
     for my $table_name ( @tables ) {
         my $tdata = $result->{ $table_name };
-        my $table = $schema->add_table( name => $tdata->{'name'} ) 
+        my $table = $schema->add_table( name => $tdata->{'name'} )
                     or die "Can't create table '$table_name': ", $schema->error;
 
         $table->comments( $tdata->{'comments'} );
 
-        my @fields = sort { 
-            $tdata->{'fields'}->{$a}->{'order'} 
+        my @fields = sort {
+            $tdata->{'fields'}->{$a}->{'order'}
             <=>
             $tdata->{'fields'}->{$b}->{'order'}
         } keys %{ $tdata->{'fields'} };

@@ -1,4 +1,43 @@
 # ----------------------------------------------------------
+# 0.11010_01 2012-01-18
+# ----------------------------------------------------------
+* All parser grammars are now precompiled for speed
+* Fixes to SQLite foreign keys production (patch from Johan Viklund)
+  closes RT#16412, RT#44769
+* ON DELETE/UPDATE actions for SQLite (patch from Lukas Thiemeier)
+  closes RT#70734, RT#71283, RT#70378
+* Proper quoting support in SQLite
+* Support for triggers in PostgreSQL producer and parser
+* Correct Data Type in SQLT::Parser::DBI::PostgreSQL (patch from Andrew Pam)
+* Fix index issue in SQLT::Parser::DBI::PostgreSQL
+* Add column and table comments in SQLT::Parser::DBI::PostgreSQL(patch from Andrew Pam)
+* Fixed alter_drop_constraint for foreign keys and applying multiple changes
+  via alter_field to a column in Postgres Producer
+* Added a working mechanism for naming foreign keys in the PostgreSQL producer
+* Fix PostgreSQL ignoring default values with specified data type
+* Fix possible name duplication in SQLlite producer
+* Oracle does not accept ON DELETE/UPDATE RESTRICT (though it is the actual default)
+  fix by not adding the ON DELETE/UPDATE clause at all
+* Changed dependency on Digest::SHA1 to the core-bundled Digest::SHA (RT#67989)
+* Support for double quoted and bit strings as default values in MySQL parser
+* Check in MySQL parser to avoid trying to parse a table defined twice in the same
+  file as indices (and probably other things) get messed up
+* Workaround for some MySQL quirks on primary key definitions
+* Fix dropping primary keys in MySQL diffs (RT#62250, patch from Nick Bertrand)
+* MySQL producer does not attempt to write out non-existent unique constraint names
+* MySQL parser correctly differentiates between signed and unsigned integer column
+  display sizes
+* Replace Class::Accessor::Fast dependency with already-included Moo
+* Entire codebase is now free of tabs and trailing whitespace
+* Spellfixes (RT#68912)
+* Fix Diagram Producer POD (RT#71397, RT#71398)
+* Fix Diagram Producer to use correct binmode on output (RT#71399)
+* Fix ignored option to script/sqlt-diagram (RT#5992)
+* Fix t/17sqlfxml-producer.t failures due to whitespace differences introduced by
+  environment config snippets (RT#70786)
+* Deprecate SQL::Translator::Schema::Graph and the as_graph() schema method
+
+# ----------------------------------------------------------
 # 0.11010 2011-10-05
 # ----------------------------------------------------------
 

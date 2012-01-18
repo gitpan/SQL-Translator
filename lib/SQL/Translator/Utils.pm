@@ -1,55 +1,22 @@
 package SQL::Translator::Utils;
 
-# ----------------------------------------------------------------------
-# Copyright (C) 2002-2009 SQLFairy Authors
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation; version 2.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-# 02111-1307  USA
-# -------------------------------------------------------------------
-
 use strict;
-use base qw(Exporter);
-use vars qw($VERSION $DEFAULT_COMMENT @EXPORT_OK);
-use Digest::SHA1 qw( sha1_hex );
-use Exporter;
+use warnings;
+use Digest::SHA qw( sha1_hex );
+use File::Spec;
+use Class::Unload;
 
-$VERSION = '1.59';
-$DEFAULT_COMMENT = '-- ';
-@EXPORT_OK = qw(
+our $VERSION = '1.59';
+our $DEFAULT_COMMENT = '-- ';
+
+use base qw(Exporter);
+our @EXPORT_OK = qw(
     debug normalize_name header_comment parse_list_arg truncate_id_uniquely
     $DEFAULT_COMMENT parse_mysql_version parse_dbms_version
+    ddl_parser_instance
 );
 use constant COLLISION_TAG_LENGTH => 8;
 
-# ----------------------------------------------------------------------
-# debug(@msg)
-#
-# Will send debugging messages to STDERR, if the caller's $DEBUG global
-# is set.
-#
-# This debug() function has a neat feature: Occurances of the strings
-# PKG, LINE, and SUB in each message will be replaced with elements
-# from caller():
-#
-#   debug("PKG: Bad things happened on line LINE!");
-#
-# Will be warned as:
-#
-#   [SQL::Translator: Bad things happened on line 643]
-#
-# If called from Translator.pm, on line 643.
-# ----------------------------------------------------------------------
 sub debug {
     my ($pkg, $file, $line, $sub) = caller(0);
     {
@@ -70,7 +37,6 @@ sub debug {
     }
 }
 
-# ----------------------------------------------------------------------
 sub normalize_name {
     my $name = shift or return '';
 
@@ -91,7 +57,6 @@ sub normalize_name {
     return $name;
 }
 
-# ----------------------------------------------------------------------
 sub header_comment {
     my $producer = shift || caller;
     my $comment_char = shift;
@@ -115,13 +80,6 @@ HEADER_COMMENT
     return $header_comment;
 }
 
-# ----------------------------------------------------------------------
-# parse_list_arg
-#
-# Meant to accept a list, an array reference, or a string of 
-# comma-separated values.  Retuns an array reference of the 
-# arguments.  Modified to also handle a list of references.
-# ----------------------------------------------------------------------
 sub parse_list_arg {
     my $list = UNIVERSAL::isa( $_[0], 'ARRAY' ) ? shift : [ @_ ];
 
@@ -135,7 +93,7 @@ sub parse_list_arg {
     # This processes string-like arguments.
     #
     else {
-        return [ 
+        return [
             map { s/^\s+|\s+$//g; $_ }
             map { split /,/ }
             grep { defined && length } @$list
@@ -143,14 +101,6 @@ sub parse_list_arg {
     }
 }
 
-# ----------------------------------------------------------------------
-# truncate_id_uniquely( $desired_name, $max_symbol_length )
-#
-# Truncates the name $desired_name to the $max_symbol_length by
-# including part of the hash of the full name at the end of the
-# truncated name, giving a high probability that the symbol will be
-# unique.
-# ----------------------------------------------------------------------
 sub truncate_id_uniquely {
     my ( $desired_name, $max_symbol_length ) = @_;
 
@@ -171,13 +121,6 @@ sub truncate_id_uniquely {
 }
 
 
-#---------------------------------------------------------------------
-# parse_mysql_version ( $version_string, $result_target)
-#
-# Attempts to parse an arbitrary string as a mysql version number. 
-# Returns either a floating point perl style string, or a mysql style
-# 5 digit string, depending on the supplied $result_target
-#---------------------------------------------------------------------
 sub parse_mysql_version {
     my ($v, $target) = @_;
 
@@ -187,17 +130,17 @@ sub parse_mysql_version {
 
     my @vers;
 
-    # X.Y.Z style 
+    # X.Y.Z style
     if ( $v =~ / ^ (\d+) \. (\d{1,3}) (?: \. (\d{1,3}) )? $ /x ) {
         push @vers, $1, $2, $3;
     }
 
-    # XYYZZ (mysql) style 
+    # XYYZZ (mysql) style
     elsif ( $v =~ / ^ (\d) (\d{2}) (\d{2}) $ /x ) {
         push @vers, $1, $2, $3;
     }
 
-    # XX.YYYZZZ (perl) style or simply X 
+    # XX.YYYZZZ (perl) style or simply X
     elsif ( $v =~ / ^ (\d+) (?: \. (\d{3}) (\d{3}) )? $ /x ) {
         push @vers, $1, $2, $3;
     }
@@ -218,14 +161,6 @@ sub parse_mysql_version {
     }
 }
 
-#---------------------------------------------------------------------
-# parse_dbms_version ( $version_string, $target )
-#
-# Attempts to parse either a native or perl-style version string into
-# a version number format as specified by $target, which can be either
-# 'perl' for a perl-style version number, or 'native' for an X.X.X
-# style version number.
-#---------------------------------------------------------------------
 sub parse_dbms_version {
     my ($v, $target) = @_;
 
@@ -233,12 +168,12 @@ sub parse_dbms_version {
 
     my @vers;
 
-    # X.Y.Z style 
+    # X.Y.Z style
     if ( $v =~ / ^ (\d+) \. (\d{1,3}) (?: \. (\d{1,3}) )? $ /x ) {
         push @vers, $1, $2, $3;
     }
 
-    # XX.YYYZZZ (perl) style or simply X 
+    # XX.YYYZZZ (perl) style or simply X
     elsif ( $v =~ / ^ (\d+) (?: \. (\d{3}) (\d{3}) )? $ /x ) {
         push @vers, $1, $2, $3;
     }
@@ -259,9 +194,98 @@ sub parse_dbms_version {
     }
 }
 
-1;
+my ($parsers_libdir, $checkout_dir);
+sub ddl_parser_instance {
+    my $type = shift;
 
-# ----------------------------------------------------------------------
+    # it may differ from our caller, even though currently this is not the case
+    eval "require SQL::Translator::Parser::$type"
+        or die "Unable to load grammar-spec container SQL::Translator::Parser::$type:\n$@";
+
+    unless ($parsers_libdir) {
+
+        # are we in a checkout?
+        if ($checkout_dir = _find_co_root()) {
+            $parsers_libdir = File::Spec->catdir($checkout_dir, 'share', 'PrecompiledParsers');
+        }
+        else {
+            require File::ShareDir;
+            $parsers_libdir = File::Spec->catdir(
+              File::ShareDir::dist_dir('SQL-Translator'),
+              'PrecompiledParsers'
+            );
+        }
+
+        unshift @INC, $parsers_libdir;
+    }
+
+    my $precompiled_mod = "Parse::RecDescent::DDL::SQLT::$type";
+
+    # FIXME FIXME FIXME
+    # Parse::RecDescent has horrible architecture where each precompiled parser
+    # instance shares global state with all its siblings
+    # What we do here is gross, but scarily efficient - the parser compilation
+    # is much much slower than an unload/reload cycle
+    Class::Unload->unload($precompiled_mod);
+
+    # There is also a sub-namespace that P::RD uses, but simply unsetting
+    # $^W to stop redefine warnings seems to be enough
+    #Class::Unload->unload("Parse::RecDescent::$precompiled_mod");
+
+    eval "local \$^W; require $precompiled_mod" or do {
+        if ($checkout_dir) {
+            die "Unable to find precompiled grammar for $type - run Makefile.PL to generate it\n";
+        }
+        else {
+            die "Unable to load precompiled grammar for $type... this is not supposed to happen if you are not in a checkout, please file a bugreport:\n$@"
+        }
+    };
+
+    my $grammar_spec_fn = $INC{"SQL/Translator/Parser/$type.pm"};
+    my $precompiled_fn = $INC{"Parse/RecDescent/DDL/SQLT/$type.pm"};
+
+    if (
+        (stat($grammar_spec_fn))[9]
+            >
+        (stat($precompiled_fn))[9]
+    ) {
+        die (
+            "Grammar spec '$grammar_spec_fn' is newer than precompiled parser '$precompiled_fn'"
+          . ($checkout_dir
+                ? " - run Makefile.PL to regenerate stale versions\n"
+                : "... this is not supposed to happen if you are not in a checkout, please file a bugreport\n"
+            )
+        );
+    }
+
+    return $precompiled_mod->new;
+}
+
+# Try to determine the root of a checkout/untar if possible
+# or return undef
+sub _find_co_root {
+
+    my @mod_parts = split /::/, (__PACKAGE__ . '.pm');
+    my $rel_path = join ('/', @mod_parts);  # %INC stores paths with / regardless of OS
+
+    return undef unless ($INC{$rel_path});
+
+    # a bit convoluted, but what we do here essentially is:
+    #  - get the file name of this particular module
+    #  - do 'cd ..' as many times as necessary to get to lib/SQL/Translator/../../..
+
+    my $root = (File::Spec::Unix->splitpath($INC{$rel_path}))[1];
+    for (1 .. @mod_parts) {
+        $root = File::Spec->catdir($root, File::Spec->updir);
+    }
+
+    return ( -f File::Spec->catfile($root, 'Makefile.PL') )
+        ? $root
+        : undef
+    ;
+}
+
+1;
 
 =pod
 
@@ -390,7 +414,7 @@ C<header_comment>.
 
 =head2 parse_mysql_version
 
-Used by both L<Parser::MySQL|SQL::Translator::Parser::MySQL> and 
+Used by both L<Parser::MySQL|SQL::Translator::Parser::MySQL> and
 L<Producer::MySQL|SQL::Translator::Producer::MySQL> in order to provide a
 consistent format for both C<< parser_args->{mysql_parser_version} >> and
 C<< producer_args->{mysql_version} >> respectively. Takes any of the following
@@ -402,6 +426,12 @@ version specifications:
   5
   5.001005  (perl style)
   30201     (mysql style)
+
+=head2 parse_dbms_version
+
+Takes a version string (X.Y.Z) or perl style (XX.YYYZZZ) and a target ('perl'
+or 'native') transforms the string to the given target style.
+to
 
 =head1 AUTHORS
 

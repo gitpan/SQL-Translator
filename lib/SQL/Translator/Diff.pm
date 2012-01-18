@@ -8,15 +8,59 @@ use warnings;
 use Data::Dumper;
 use Carp::Clan qw/^SQL::Translator/;
 use SQL::Translator::Schema::Constants;
+use Sub::Quote qw(quote_sub);
+use Moo;
 
-use base 'Class::Accessor::Fast';
-
-# Input/option accessors
-__PACKAGE__->mk_accessors(qw/
-  ignore_index_names ignore_constraint_names ignore_view_sql
-  ignore_proc_sql output_db source_schema target_schema 
-  case_insensitive no_batch_alters ignore_missing_methods producer_args
-/);
+has ignore_index_names => (
+  is => 'rw',
+);
+has ignore_constraint_names => (
+  is => 'rw',
+);
+has ignore_view_sql => (
+  is => 'rw',
+);
+has ignore_proc_sql => (
+  is => 'rw',
+);
+has output_db => (
+  is => 'rw',
+);
+has source_schema => (
+  is => 'rw',
+);
+has target_schema => (
+  is => 'rw',
+);
+has case_insensitive => (
+  is => 'rw',
+);
+has no_batch_alters => (
+  is => 'rw',
+);
+has ignore_missing_methods => (
+  is => 'rw',
+);
+has producer_args => (
+  is => 'rw',
+  lazy => 1,
+  default => quote_sub '{}',
+);
+has tables_to_drop => (
+  is => 'rw',
+  lazy => 1,
+  default => quote_sub '[]',
+);
+has tables_to_create => (
+  is => 'rw',
+  lazy => 1,
+  default => quote_sub '[]',
+);
+has table_diff_hash => (
+  is => 'rw',
+  lazy => 1,
+  default => quote_sub '{}',
+);
 
 my @diff_arrays = qw/
   tables_to_drop
@@ -35,8 +79,6 @@ my @diff_hash_keys = qw/
   table_options
   table_renamed_from
 /;
-
-__PACKAGE__->mk_accessors(@diff_arrays, 'table_diff_hash');
 
 sub schema_diff {
     #  use Data::Dumper;
@@ -59,18 +101,19 @@ sub schema_diff {
     $obj->compute_differences->produce_diff_sql;
 }
 
-sub new {
-  my ($class, $values) = @_;
-  $values->{$_} ||= [] foreach @diff_arrays;
-  $values->{table_diff_hash} = {};
-
-  $values->{producer_args} ||= {};
-  if ($values->{producer_options}) {
+sub BUILD {
+  my ($self, $args) = @_;
+  if ($args->{producer_options}) {
     carp 'producer_options is deprecated. Please use producer_args';
-    $values->{producer_args} = { %{$values->{producer_options}}, %{$values->{producer_args}} };
+    $self->producer_args({
+      %{$args->{producer_options}},
+      %{$self->producer_args}
+    });
   }
-  $values->{output_db} ||= $values->{source_db};
-  return $class->SUPER::new($values);
+
+  if (! $self->output_db) {
+    $self->output_db($args->{source_db})
+  }
 }
 
 sub compute_differences {
@@ -114,7 +157,7 @@ sub compute_differences {
 
       unless ( $src_table ) {
         ## table is new
-        ## add table(s) later. 
+        ## add table(s) later.
         push @{$self->tables_to_create}, $tar_table;
         next;
       }
@@ -172,9 +215,9 @@ sub produce_diff_sql {
       table_renamed_from    => 'rename_table',
     );
     my @diffs;
-  
-    if (!$self->no_batch_alters && 
-        (my $batch_alter = $producer_class->can('batch_alter_table')) ) 
+
+    if (!$self->no_batch_alters &&
+        (my $batch_alter = $producer_class->can('batch_alter_table')) )
     {
       # Good - Producer supports batch altering of tables.
       foreach my $table ( sort keys %{$self->table_diff_hash} ) {
@@ -184,8 +227,8 @@ sub produce_diff_sql {
         push @diffs, $batch_alter->($tar_table,
           { map {
               $func_map{$_} => $self->table_diff_hash->{$table}{$_}
-            } keys %func_map 
-          }, 
+            } keys %func_map
+          },
           $self->producer_args
         );
       }
@@ -203,10 +246,10 @@ sub produce_diff_sql {
       push @diffs, map( {
           if (@{ $flattened_diffs{$_} || [] }) {
             my $meth = $producer_class->can($_);
-            
-            $meth ? map { 
+
+            $meth ? map {
                     my $sql = $meth->( (ref $_ eq 'ARRAY' ? @$_ : $_), $self->producer_args );
-                    $sql ?  ("$sql") : (); 
+                    $sql ?  ("$sql") : ();
                   } @{ $flattened_diffs{$_} }
                   : $self->ignore_missing_methods
                   ? "-- $producer_class cant $_"
@@ -238,14 +281,14 @@ sub produce_diff_sql {
 
       $schema->add_table($_) for @tables;
 
-      unshift @diffs, 
+      unshift @diffs,
         # Remove begin/commit here, since we wrap everything in one.
         grep { $_ !~ /^(?:COMMIT|START(?: TRANSACTION)?|BEGIN(?: TRANSACTION)?)/ } $producer_class->can('produce')->($translator);
     }
 
     if (my @tables_to_drop = @{ $self->{tables_to_drop} || []} ) {
       my $meth = $producer_class->can('drop_table');
-      
+
       push @diffs, $meth ? ( map { $meth->($_, $self->producer_args) } @tables_to_drop)
                          : $self->ignore_missing_methods
                          ? "-- $producer_class cant drop_table"
@@ -264,7 +307,7 @@ sub produce_diff_sql {
         unshift(@diffs, "-- Output database @{[$self->output_db]} is untested/unsupported!!!");
       }
 
-      my @return = 
+      my @return =
         map { $_ ? ( $_ =~ /;$/xms ? $_ : "$_;\n\n" ) : "\n" }
         ("-- Convert schema '$src_name' to '$tar_name':", @diffs);
 
@@ -364,12 +407,12 @@ sub diff_table_fields {
       next;
     }
 
-    # field exists, something changed. This is a bit complex. Parsers can 
+    # field exists, something changed. This is a bit complex. Parsers can
     # normalize types, but only some of them do, so compare the normalized and
     # parsed types for each field to each other
     if ( !$tar_table_field->equals($src_table_field, $self->case_insensitive) &&
-         !$tar_table_field->equals($src_table_field->parsed_field, $self->case_insensitive) && 
-         !$tar_table_field->parsed_field->equals($src_table_field, $self->case_insensitive) && 
+         !$tar_table_field->equals($src_table_field->parsed_field, $self->case_insensitive) &&
+         !$tar_table_field->parsed_field->equals($src_table_field, $self->case_insensitive) &&
          !$tar_table_field->parsed_field->equals($src_table_field->parsed_field, $self->case_insensitive) ) {
 
       # Some producers might need src field to diff against
@@ -428,7 +471,7 @@ SQL::Translator::Diff - determine differences between two schemas
 
 =head1 DESCRIPTION
 
-Takes two input SQL::Translator::Schemas (or SQL files) and produces ALTER 
+Takes two input SQL::Translator::Schemas (or SQL files) and produces ALTER
 statments to make them the same
 
 =head1 SNYOPSIS
@@ -483,7 +526,7 @@ comment showing the method is missing, rather than dieing with an error
 =head1 PRODUCER FUNCTIONS
 
 The following producer functions should be implemented for completeness. If
-any of them are needed for a given diff, but not found, an error will be 
+any of them are needed for a given diff, but not found, an error will be
 thrown.
 
 =over
@@ -512,9 +555,9 @@ thrown.
 
 =item * C<batch_alter_table($table, $hash)> (optional)
 
-If the producer supports C<batch_alter_table>, it will be called with the 
+If the producer supports C<batch_alter_table>, it will be called with the
 table to alter and a hash, the keys of which will be the method names listed
-above; values will be arrays of fields or constraints to operate on. In the 
+above; values will be arrays of fields or constraints to operate on. In the
 case of the field functions that take two arguments this will appear as a hash.
 
 I.e. the hash might look something like the following:
@@ -536,10 +579,10 @@ Basicaly any changes that need to be made to produce the SQL file for the
 schema should be done here, so that a diff between a parsed SQL file and (say)
 a parsed DBIx::Class::Schema object will be sane.
 
-(As an aside, DBIx::Class, for instance, uses the presence of a 
+(As an aside, DBIx::Class, for instance, uses the presence of a
 C<preprocess_schema> function on the producer to know that it can diff between
 the previous SQL file and its own internal representation. Without this method
-on th producer it will diff the two SQL files which is slower, but known to 
+on th producer it will diff the two SQL files which is slower, but known to
 work better on old-style producers.)
 
 =back

@@ -3,6 +3,7 @@ BUGS
 Changes
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
+inc/Module/Install/AuthorTests.pm
 inc/Module/Install/AutoInstall.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
@@ -23,7 +24,6 @@ lib/SQL/Translator/Manual.pod
 lib/SQL/Translator/Parser.pm
 lib/SQL/Translator/Parser/Access.pm
 lib/SQL/Translator/Parser/DB2.pm
-lib/SQL/Translator/Parser/DB2/Grammar.pm
 lib/SQL/Translator/Parser/DBI.pm
 lib/SQL/Translator/Parser/DBI/DB2.pm
 lib/SQL/Translator/Parser/DBI/MySQL.pm
@@ -109,8 +109,15 @@ share/DiaUml/uml-class-all.tt2
 share/DiaUml/uml-class-end.tt2
 share/DiaUml/uml-class-start.tt2
 share/DiaUml/uml-class.tt2
-share/Grammar/DB2.gra
-t/01pod.t
+share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/Access.pm
+share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/DB2.pm
+share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/MySQL.pm
+share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/Oracle.pm
+share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/PostgreSQL.pm
+share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/README
+share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/SQLite.pm
+share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/SQLServer.pm
+share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/Sybase.pm
 t/02mysql-parser.t
 t/03mysql-to-oracle.t
 t/04file,fh,string.t
@@ -135,7 +142,6 @@ t/25storable.t
 t/26sybase.t
 t/27sqlite-parser.t
 t/29html.t
-t/30sqlt-diff.t
 t/30sqlt-new-diff-mysql.t
 t/30sqlt-new-diff-pgsql.t
 t/30sqlt-new-diff-sqlite.t
@@ -175,6 +181,9 @@ t/62roundtrip_datacheck.t
 t/63-spacial-pgsql.t
 t/64xml-to-mysql.t
 t/65-producerutils.t
+t/66-postgres-dbi-parser.t
+t/70sqlt-diff_script.t
+t/70sqlt-diff_script_old.t
 t/data/access/gdpdm.ddl
 t/data/diff/create1.yml
 t/data/diff/create2.yml
@@ -183,6 +192,7 @@ t/data/diff/pgsql/create2.yml
 t/data/Excel/t.xls
 t/data/mysql/Apache-Session-MySQL.sql
 t/data/mysql/BGEP-RE-create.sql
+t/data/mysql/cashmusic_db.sql
 t/data/mysql/create.sql
 t/data/mysql/create2.sql
 t/data/mysql/entire_syntax.sql
@@ -205,6 +215,12 @@ t/data/sqlserver/create.sql
 t/data/sybase/create.sql
 t/data/template/basic.tt
 t/data/template/table.tt
+t/data/template/testresult_basic.txt
+t/data/template/testresult_table.txt
 t/data/xml/samefield.xml
 t/data/xml/schema.xml
 t/lib/Producer/BaseTest.pm
+t/mysql-sqlite-translate.t
+xt/eol.t
+xt/notabs.t
+xt/pod.t

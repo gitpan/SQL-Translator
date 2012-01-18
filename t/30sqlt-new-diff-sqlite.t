@@ -23,7 +23,7 @@ my ( $source_schema, $target_schema ) = map {
       or die $tr->error;
     my $out = $t->translate( catfile($Bin, qw/data diff/, $_ ) )
       or die $tr->error;
-    
+
     my $schema = $t->schema;
     unless ( $schema->name ) {
         $schema->name( $_ );
@@ -32,11 +32,11 @@ my ( $source_schema, $target_schema ) = map {
 } (qw/create1.yml create2.yml/);
 
 # Test for differences
-my $out = SQL::Translator::Diff::schema_diff( $source_schema, 'SQLite', $target_schema, 'SQLite', 
-  { no_batch_alters => 1, 
+my $out = SQL::Translator::Diff::schema_diff( $source_schema, 'SQLite', $target_schema, 'SQLite',
+  { no_batch_alters => 1,
     ignore_missing_methods => 1,
     output_db => 'SQLite',
-  } 
+  }
 );
 
 eq_or_diff($out, <<'## END OF DIFF', "Diff as expected");
@@ -44,35 +44,35 @@ eq_or_diff($out, <<'## END OF DIFF', "Diff as expected");
 
 BEGIN;
 
-CREATE TABLE added (
-  id int(11)
+CREATE TABLE 'added' (
+  'id' int(11)
 );
 
-ALTER TABLE old_name RENAME TO new_name;
+ALTER TABLE 'old_name' RENAME TO 'new_name';
 
-DROP INDEX FK5302D47D93FE702E;
+DROP INDEX 'FK5302D47D93FE702E';
 
-DROP INDEX UC_age_name;
+DROP INDEX 'UC_age_name';
 
-DROP INDEX u_name;
+DROP INDEX 'u_name';
 
 -- SQL::Translator::Producer::SQLite cant drop_field;
 
-ALTER TABLE new_name ADD COLUMN new_field int;
+ALTER TABLE 'new_name' ADD COLUMN 'new_field' int;
 
-ALTER TABLE person ADD COLUMN is_rock_star tinyint(4) DEFAULT 1;
+ALTER TABLE 'person' ADD COLUMN 'is_rock_star' tinyint(4) DEFAULT 1;
 
 -- SQL::Translator::Producer::SQLite cant alter_field;
 
 -- SQL::Translator::Producer::SQLite cant rename_field;
 
-CREATE UNIQUE INDEX unique_name ON person (name);
+CREATE UNIQUE INDEX 'unique_name' ON 'person' ('name');
 
-CREATE UNIQUE INDEX UC_person_id ON person (person_id);
+CREATE UNIQUE INDEX 'UC_person_id' ON 'person' ('person_id');
 
-CREATE UNIQUE INDEX UC_age_name ON person (age, name);
+CREATE UNIQUE INDEX 'UC_age_name' ON 'person' ('age', 'name');
 
-DROP TABLE deleted;
+DROP TABLE 'deleted';
 
 
 COMMIT;
@@ -91,71 +91,71 @@ eq_or_diff($out, <<'## END OF DIFF', "Diff as expected");
 
 BEGIN;
 
-CREATE TABLE added (
-  id int(11)
+CREATE TABLE 'added' (
+  'id' int(11)
 );
 
-CREATE TEMPORARY TABLE employee_temp_alter (
-  position varchar(50) NOT NULL,
-  employee_id int(11) NOT NULL,
-  PRIMARY KEY (position, employee_id),
-  FOREIGN KEY(employee_id) REFERENCES person(person_id)
+CREATE TEMPORARY TABLE 'employee_temp_alter' (
+  'position' varchar(50) NOT NULL,
+  'employee_id' int(11) NOT NULL,
+  PRIMARY KEY ('position', 'employee_id'),
+  FOREIGN KEY ('employee_id') REFERENCES 'person'('person_id')
 );
 
-INSERT INTO employee_temp_alter SELECT position, employee_id FROM employee;
+INSERT INTO 'employee_temp_alter' SELECT 'position', 'employee_id' FROM 'employee';
 
-DROP TABLE employee;
+DROP TABLE 'employee';
 
-CREATE TABLE employee (
-  position varchar(50) NOT NULL,
-  employee_id int(11) NOT NULL,
-  PRIMARY KEY (position, employee_id),
-  FOREIGN KEY(employee_id) REFERENCES person(person_id)
+CREATE TABLE 'employee' (
+  'position' varchar(50) NOT NULL,
+  'employee_id' int(11) NOT NULL,
+  PRIMARY KEY ('position', 'employee_id'),
+  FOREIGN KEY ('employee_id') REFERENCES 'person'('person_id')
 );
 
-INSERT INTO employee SELECT position, employee_id FROM employee_temp_alter;
+INSERT INTO 'employee' SELECT 'position', 'employee_id' FROM 'employee_temp_alter';
 
-DROP TABLE employee_temp_alter;
+DROP TABLE 'employee_temp_alter';
 
-ALTER TABLE old_name RENAME TO new_name;
+ALTER TABLE 'old_name' RENAME TO 'new_name';
 
-ALTER TABLE new_name ADD COLUMN new_field int;
+ALTER TABLE 'new_name' ADD COLUMN 'new_field' int;
 
-CREATE TEMPORARY TABLE person_temp_alter (
-  person_id INTEGER PRIMARY KEY NOT NULL,
-  name varchar(20) NOT NULL,
-  age int(11) DEFAULT 18,
-  weight double(11,2),
-  iq int(11) DEFAULT 0,
-  is_rock_star tinyint(4) DEFAULT 1,
-  physical_description text
+CREATE TEMPORARY TABLE 'person_temp_alter' (
+  'person_id' INTEGER PRIMARY KEY NOT NULL,
+  'name' varchar(20) NOT NULL,
+  'age' int(11) DEFAULT 18,
+  'weight' double(11,2),
+  'iq' int(11) DEFAULT 0,
+  'is_rock_star' tinyint(4) DEFAULT 1,
+  'physical_description' text
 );
 
-INSERT INTO person_temp_alter SELECT person_id, name, age, weight, iq, is_rock_star, physical_description FROM person;
+INSERT INTO 'person_temp_alter' SELECT 'person_id', 'name', 'age', 'weight', 'iq', 'is_rock_star', 'physical_description' FROM 'person';
 
-DROP TABLE person;
+DROP TABLE 'person';
 
-CREATE TABLE person (
-  person_id INTEGER PRIMARY KEY NOT NULL,
-  name varchar(20) NOT NULL,
-  age int(11) DEFAULT 18,
-  weight double(11,2),
-  iq int(11) DEFAULT 0,
-  is_rock_star tinyint(4) DEFAULT 1,
-  physical_description text
+CREATE TABLE 'person' (
+  'person_id' INTEGER PRIMARY KEY NOT NULL,
+  'name' varchar(20) NOT NULL,
+  'age' int(11) DEFAULT 18,
+  'weight' double(11,2),
+  'iq' int(11) DEFAULT 0,
+  'is_rock_star' tinyint(4) DEFAULT 1,
+  'physical_description' text
 );
 
-CREATE UNIQUE INDEX unique_name02 ON person (name);
+CREATE UNIQUE INDEX 'unique_name02' ON 'person' ('name');
 
-CREATE UNIQUE INDEX UC_person_id02 ON person (person_id);
+CREATE UNIQUE INDEX 'UC_person_id02' ON 'person' ('person_id');
 
-CREATE UNIQUE INDEX UC_age_name02 ON person (age, name);
+CREATE UNIQUE INDEX 'UC_age_name02' ON 'person' ('age', 'name');
 
-INSERT INTO person SELECT person_id, name, age, weight, iq, is_rock_star, physical_description FROM person_temp_alter;
+INSERT INTO 'person' SELECT 'person_id', 'name', 'age', 'weight', 'iq', 'is_rock_star', 'physical_description' FROM 'person_temp_alter';
 
-DROP TABLE person_temp_alter;
+DROP TABLE 'person_temp_alter';
 
-DROP TABLE deleted;
+DROP TABLE 'deleted';
 
 
 COMMIT;

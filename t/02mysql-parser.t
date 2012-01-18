@@ -9,9 +9,10 @@ use SQL::Translator;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw//;
 use Test::SQL::Translator qw(maybe_plan);
+use FindBin qw/$Bin/;
 
 BEGIN {
-    maybe_plan(317, "SQL::Translator::Parser::MySQL");
+    maybe_plan(343, "SQL::Translator::Parser::MySQL");
     SQL::Translator::Parser::MySQL->import('parse');
 }
 
@@ -68,20 +69,23 @@ BEGIN {
 
 {
     my $tr = SQL::Translator->new;
-    my $data = parse($tr, 
+    my $data = parse($tr,
         q[
             CREATE TABLE `check` (
-              check_id int(7) unsigned zerofill NOT NULL default '0000000' 
+              check_id int(7) unsigned zerofill NOT NULL default '0000000'
                 auto_increment primary key,
               successful date NOT NULL default '0000-00-00',
               unsuccessful date default '0000-00-00',
               i1 int(11) default '0' not null,
               s1 set('a','b','c') default 'b',
-              e1 enum('a','b','c') default 'c',
+              e1 enum('a','b','c') default "c",
               name varchar(30) default NULL,
               foo_type enum('vk','ck') NOT NULL default 'vk',
               date timestamp,
               time_stamp2 timestamp,
+              foo_enabled bit(1) default b'0',
+              bar_enabled bit(1) default b"1",
+              long_foo_enabled bit(10) default b'1010101',
               KEY (i1),
               UNIQUE (date, i1) USING BTREE,
               KEY date_idx (date),
@@ -89,7 +93,7 @@ BEGIN {
             ) TYPE=MyISAM PACK_KEYS=1;
         ]
     );
-    
+
     my $schema = $tr->schema;
     is( $schema->is_valid, 1, 'Schema is valid' );
     my @tables = $schema->get_tables;
@@ -98,7 +102,7 @@ BEGIN {
     is( $table->name, 'check', 'Found "check" table' );
 
     my @fields = $table->get_fields;
-    is( scalar @fields, 10, 'Right number of fields (10)' );
+    is( scalar @fields, 13, 'Right number of fields (13)' );
     my $f1 = shift @fields;
     is( $f1->name, 'check_id', 'First field name is "check_id"' );
     is( $f1->data_type, 'int', 'Type is "int"' );
@@ -189,6 +193,30 @@ BEGIN {
     is( $f10->default_value, undef, 'Default value is undefined' );
     is( $f10->is_primary_key, 0, 'Field is not PK' );
 
+    my $f11 = shift @fields;
+    is( $f11->name, 'foo_enabled', 'Eleventh field name is "foo_enabled"' );
+    is( $f11->data_type, 'bit', 'Type is "bit"' );
+    is( $f11->size, 1, 'Size is "1"' );
+    is( $f11->is_nullable, 1, 'Field can be null' );
+    is( $f11->default_value, '0', 'Default value is 0' );
+    is( $f11->is_primary_key, 0, 'Field is not PK' );
+
+    my $f12 = shift @fields;
+    is( $f12->name, 'bar_enabled', 'Twelveth field name is "bar_enabled"' );
+    is( $f12->data_type, 'bit', 'Type is "bit"' );
+    is( $f12->size, 1, 'Size is "1"' );
+    is( $f12->is_nullable, 1, 'Field can be null' );
+    is( $f12->default_value, '1', 'Default value is 1' );
+    is( $f12->is_primary_key, 0, 'Field is not PK' );
+
+    my $f13 = shift @fields;
+    is( $f13->name, 'long_foo_enabled', 'Thirteenth field name is "long_foo_enabled"' );
+    is( $f13->data_type, 'bit', 'Type is "bit"' );
+    is( $f13->size, 10, 'Size is "10"' );
+    is( $f13->is_nullable, 1, 'Field can be null' );
+    is( $f13->default_value, '1010101', 'Default value is 1010101' );
+    is( $f13->is_primary_key, 0, 'Field is not PK' );
+
     my @indices = $table->get_indices;
     is( scalar @indices, 3, 'Right number of indices (3)' );
 
@@ -221,7 +249,7 @@ BEGIN {
 
 {
     my $tr = SQL::Translator->new;
-    my $data = parse($tr, 
+    my $data = parse($tr,
         q[
             CREATE TABLE orders (
               order_id                  integer NOT NULL auto_increment,
@@ -288,13 +316,13 @@ BEGIN {
     is( $f2->default_value, undef, 'Default value is undefined' );
 
     my $f3 = shift @fields;
-    is( $f3->name, 'billing_address_id', 
+    is( $f3->name, 'billing_address_id',
         'Third field name is "billing_address_id"' );
     is( $f3->data_type, 'int', 'Type is "int"' );
     is( $f3->size, 11, 'Size is "11"' );
 
     my $f4 = shift @fields;
-    is( $f4->name, 'shipping_address_id', 
+    is( $f4->name, 'shipping_address_id',
         'Fourth field name is "shipping_address_id"' );
     is( $f4->data_type, 'int', 'Type is "int"' );
     is( $f4->size, 11, 'Size is "11"' );
@@ -344,17 +372,17 @@ BEGIN {
 
     my $i2 = shift @indices;
     is( $i2->type, NORMAL, 'Second index is normal' );
-    is( join(',', $i2->fields), 'billing_address_id', 
+    is( join(',', $i2->fields), 'billing_address_id',
         'Index is on "billing_address_id"' );
 
     my $i3 = shift @indices;
     is( $i3->type, NORMAL, 'Third index is normal' );
-    is( join(',', $i3->fields), 'shipping_address_id', 
+    is( join(',', $i3->fields), 'shipping_address_id',
         'Index is on "shipping_address_id"' );
 
     my $i4 = shift @indices;
     is( $i4->type, NORMAL, 'Third index is normal' );
-    is( join(',', $i4->fields), 'member_id,store_id', 
+    is( join(',', $i4->fields), 'member_id,store_id',
         'Index is on "member_id,store_id"' );
 
     my @constraints = $t1->get_constraints;
@@ -372,25 +400,25 @@ BEGIN {
 
     my $c3 = shift @constraints;
     is( $c3->type, FOREIGN_KEY, 'Constraint is a FK' );
-    is( join(',', $c3->fields), 'billing_address_id', 
+    is( join(',', $c3->fields), 'billing_address_id',
         'Constraint is on "billing_address_id"' );
     is( $c3->reference_table, 'address', 'To table "address"' );
-    is( join(',', $c3->reference_fields), 'address_id', 
+    is( join(',', $c3->reference_fields), 'address_id',
         'To field "address_id"' );
 
     my $c4 = shift @constraints;
     is( $c4->type, FOREIGN_KEY, 'Constraint is a FK' );
-    is( join(',', $c4->fields), 'shipping_address_id', 
+    is( join(',', $c4->fields), 'shipping_address_id',
         'Constraint is on "shipping_address_id"' );
     is( $c4->reference_table, 'address', 'To table "address"' );
-    is( join(',', $c4->reference_fields), 'address_id', 
+    is( join(',', $c4->reference_fields), 'address_id',
         'To field "address_id"' );
 
     my $c5 = shift @constraints;
     is( $c5->type, FOREIGN_KEY, 'Constraint is a FK' );
     is( join(',', $c5->fields), 'store_id', 'Constraint is on "store_id"' );
     is( $c5->reference_table, 'store', 'To table "store"' );
-    is( join(',', map { $_ || '' } $c5->reference_fields), '', 
+    is( join(',', map { $_ || '' } $c5->reference_fields), '',
         'No reference fields defined' );
 
     my $t2  = shift @tables;
@@ -408,7 +436,7 @@ BEGIN {
 #
 {
     my $tr = SQL::Translator->new;
-    my $data = parse($tr, 
+    my $data = parse($tr,
         q[
             USE database_name;
 
@@ -481,98 +509,98 @@ BEGIN {
 #
 {
     my $tr = SQL::Translator->new(parser_args => {mysql_parser_version => 50003});
-    my $data = parse($tr, 
+    my $data = parse($tr,
         q[
-        	DELIMITER ;;
+            DELIMITER ;;
             /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;;
-			/*!50003 CREATE */ /*!50017 DEFINER=`cmdomain`@`localhost` */
-			/*!50003 TRIGGER `acl_entry_insert` BEFORE INSERT ON `acl_entry`
-				FOR EACH ROW SET NEW.dateCreated = CONVERT_TZ(SYSDATE(),'SYSTEM','+0:00'),
-				NEW.dateModified = CONVERT_TZ(SYSDATE(),'SYSTEM','+0:00') */;;
+            /*!50003 CREATE */ /*!50017 DEFINER=`cmdomain`@`localhost` */
+            /*!50003 TRIGGER `acl_entry_insert` BEFORE INSERT ON `acl_entry`
+                FOR EACH ROW SET NEW.dateCreated = CONVERT_TZ(SYSDATE(),'SYSTEM','+0:00'),
+                NEW.dateModified = CONVERT_TZ(SYSDATE(),'SYSTEM','+0:00') */;;
 
-			DELIMITER ;
+            DELIMITER ;
             CREATE TABLE one (
               `op` varchar(255) character set latin1 collate latin1_bin default NULL,
               `last_modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
             ) TYPE=INNODB DEFAULT CHARSET=latin1;
 
-			/*!50001 CREATE ALGORITHM=UNDEFINED */
-			/*!50013 DEFINER=`cmdomain`@`localhost` SQL SECURITY DEFINER */
-			/*! VIEW `vs_asset` AS 
-				select `a`.`asset_id` AS `asset_id`,`a`.`fq_name` AS `fq_name`,
-				`cfgmgmt_mig`.`ap_extract_folder`(`a`.`fq_name`) AS `folder_name`,
-				`cfgmgmt_mig`.`ap_extract_asset`(`a`.`fq_name`) AS `asset_name`,
-				`a`.`annotation` AS `annotation`,`a`.`asset_type` AS `asset_type`,
-				`a`.`foreign_asset_id` AS `foreign_asset_id`,
-				`a`.`foreign_asset_id2` AS `foreign_asset_id2`,`a`.`dateCreated` AS `date_created`,
-				`a`.`dateModified` AS `date_modified`,`a`.`container_id` AS `container_id`,
-				`a`.`creator_id` AS `creator_id`,`a`.`modifier_id` AS `modifier_id`,
-				`m`.`user_id` AS `user_access` 
-				from (`asset` `a` join `M_ACCESS_CONTROL` `m` on((`a`.`acl_id` = `m`.`acl_id`))) */;
-			DELIMITER ;;
-			/*!50001 CREATE */
-			/*! VIEW `vs_asset2` AS 
-				select `a`.`asset_id` AS `asset_id`,`a`.`fq_name` AS `fq_name`,
-				`cfgmgmt_mig`.`ap_extract_folder`(`a`.`fq_name`) AS `folder_name`,
-				`cfgmgmt_mig`.`ap_extract_asset`(`a`.`fq_name`) AS `asset_name`,
-				`a`.`annotation` AS `annotation`,`a`.`asset_type` AS `asset_type`,
-				`a`.`foreign_asset_id` AS `foreign_asset_id`,
-				`a`.`foreign_asset_id2` AS `foreign_asset_id2`,`a`.`dateCreated` AS `date_created`,
-				`a`.`dateModified` AS `date_modified`,`a`.`container_id` AS `container_id`,
-				`a`.`creator_id` AS `creator_id`,`a`.`modifier_id` AS `modifier_id`,
-				`m`.`user_id` AS `user_access` 
-				from (`asset` `a` join `M_ACCESS_CONTROL` `m` on((`a`.`acl_id` = `m`.`acl_id`))) */;
-			DELIMITER ;;
-			/*!50001 CREATE OR REPLACE */
-			/*! VIEW `vs_asset3` AS 
-				select `a`.`asset_id` AS `asset_id`,`a`.`fq_name` AS `fq_name`,
-				`cfgmgmt_mig`.`ap_extract_folder`(`a`.`fq_name`) AS `folder_name`,
-				`cfgmgmt_mig`.`ap_extract_asset`(`a`.`fq_name`) AS `asset_name`,
-				`a`.`annotation` AS `annotation`,`a`.`asset_type` AS `asset_type`,
-				`a`.`foreign_asset_id` AS `foreign_asset_id`,
-				`a`.`foreign_asset_id2` AS `foreign_asset_id2`,`a`.`dateCreated` AS `date_created`,
-				`a`.`dateModified` AS `date_modified`,`a`.`container_id` AS `container_id`,
-				`a`.`creator_id` AS `creator_id`,`a`.`modifier_id` AS `modifier_id`,
-				`m`.`user_id` AS `user_access` 
-				from (`asset` `a` join `M_ACCESS_CONTROL` `m` on((`a`.`acl_id` = `m`.`acl_id`))) */;
-			DELIMITER ;;
-			/*!50003 CREATE*/ /*!50020 DEFINER=`cmdomain`@`localhost`*/ /*!50003 FUNCTION `ap_from_millitime_nullable`( millis_since_1970 BIGINT ) RETURNS timestamp
-    			DETERMINISTIC
-				BEGIN
-    				DECLARE rval TIMESTAMP;
-				    IF ( millis_since_1970 = 0 )
-				    THEN
-				        SET rval = NULL;
-				    ELSE
-				        SET rval = FROM_UNIXTIME( millis_since_1970 / 1000 );
-				    END IF;
-				    RETURN rval;
-				END */;;
-			/*!50003 CREATE*/ /*!50020 DEFINER=`cmdomain`@`localhost`*/ /*!50003 PROCEDURE `sp_update_security_acl`(IN t_acl_id INTEGER)
-    			BEGIN
-    				DECLARE hasMoreRows BOOL DEFAULT TRUE;
-    				DECLARE t_group_id INT;
-    				DECLARE t_user_id INT ;
-    				DECLARE t_user_name VARCHAR (512) ;
-    				DECLARE t_message VARCHAR (512) ;
+            /*!50001 CREATE ALGORITHM=UNDEFINED */
+            /*!50013 DEFINER=`cmdomain`@`localhost` SQL SECURITY DEFINER */
+            /*! VIEW `vs_asset` AS
+                select `a`.`asset_id` AS `asset_id`,`a`.`fq_name` AS `fq_name`,
+                `cfgmgmt_mig`.`ap_extract_folder`(`a`.`fq_name`) AS `folder_name`,
+                `cfgmgmt_mig`.`ap_extract_asset`(`a`.`fq_name`) AS `asset_name`,
+                `a`.`annotation` AS `annotation`,`a`.`asset_type` AS `asset_type`,
+                `a`.`foreign_asset_id` AS `foreign_asset_id`,
+                `a`.`foreign_asset_id2` AS `foreign_asset_id2`,`a`.`dateCreated` AS `date_created`,
+                `a`.`dateModified` AS `date_modified`,`a`.`container_id` AS `container_id`,
+                `a`.`creator_id` AS `creator_id`,`a`.`modifier_id` AS `modifier_id`,
+                `m`.`user_id` AS `user_access`
+                from (`asset` `a` join `M_ACCESS_CONTROL` `m` on((`a`.`acl_id` = `m`.`acl_id`))) */;
+            DELIMITER ;;
+            /*!50001 CREATE */
+            /*! VIEW `vs_asset2` AS
+                select `a`.`asset_id` AS `asset_id`,`a`.`fq_name` AS `fq_name`,
+                `cfgmgmt_mig`.`ap_extract_folder`(`a`.`fq_name`) AS `folder_name`,
+                `cfgmgmt_mig`.`ap_extract_asset`(`a`.`fq_name`) AS `asset_name`,
+                `a`.`annotation` AS `annotation`,`a`.`asset_type` AS `asset_type`,
+                `a`.`foreign_asset_id` AS `foreign_asset_id`,
+                `a`.`foreign_asset_id2` AS `foreign_asset_id2`,`a`.`dateCreated` AS `date_created`,
+                `a`.`dateModified` AS `date_modified`,`a`.`container_id` AS `container_id`,
+                `a`.`creator_id` AS `creator_id`,`a`.`modifier_id` AS `modifier_id`,
+                `m`.`user_id` AS `user_access`
+                from (`asset` `a` join `M_ACCESS_CONTROL` `m` on((`a`.`acl_id` = `m`.`acl_id`))) */;
+            DELIMITER ;;
+            /*!50001 CREATE OR REPLACE */
+            /*! VIEW `vs_asset3` AS
+                select `a`.`asset_id` AS `asset_id`,`a`.`fq_name` AS `fq_name`,
+                `cfgmgmt_mig`.`ap_extract_folder`(`a`.`fq_name`) AS `folder_name`,
+                `cfgmgmt_mig`.`ap_extract_asset`(`a`.`fq_name`) AS `asset_name`,
+                `a`.`annotation` AS `annotation`,`a`.`asset_type` AS `asset_type`,
+                `a`.`foreign_asset_id` AS `foreign_asset_id`,
+                `a`.`foreign_asset_id2` AS `foreign_asset_id2`,`a`.`dateCreated` AS `date_created`,
+                `a`.`dateModified` AS `date_modified`,`a`.`container_id` AS `container_id`,
+                `a`.`creator_id` AS `creator_id`,`a`.`modifier_id` AS `modifier_id`,
+                `m`.`user_id` AS `user_access`
+                from (`asset` `a` join `M_ACCESS_CONTROL` `m` on((`a`.`acl_id` = `m`.`acl_id`))) */;
+            DELIMITER ;;
+            /*!50003 CREATE*/ /*!50020 DEFINER=`cmdomain`@`localhost`*/ /*!50003 FUNCTION `ap_from_millitime_nullable`( millis_since_1970 BIGINT ) RETURNS timestamp
+                DETERMINISTIC
+                BEGIN
+                    DECLARE rval TIMESTAMP;
+                    IF ( millis_since_1970 = 0 )
+                    THEN
+                        SET rval = NULL;
+                    ELSE
+                        SET rval = FROM_UNIXTIME( millis_since_1970 / 1000 );
+                    END IF;
+                    RETURN rval;
+                END */;;
+            /*!50003 CREATE*/ /*!50020 DEFINER=`cmdomain`@`localhost`*/ /*!50003 PROCEDURE `sp_update_security_acl`(IN t_acl_id INTEGER)
+                BEGIN
+                    DECLARE hasMoreRows BOOL DEFAULT TRUE;
+                    DECLARE t_group_id INT;
+                    DECLARE t_user_id INT ;
+                    DECLARE t_user_name VARCHAR (512) ;
+                    DECLARE t_message VARCHAR (512) ;
 
-    				DROP TABLE IF EXISTS group_acl;
-    				DROP TABLE IF EXISTS user_group;
-    				DELETE FROM M_ACCESS_CONTROL WHERE acl_id = t_acl_id;
+                    DROP TABLE IF EXISTS group_acl;
+                    DROP TABLE IF EXISTS user_group;
+                    DELETE FROM M_ACCESS_CONTROL WHERE acl_id = t_acl_id;
 
-    				CREATE TEMPORARY TABLE group_acl SELECT DISTINCT p.id group_id, d.acl_id acl_id
-				        FROM  asset d, acl_entry e, alterpoint_principal p
-				        WHERE d.acl_id = e.acl
-				        AND p.id = e.principal AND d.acl_id = t_acl_id;
+                    CREATE TEMPORARY TABLE group_acl SELECT DISTINCT p.id group_id, d.acl_id acl_id
+                        FROM  asset d, acl_entry e, alterpoint_principal p
+                        WHERE d.acl_id = e.acl
+                        AND p.id = e.principal AND d.acl_id = t_acl_id;
 
-    				CREATE TEMPORARY TABLE user_group  SELECT a.id user_id, a.name user_name, c.id group_id
-    					FROM alterpoint_principal a, groups_for_user b, alterpoint_principal c
-    					WHERE a.id = b.user_ref AND b.elt = c.id;
+                    CREATE TEMPORARY TABLE user_group  SELECT a.id user_id, a.name user_name, c.id group_id
+                        FROM alterpoint_principal a, groups_for_user b, alterpoint_principal c
+                        WHERE a.id = b.user_ref AND b.elt = c.id;
 
-    				INSERT INTO M_ACCESS_CONTROL SELECT DISTINCT group_acl.group_id, group_acl.acl_id, user_group.user_id, user_group.user_name
-    					FROM group_acl, user_group
-    					WHERE group_acl.group_id = user_group.group_id ;
-    			END */;;
+                    INSERT INTO M_ACCESS_CONTROL SELECT DISTINCT group_acl.group_id, group_acl.acl_id, user_group.user_id, user_group.user_name
+                        FROM group_acl, user_group
+                        WHERE group_acl.group_id = user_group.group_id ;
+                END */;;
         ]
     ) or die $tr->error;
 
@@ -587,18 +615,18 @@ BEGIN {
     is(scalar @fields, 2, 'Right number of fields (2) on table one');
     my $tableTypeFound = 0;
     my $charsetFound = 0;
-	for my $t1_option_ref ( $table1->options ) {
-		my($key, $value) = %{$t1_option_ref};
-		if ( $key eq 'TYPE' ) {
-			is($value, 'INNODB', 'Table has right table type option' );
-			$tableTypeFound = 1;
-		} elsif ( $key eq 'CHARACTER SET' ) {
-			is($value, 'latin1', 'Table has right character set option' );
-			$charsetFound = 1;
-		}
-	}
-	fail('Table did not have a type option') unless $tableTypeFound;
-	fail('Table did not have a character set option') unless $charsetFound;
+    for my $t1_option_ref ( $table1->options ) {
+        my($key, $value) = %{$t1_option_ref};
+        if ( $key eq 'TYPE' ) {
+            is($value, 'INNODB', 'Table has right table type option' );
+            $tableTypeFound = 1;
+        } elsif ( $key eq 'CHARACTER SET' ) {
+            is($value, 'latin1', 'Table has right character set option' );
+            $charsetFound = 1;
+        }
+    }
+    fail('Table did not have a type option') unless $tableTypeFound;
+    fail('Table did not have a character set option') unless $charsetFound;
 
     my $t1f1 = shift @fields;
     is( $t1f1->data_type, 'varchar', 'Field is a varchar' );
@@ -613,7 +641,7 @@ BEGIN {
     is_deeply(
       $t1f2->default_value,
       \'CURRENT_TIMESTAMP',
-      'Field has right default value' 
+      'Field has right default value'
     );
     is( $t1f2->extra('on update'), 'CURRENT_TIMESTAMP', 'Field has right on update qualifier' );
 
@@ -632,19 +660,19 @@ BEGIN {
     is( scalar @procs, 2, 'Right number of procedures (2)' );
     my $proc1 = shift @procs;
     is( $proc1->name, 'ap_from_millitime_nullable', 'Found "ap_from_millitime_nullable" procedure' );
-	like($proc1->sql, qr/CREATE FUNCTION ap_from_millitime_nullable/, "Detected procedure ap_from_millitime_nullable");
+    like($proc1->sql, qr/CREATE FUNCTION ap_from_millitime_nullable/, "Detected procedure ap_from_millitime_nullable");
     my $proc2 = shift @procs;
     is( $proc2->name, 'sp_update_security_acl', 'Found "sp_update_security_acl" procedure' );
-	like($proc2->sql, qr/CREATE PROCEDURE sp_update_security_acl/, "Detected procedure sp_update_security_acl");
+    like($proc2->sql, qr/CREATE PROCEDURE sp_update_security_acl/, "Detected procedure sp_update_security_acl");
 }
 
 # Tests for collate table option
 {
     my $tr = SQL::Translator->new(parser_args => {mysql_parser_version => 50003});
-    my $data = parse($tr, 
+    my $data = parse($tr,
         q[
           CREATE TABLE test ( id int ) DEFAULT CHARACTER SET latin1 COLLATE latin1_bin;
-         ] ); 
+         ] );
 
     my $schema = $tr->schema;
     is( $schema->is_valid, 1, 'Schema is valid' );
@@ -812,7 +840,7 @@ ok ($@, 'Exception thrown on invalid version string');
         id char(32) not null default '0' primary key,
         ssn varchar(12) NOT NULL default 'test single quotes like in you''re',
         user varchar(20) NOT NULL default 'test single quotes escaped like you\'re',
-        key using btree (ssn) 
+        key using btree (ssn)
     );|;
 
     my $val = parse($tr, $data);
@@ -843,11 +871,56 @@ ok ($@, 'Exception thrown on invalid version string');
     is( $f2->is_primary_key, 0, 'Field is not PK' );
 
     # this is more of a sanity test because the original sqlt regex for default looked for an escaped quote represented as \'
-    # however in mysql 5.x (and probably other previous versions) still actually outputs that as '' 
+    # however in mysql 5.x (and probably other previous versions) still actually outputs that as ''
     is( $f3->name, 'user', 'Second field name is "user"' );
     is( $f3->data_type, 'varchar', 'Type is "varchar"' );
     is( $f3->size, 20, 'Size is "20"' );
     is( $f3->is_nullable, 0, 'Field can not be null' );
     is( $f3->default_value, "test single quotes escaped like you\\'re", "Single quote in default value is escaped properly" );
     is( $f3->is_primary_key, 0, 'Field is not PK' );
+}
+
+{
+    # silence PR::D from spewing on STDERR
+    local $::RD_ERRORS = 0;
+    local $::RD_WARN = 0;
+    local $::RD_HINT = 0;
+    my $tr = SQL::Translator->new;
+    my $data = q|create table "sessions" (
+        id char(32) not null default,
+        ssn varchar(12) NOT NULL default 'test single quotes like in you''re',
+        user varchar(20) NOT NULL default 'test single quotes escaped like you\'re',
+        key using btree (ssn)
+    );|;
+
+    my $val= parse($tr,$data);
+    ok ($tr->error =~ /Parse failed\./, 'Parse failed error without default value');
+}
+
+{
+    # make sure empty string default value still works
+    my $tr = SQL::Translator->new;
+    my $data = q|create table "sessions" (
+        id char(32) not null DEFAULT '',
+        ssn varchar(12) NOT NULL default "",
+        key using btree (ssn)
+    );|;
+    my $val= parse($tr,$data);
+
+    my @fields = $tr->schema->get_table('sessions')->get_fields;
+    is (scalar @fields, 2, 'Both fields parsed correctly');
+    for (@fields) {
+      my $def = $_->default_value;
+      ok( (defined $def and $def eq ''), "Defaults on field $_ correct" );
+    }
+}
+
+{
+    # test rt70437 and rt71468
+    my $file = "$Bin/data/mysql/cashmusic_db.sql";
+    ok (-f $file,"File exists");
+    my $tr = SQL::Translator->new( parser => 'MySQL');
+    ok ($tr->translate($file),'File translated');
+    ok (!$tr->error, 'no error');
+    ok (my $schema = $tr->schema, 'got schema');
 }
