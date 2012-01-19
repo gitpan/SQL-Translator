@@ -7,9 +7,8 @@ use base 'Class::Base';
 
 require 5.005;
 
-our $VERSION  = '0.11010_01';
+our $VERSION  = '0.11010_02';
 $VERSION = eval $VERSION if $VERSION =~ /_/;
-
 $DEBUG    = 0 unless defined $DEBUG;
 $ERROR    = "";
 

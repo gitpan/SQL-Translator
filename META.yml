@@ -30,7 +30,7 @@ recommends:
   Graph::Directed: 0
   GraphViz: 0
   Spreadsheet::ParseExcel: 0.41
-  Template: 2.2
+  Template: 2.20
   Text::ParseWords: 0
   Text::RecordParser: 0.02
   XML::LibXML: 1.69
@@ -38,21 +38,22 @@ requires:
   Carp::Clan: 0
   Class::Base: 0
   Class::Data::Inheritable: 0.02
+  Class::Unload: 0.07
   DBI: 0
   Digest::SHA: 0
-  File::ShareDir: 1
+  File::ShareDir: 1.0
   File::Spec: 0
   IO::Dir: 0
-  IO::Scalar: 2.11
+  IO::Scalar: 2.110
   Moo: 0.009007
   Parse::RecDescent: 1.964001
   Pod::Usage: 0
   Scalar::Util: 0
-  XML::Writer: 0.5
+  XML::Writer: 0.500
   perl: 5.005
 resources:
   Ratings: http://cpanratings.perl.org/d/SQL-Translator
   bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator
   license: http://opensource.org/licenses/gpl-license.php
   repository: git://git.shadowcat.co.uk/dbsrgits/SQL-Translator.git
-version: 0.11010_01
+version: 0.11010_02

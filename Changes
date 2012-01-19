@@ -1,6 +1,7 @@
 # ----------------------------------------------------------
-# 0.11010_01 2012-01-18
+# 0.11010_02 2012-01-19
 # ----------------------------------------------------------
+
 * All parser grammars are now precompiled for speed
 * Fixes to SQLite foreign keys production (patch from Johan Viklund)
   closes RT#16412, RT#44769
