@@ -46,27 +46,27 @@ schema:
           data_type: unsigned int
           is_primary_key: 1
           is_auto_increment: 1
-          order: 0
+          order: 1
         name:
           name: name
           data_type: varchar
           size:
             - 32
-          order: 1
+          order: 2
         swedish_name:
           name: swedish_name
           data_type: varchar
           size: 32
           extra:
             mysql_charset: swe7
-          order: 2
+          order: 3
         description:
           name: description
           data_type: text
           extra:
             mysql_charset: utf8
             mysql_collate: utf8_general_ci
-          order: 3
+          order: 4
       constraints:
         - type: UNIQUE
           fields:
@@ -82,22 +82,22 @@ schema:
           name: id
           data_type: int
           is_primary_key: 0
-          order: 0
+          order: 1
           is_foreign_key: 1
         foo:
           name: foo
           data_type: int
-          order: 1
+          order: 2
           is_not_null: 1
         foo2:
           name: foo2
           data_type: int
-          order: 2
+          order: 3
           is_not_null: 1
         bar_set:
           name: bar_set
           data_type: set
-          order: 3
+          order: 4
           is_not_null: 1
           extra:
             list:
@@ -136,22 +136,22 @@ schema:
           name: id
           data_type: int
           is_primary_key: 0
-          order: 0
+          order: 1
           is_foreign_key: 1
         foo:
           name: foo
           data_type: int
-          order: 1
+          order: 2
           is_not_null: 1
         foo2:
           name: foo2
           data_type: int
-          order: 2
+          order: 3
           is_not_null: 1
         bar_set:
           name: bar_set
           data_type: set
-          order: 3
+          order: 4
           is_not_null: 1
           extra:
             list:
@@ -254,8 +254,8 @@ my $mysql_out = join(";\n\n", @stmts_no_drop) . ";\n\n";
       or die "Translat eerror:".$sqlt->error;
     is_deeply \@out, \@stmts_no_drop, "Array output looks right with quoting";
 
+    $sqlt->quote_identifiers(0);
 
-    @{$sqlt}{qw/quote_table_names quote_field_names/} = (0,0);
     $out = $sqlt->translate(\$yaml_in)
       or die "Translate error:".$sqlt->error;
 
@@ -266,7 +266,9 @@ my $mysql_out = join(";\n\n", @stmts_no_drop) . ";\n\n";
     eq_or_diff $out, $mysql_out,       "Output looks right without quoting";
     is_deeply \@out, \@unquoted_stmts, "Array output looks right without quoting";
 
-    @{$sqlt}{qw/add_drop_table quote_field_names quote_table_names/} = (1,1,1);
+    $sqlt->quote_identifiers(1);
+    $sqlt->add_drop_table(1);
+
     @out = $sqlt->translate(\$yaml_in)
       or die "Translat eerror:".$sqlt->error;
     $out = $sqlt->translate(\$yaml_in)

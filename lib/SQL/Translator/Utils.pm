@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use Digest::SHA qw( sha1_hex );
 use File::Spec;
-use Class::Unload;
 
 our $VERSION = '1.59';
 our $DEFAULT_COMMENT = '-- ';
@@ -194,13 +193,24 @@ sub parse_dbms_version {
     }
 }
 
-my ($parsers_libdir, $checkout_dir);
+#my ($parsers_libdir, $checkout_dir);
 sub ddl_parser_instance {
+
     my $type = shift;
 
     # it may differ from our caller, even though currently this is not the case
     eval "require SQL::Translator::Parser::$type"
         or die "Unable to load grammar-spec container SQL::Translator::Parser::$type:\n$@";
+
+    require Parse::RecDescent;
+    return Parse::RecDescent->new(do {
+      no strict 'refs';
+      ${"SQL::Translator::Parser::${type}::GRAMMAR"}
+        || die "No \$SQL::Translator::Parser::${type}::GRAMMAR defined, unable to instantiate PRD parser\n"
+    });
+
+# this is disabled until RT#74593 is resolved
+=begin for general sadness
 
     unless ($parsers_libdir) {
 
@@ -226,6 +236,7 @@ sub ddl_parser_instance {
     # instance shares global state with all its siblings
     # What we do here is gross, but scarily efficient - the parser compilation
     # is much much slower than an unload/reload cycle
+    require Class::Unload;
     Class::Unload->unload($precompiled_mod);
 
     # There is also a sub-namespace that P::RD uses, but simply unsetting
@@ -259,6 +270,8 @@ sub ddl_parser_instance {
     }
 
     return $precompiled_mod->new;
+=cut
+
 }
 
 # Try to determine the root of a checkout/untar if possible

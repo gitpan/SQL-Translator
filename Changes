@@ -1,26 +1,42 @@
-# ----------------------------------------------------------
-# 0.11010_02 2012-01-19
-# ----------------------------------------------------------
-
-* All parser grammars are now precompiled for speed
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+*** INCOMPATIBLE CHANGES:
+* SQLT no longer supports setting separate conflicting values for the now
+  deprecated 'quote_table_names' and 'quote_field_names'. Instead their values
+  are proxied to the new 'quote_identifiers'. If 'quote_identifiers' is
+  supplied, the legacy settings are ignored (with a warning). If nothing is
+  specified the default is TRUE as before. If only one is specified - default
+  to its value for everything, and if both are specified with a conflicting
+  value an exception is thrown.
+* Partial quoting support has been added in SQLite. It is currently disabled by
+  default, you need to request is explicitly with quote_identifiers => 1. In a
+  future version of SQL::Translator *THIS DEFAULT BEHAVIOR WILL CHANGE*.
+  If you do NOT WANT quoting, set quote_identifiers to a false value to
+  protect yourself from changes in a future release.
+* Bump the default MySQL parser version to MySQL 4.0
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+* script/sqlt-graph now accepts a --trace option
 * Fixes to SQLite foreign keys production (patch from Johan Viklund)
   closes RT#16412, RT#44769
 * ON DELETE/UPDATE actions for SQLite (patch from Lukas Thiemeier)
   closes RT#70734, RT#71283, RT#70378
-* Proper quoting support in SQLite
+* Fix data preservation on SQLite diffs involving adding/dropping columns
 * Support for triggers in PostgreSQL producer and parser
 * Correct Data Type in SQLT::Parser::DBI::PostgreSQL (patch from Andrew Pam)
 * Fix index issue in SQLT::Parser::DBI::PostgreSQL
 * Add column and table comments in SQLT::Parser::DBI::PostgreSQL(patch from Andrew Pam)
+* Stop the DBI parser from disconnecting externally supplied DBI handles (RT#35868)
 * Fixed alter_drop_constraint for foreign keys and applying multiple changes
   via alter_field to a column in Postgres Producer
 * Added a working mechanism for naming foreign keys in the PostgreSQL producer
 * Fix PostgreSQL ignoring default values with specified data type
+* Fix PostgreSQL parser support for (N)::int defaults (patch by Tina Müller)
 * Fix possible name duplication in SQLlite producer
 * Oracle does not accept ON DELETE/UPDATE RESTRICT (though it is the actual default)
   fix by not adding the ON DELETE/UPDATE clause at all
 * Changed dependency on Digest::SHA1 to the core-bundled Digest::SHA (RT#67989)
 * Support for double quoted and bit strings as default values in MySQL parser
+* Improved VIEW support in MySQL parser
+* Proper handling of CURRENT_TIMESTAMP default values in MySQL parser (RT#65844)
 * Check in MySQL parser to avoid trying to parse a table defined twice in the same
   file as indices (and probably other things) get messed up
 * Workaround for some MySQL quirks on primary key definitions
@@ -36,7 +52,11 @@
 * Fix ignored option to script/sqlt-diagram (RT#5992)
 * Fix t/17sqlfxml-producer.t failures due to whitespace differences introduced by
   environment config snippets (RT#70786)
+* Fix assembly of Table objects with numbered columns being added out of order
+  (RT#74771) (based on patch from Jonathan Otsuka)
+* Fix syntax error in SQL::Translator::Producer::Latex (RT#74953)
 * Deprecate SQL::Translator::Schema::Graph and the as_graph() schema method
+* Bump minimum supported perl version to 5.8.1 (mostly due to Moo)
 
 # ----------------------------------------------------------
 # 0.11010 2011-10-05

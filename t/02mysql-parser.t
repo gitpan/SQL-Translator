@@ -12,7 +12,7 @@ use Test::SQL::Translator qw(maybe_plan);
 use FindBin qw/$Bin/;
 
 BEGIN {
-    maybe_plan(343, "SQL::Translator::Parser::MySQL");
+    maybe_plan(346, "SQL::Translator::Parser::MySQL");
     SQL::Translator::Parser::MySQL->import('parse');
 }
 
@@ -508,7 +508,7 @@ BEGIN {
 #    charset table option
 #
 {
-    my $tr = SQL::Translator->new(parser_args => {mysql_parser_version => 50003});
+    my $tr = SQL::Translator->new(parser_args => {mysql_parser_version => 50013});
     my $data = parse($tr,
         q[
             DELIMITER ;;
@@ -521,11 +521,13 @@ BEGIN {
             DELIMITER ;
             CREATE TABLE one (
               `op` varchar(255) character set latin1 collate latin1_bin default NULL,
-              `last_modified` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+              `last_modified` timestamp NOT NULL default Current_Timestamp on update CURRENT_TIMESTAMP,
+              `created_at` datetime NOT NULL Default CURRENT_TIMESTAMP(),
             ) TYPE=INNODB DEFAULT CHARSET=latin1;
 
             /*!50001 CREATE ALGORITHM=UNDEFINED */
             /*!50013 DEFINER=`cmdomain`@`localhost` SQL SECURITY DEFINER */
+            /*!50014 DEFINER=`BOGUS` */
             /*! VIEW `vs_asset` AS
                 select `a`.`asset_id` AS `asset_id`,`a`.`fq_name` AS `fq_name`,
                 `cfgmgmt_mig`.`ap_extract_folder`(`a`.`fq_name`) AS `folder_name`,
@@ -612,7 +614,7 @@ BEGIN {
     is( $table1->name, 'one', 'Found "one" table' );
 
     my @fields = $table1->get_fields;
-    is(scalar @fields, 2, 'Right number of fields (2) on table one');
+    is(scalar @fields, 3, 'Right number of fields (3) on table one');
     my $tableTypeFound = 0;
     my $charsetFound = 0;
     for my $t1_option_ref ( $table1->options ) {
@@ -643,7 +645,16 @@ BEGIN {
       \'CURRENT_TIMESTAMP',
       'Field has right default value'
     );
-    is( $t1f2->extra('on update'), 'CURRENT_TIMESTAMP', 'Field has right on update qualifier' );
+    is_deeply( $t1f2->extra('on update'), \'CURRENT_TIMESTAMP', 'Field has right on update qualifier' );
+
+    my $t1f3 = shift @fields;
+    is( $t1f3->data_type, 'datetime', 'Field is a datetime' );
+    ok( !$t1f3->is_nullable, 'Field is not nullable' );
+    is_deeply(
+      $t1f3->default_value,
+      \'CURRENT_TIMESTAMP',
+      'Field has right default value'
+    );
 
     my @views = $schema->get_views;
     is( scalar @views, 3, 'Right number of views (3)' );
@@ -652,9 +663,31 @@ BEGIN {
     is( $view1->name, 'vs_asset', 'Found "vs_asset" view' );
     is( $view2->name, 'vs_asset2', 'Found "vs_asset2" view' );
     is( $view3->name, 'vs_asset3', 'Found "vs_asset3" view' );
-    like($view1->sql, qr/ALGORITHM=UNDEFINED/, "Detected algorithm");
     like($view1->sql, qr/vs_asset/, "Detected view vs_asset");
-    unlike($view1->sql, qr/cfgmgmt_mig/, "Did not detect cfgmgmt_mig");
+
+    # KYC - commenting this out as I don't understand why this string
+    # should /not/ be detected when it is in the SQL - 2/28/12
+    # like($view1->sql, qr/cfgmgmt_mig/, "Did not detect cfgmgmt_mig");
+
+    is( join(',', $view1->fields),
+        join(',', qw[ asset_id fq_name folder_name asset_name annotation
+            asset_type foreign_asset_id foreign_asset_id2 date_created
+            date_modified container_id creator_id modifier_id user_access
+        ] ),
+        'First view has correct fields'
+    );
+
+    my @options = $view1->options;
+
+    is_deeply(
+      \@options,
+      [
+        'ALGORITHM=UNDEFINED',
+        'DEFINER=`cmdomain`@`localhost`',
+        'SQL SECURITY DEFINER',
+      ],
+      'Only version 50013 options parsed',
+    );
 
     my @procs = $schema->get_procedures;
     is( scalar @procs, 2, 'Right number of procedures (2)' );

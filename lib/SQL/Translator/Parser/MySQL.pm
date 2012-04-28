@@ -120,6 +120,8 @@ This parser takes a single optional parser_arg C<mysql_parser_version>, which
 provides the desired version for the target database. Any statement in the processed
 dump file, that is commented with a version higher than the one supplied, will be stripped.
 
+The default C<mysql_parser_version> is set to the conservative value of 40000 (MySQL 4.0)
+
 Valid version specifiers for C<mysql_parser_version> are listed L<here|SQL::Translator::Utils/parse_mysql_version>
 
 More information about the MySQL comment-syntax: L<http://dev.mysql.com/doc/refman/5.0/en/comments.html>
@@ -145,7 +147,7 @@ our @EXPORT_OK = qw(parse);
 
 our %type_mapping = ();
 
-use constant DEFAULT_PARSER_VERSION => 30000;
+use constant DEFAULT_PARSER_VERSION => 40000;
 
 our $GRAMMAR = << 'END_OF_GRAMMAR';
 
@@ -189,10 +191,10 @@ use : /use/i WORD "$delimiter"
         @table_comments = ();
     }
 
-set : /set/i /[^;]+/ "$delimiter"
+set : /set/i not_delimiter "$delimiter"
     { @table_comments = () }
 
-drop : /drop/i TABLE /[^;]+/ "$delimiter"
+drop : /drop/i TABLE not_delimiter "$delimiter"
 
 drop : /drop/i WORD(s) "$delimiter"
     { @table_comments = () }
@@ -327,29 +329,120 @@ create : CREATE PROCEDURE NAME not_delimiter "$delimiter"
 PROCEDURE : /procedure/i
     | /function/i
 
-create : CREATE replace(?) algorithm(?) /view/i NAME not_delimiter "$delimiter"
+create : CREATE or_replace(?) create_view_option(s?) /view/i NAME /as/i view_select_statement "$delimiter"
     {
         @table_comments = ();
-        my $view_name = $item[5];
-        my $sql = join(q{ }, grep { defined and length } $item[1], $item[2]->[0], $item[3]->[0])
-            . " $item[4] $item[5] $item[6]";
+        my $view_name   = $item{'NAME'};
+        my $select_sql  = $item{'view_select_statement'};
+        my $options     = $item{'create_view_option(s?)'};
+
+        my $sql = join(q{ },
+            grep { defined and length }
+            map  { ref $_ eq 'ARRAY' ? @$_ : $_ }
+            $item{'CREATE'},
+            $item{'or_replace(?)'},
+            $options,
+            $view_name,
+            'as select',
+            join(', ',
+                map {
+                    sprintf('%s%s',
+                        $_->{'name'},
+                        $_->{'alias'} ? ' as ' . $_->{'alias'} : ''
+                    )
+                }
+                @{ $select_sql->{'columns'} || [] }
+            ),
+            ' from ',
+            join(', ',
+                map {
+                    sprintf('%s%s',
+                        $_->{'name'},
+                        $_->{'alias'} ? ' as ' . $_->{'alias'} : ''
+                    )
+                }
+                @{ $select_sql->{'from'}{'tables'} || [] }
+            ),
+            $select_sql->{'from'}{'where'}
+                ? 'where ' . $select_sql->{'from'}{'where'}
+                : ''
+            ,
+        );
 
         # Hack to strip database from function calls in SQL
         $sql =~ s#`\w+`\.(`\w+`\()##g;
 
-        $views{ $view_name }{'order'}  = ++$view_order;
-        $views{ $view_name }{'name'}   = $view_name;
-        $views{ $view_name }{'sql'}    = $sql;
+        $views{ $view_name }{'order'}   = ++$view_order;
+        $views{ $view_name }{'name'}    = $view_name;
+        $views{ $view_name }{'sql'}     = $sql;
+        $views{ $view_name }{'options'} = $options;
+        $views{ $view_name }{'select'}  = $item{'view_select_statement'};
     }
 
-replace : /or replace/i
+create_view_option : view_algorithm | view_sql_security | view_definer
 
-algorithm : /algorithm/i /=/ WORD
+or_replace : /or replace/i
+
+view_algorithm : /algorithm/i /=/ WORD
     {
         $return = "$item[1]=$item[3]";
     }
 
+view_definer : /definer=\S+/i
+
+view_sql_security : /sql \s+ security  \s+ (definer|invoker)/ixs
+
 not_delimiter : /.*?(?=$delimiter)/is
+
+view_select_statement : /[(]?/ /select/i view_column_def /from/i view_table_def /[)]?/
+    {
+        $return = {
+            columns => $item{'view_column_def'},
+            from    => $item{'view_table_def'},
+        };
+    }
+
+view_column_def : /(.*?)(?=\bfrom\b)/ixs
+    {
+        # split on commas not in parens,
+        # e.g., "concat_ws(\' \', first, last) as first_last"
+        my @tmp = $1 =~ /((?:[^(,]+|\(.*?\))+)/g;
+        my @cols;
+        for my $col ( @tmp ) {
+            my ( $name, $alias ) = map {
+              s/^\s+|\s+$//g;
+              s/[`]//g;
+              $_
+            } split /\s+as\s+/i, $col;
+
+            push @cols, { name => $name, alias => $alias || '' };
+        }
+
+        $return = \@cols;
+    }
+
+not_delimiter : /.*?(?=$delimiter)/is
+
+view_table_def : not_delimiter
+    {
+        my $clause = $item[1];
+        my $where  = $1 if $clause =~ s/\bwhere \s+ (.*)//ixs;
+        $clause    =~ s/[)]\s*$//;
+
+        my @tables;
+        for my $tbl ( split( /\s*,\s*/, $clause ) ) {
+            my ( $name, $alias ) = split /\s+as\s+/i, $tbl;
+            push @tables, { name => $name, alias => $alias || '' };
+        }
+
+        $return = {
+            tables => \@tables,
+            where  => $where || '',
+        };
+    }
+
+view_column_alias : /as/i WORD
+    { $return = $item[2] }
 
 create_definition : constraint
     | index
@@ -365,13 +458,17 @@ comment : /^\s*(?:#|-{2}).*\n/
         $return     = $comment;
     }
 
-comment : /\/\*/ /.*?\*\//s
+comment : m{ / \* (?! \!) .*? \* / }xs
     {
         my $comment = $item[2];
         $comment = substr($comment, 0, -2);
         $comment    =~ s/^\s*|\s*$//g;
         $return = $comment;
     }
+
+comment_like_command : m{/\*!(\d+)?}s
+
+comment_end : m{ \* / }xs
 
 field_comment : /^\s*(?:#|-{2}).*\n/
     {
@@ -509,7 +606,7 @@ on_delete : /on delete/i reference_option
     { $item[2] }
 
 on_update :
-    /on update/i 'CURRENT_TIMESTAMP'
+    /on update/i CURRENT_TIMESTAMP
     { $item[2] }
     |
     /on update/i reference_option
@@ -579,9 +676,9 @@ not_null     : /not/i /null/i
 unsigned     : /unsigned/i { $return = 0 }
 
 default_val :
-    /default/i 'CURRENT_TIMESTAMP'
+    /default/i CURRENT_TIMESTAMP
     {
-        $return =  \$item[2];
+        $return =  $item[2];
     }
     |
     /default/i string
@@ -783,9 +880,10 @@ VALUE : /[-+]?\.?\d+(?:[eE]\d+)?/
     | /NULL/
     { 'NULL' }
 
-CURRENT_TIMESTAMP : /current_timestamp(\(\))?/i
-    | /now\(\)/i
-    { 'CURRENT_TIMESTAMP' }
+# always a scalar-ref, so that it is treated as a function and not quoted by consumers
+CURRENT_TIMESTAMP :
+      /current_timestamp(\(\))?/i { \'CURRENT_TIMESTAMP' }
+    | /now\(\)/i { \'CURRENT_TIMESTAMP' }
 
 END_OF_GRAMMAR
 
@@ -793,10 +891,12 @@ sub parse {
     my ( $translator, $data ) = @_;
 
     # Enable warnings within the Parse::RecDescent module.
-    local $::RD_ERRORS = 1 unless defined $::RD_ERRORS; # Make sure the parser dies when it encounters an error
-    local $::RD_WARN   = 1 unless defined $::RD_WARN; # Enable warnings. This will warn on unused rules &c.
-    local $::RD_HINT   = 1 unless defined $::RD_HINT; # Give out hints to help fix problems.
-
+    # Make sure the parser dies when it encounters an error
+    local $::RD_ERRORS = 1 unless defined $::RD_ERRORS;
+    # Enable warnings. This will warn on unused rules &c.
+    local $::RD_WARN   = 1 unless defined $::RD_WARN;
+    # Give out hints to help fix problems.
+    local $::RD_HINT   = 1 unless defined $::RD_HINT;
     local $::RD_TRACE  = $translator->trace ? 1 : undef;
     local $DEBUG       = $translator->debug;
 
@@ -948,6 +1048,7 @@ sub parse {
             sql   => $result->{procedures}->{$proc_name}->{sql},
         );
     }
+
     my @views = sort {
         $result->{views}->{ $a }->{'order'}
         <=>
@@ -955,9 +1056,19 @@ sub parse {
     } keys %{ $result->{views} };
 
     for my $view_name ( @views ) {
+        my $view = $result->{'views'}{ $view_name };
+        my @flds = map { $_->{'alias'} || $_->{'name'} }
+                   @{ $view->{'select'}{'columns'} || [] };
+        my @from = map { $_->{'alias'} || $_->{'name'} }
+                   @{ $view->{'from'}{'tables'} || [] };
+
         $schema->add_view(
-            name => $view_name,
-            sql  => $result->{'views'}->{$view_name}->{sql},
+            name    => $view_name,
+            sql     => $view->{'sql'},
+            order   => $view->{'order'},
+            fields  => \@flds,
+            tables  => \@from,
+            options => $view->{'options'}
         );
     }
 
