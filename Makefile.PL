@@ -14,7 +14,7 @@ my $deps = {
     'Digest::SHA'              => '0',
     'Carp::Clan'               => '0',
     'IO::Scalar'               => '2.110',
-    'Parse::RecDescent'        => '1.964001',
+    'Parse::RecDescent'        => '1.967009',
     'DBI'                      => '0',
     'File::ShareDir'           => '1.0',
     'File::Spec'               => '0',
@@ -60,6 +60,13 @@ for my $type (qw/requires recommends test_requires/) {
     $f->($mod, $deps->{$type}{$mod});
   }
 }
+
+no_index directory => $_ for (qw|
+  lib/SQL/Translator/Schema/Graph
+|);
+no_index package => $_ for (qw|
+  SQL::Translator::Schema::Graph
+|);
 
 install_script (qw|
   script/sqlt-diagram

@@ -1,3 +1,7 @@
+# ----------------------------------------------------------
+# 0.11011 2012-05-09
+# ----------------------------------------------------------
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 *** INCOMPATIBLE CHANGES:
 * SQLT no longer supports setting separate conflicting values for the now
@@ -12,8 +16,8 @@
   future version of SQL::Translator *THIS DEFAULT BEHAVIOR WILL CHANGE*.
   If you do NOT WANT quoting, set quote_identifiers to a false value to
   protect yourself from changes in a future release.
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 * Bump the default MySQL parser version to MySQL 4.0
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 * script/sqlt-graph now accepts a --trace option
 * Fixes to SQLite foreign keys production (patch from Johan Viklund)
   closes RT#16412, RT#44769

@@ -1,5 +1,16 @@
 package SQL::Translator::Generator::Role::DDL;
 
+=head1 NAME
+
+SQL::Translator::Generator::Role::DDL - Role implementing common parts of
+DDL generation.
+
+=head1 DESCRIPTION
+
+I<documentation volunteers needed>
+
+=cut
+
 use Moo::Role;
 use SQL::Translator::Utils qw(header_comment);
 use Scalar::Util;
@@ -106,3 +117,19 @@ sub nullable { 'NULL' }
 sub header_comments { header_comment() . "\n" if $_[0]->add_comments }
 
 1;
+
+=head1 AUTHORS
+
+See the included AUTHORS file:
+L<http://search.cpan.org/dist/SQL-Translator/AUTHORS>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2012 the SQL::Translator L</AUTHORS> as listed above.
+
+=head1 LICENSE
+
+This code is free software and may be distributed under the same terms as Perl
+itself.
+
+=cut
