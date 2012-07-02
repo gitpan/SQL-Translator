@@ -54,5 +54,5 @@ resources:
   bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator
   license: http://opensource.org/licenses/gpl-license.php
   repository: git://git.shadowcat.co.uk/dbsrgits/SQL-Translator.git
-version: 0.11011
+version: 0.11012
 x_authority: cpan:JROBINSON

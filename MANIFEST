@@ -18,6 +18,7 @@ lib/SQL/Translator/Diff.pm
 lib/SQL/Translator/Filter/DefaultExtra.pm
 lib/SQL/Translator/Filter/Globals.pm
 lib/SQL/Translator/Filter/Names.pm
+lib/SQL/Translator/Generator/DDL/PostgreSQL.pm
 lib/SQL/Translator/Generator/DDL/SQLite.pm
 lib/SQL/Translator/Generator/DDL/SQLServer.pm
 lib/SQL/Translator/Generator/Role/DDL.pm
@@ -107,15 +108,7 @@ share/DiaUml/uml-class-all.tt2
 share/DiaUml/uml-class-end.tt2
 share/DiaUml/uml-class-start.tt2
 share/DiaUml/uml-class.tt2
-share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/Access.pm
-share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/DB2.pm
-share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/MySQL.pm
-share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/Oracle.pm
-share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/PostgreSQL.pm
 share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/README
-share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/SQLite.pm
-share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/SQLServer.pm
-share/PrecompiledParsers/Parse/RecDescent/DDL/SQLT/Sybase.pm
 t/02mysql-parser.t
 t/03mysql-to-oracle.t
 t/04file,fh,string.t
