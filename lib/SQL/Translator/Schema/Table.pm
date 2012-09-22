@@ -19,9 +19,10 @@ C<SQL::Translator::Schema::Table> is the table object.
 
 =cut
 
-use strict;
-use warnings;
-use SQL::Translator::Utils 'parse_list_arg';
+use Moo 1.000003;
+use SQL::Translator::Utils qw(parse_list_arg ex2err throw carp_ro);
+use SQL::Translator::Types qw(schema_obj);
+use SQL::Translator::Role::ListAttr;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Schema::Constraint;
 use SQL::Translator::Schema::Field;
@@ -29,8 +30,9 @@ use SQL::Translator::Schema::Index;
 
 use Carp::Clan '^SQL::Translator';
 use List::Util 'max';
+use Sub::Quote qw(quote_sub);
 
-use base 'SQL::Translator::Schema::Object';
+extends 'SQL::Translator::Schema::Object';
 
 our $VERSION = '1.59';
 
@@ -43,8 +45,6 @@ use overload
     fallback => 1,
 ;
 
-__PACKAGE__->_attributes( qw/schema name comments options order/ );
-
 =pod
 
 =head2 new
@@ -55,12 +55,6 @@ Object constructor.
       schema => $schema,
       name   => 'foo',
   );
-
-=cut
-
-sub add_constraint {
-
-=pod
 
 =head2 add_constraint
 
@@ -78,6 +72,15 @@ C<SQL::Translator::Schema::Constraint> object.
 
 =cut
 
+has _constraints => (
+    is => 'ro',
+    init_arg => undef,
+    default => quote_sub(q{ +[] }),
+    predicate => 1,
+    lazy => 1,
+);
+
+sub add_constraint {
     my $self             = shift;
     my $constraint_class = 'SQL::Translator::Schema::Constraint';
     my $constraint;
@@ -137,15 +140,11 @@ C<SQL::Translator::Schema::Constraint> object.
 #    }
 
     if ( $ok ) {
-        push @{ $self->{'constraints'} }, $constraint;
+        push @{ $self->_constraints }, $constraint;
     }
 
     return $constraint;
 }
-
-sub drop_constraint {
-
-=pod
 
 =head2 drop_constraint
 
@@ -157,6 +156,7 @@ an index name or an C<SQL::Translator::Schema::Constraint> object.
 
 =cut
 
+sub drop_constraint {
     my $self             = shift;
     my $constraint_class = 'SQL::Translator::Schema::Constraint';
     my $constraint_name;
@@ -168,20 +168,16 @@ an index name or an C<SQL::Translator::Schema::Constraint> object.
         $constraint_name = shift;
     }
 
-    if ( ! grep { $_->name eq $constraint_name } @ { $self->{'constraints'} } ) {
+    if ( ! ($self->_has_constraints && grep { $_->name eq $constraint_name } @ { $self->_constraints }) ) {
         return $self->error(qq[Can't drop constraint: "$constraint_name" doesn't exist]);
     }
 
-    my @cs = @{ $self->{'constraints'} };
+    my @cs = @{ $self->_constraints };
     my ($constraint_id) = grep { $cs[$_]->name eq  $constraint_name } (0..$#cs);
-    my $constraint = splice(@{$self->{'constraints'}}, $constraint_id, 1);
+    my $constraint = splice(@{$self->_constraints}, $constraint_id, 1);
 
     return $constraint;
 }
-
-sub add_index {
-
-=pod
 
 =head2 add_index
 
@@ -199,6 +195,15 @@ C<SQL::Translator::Schema::Index> object.
 
 =cut
 
+has _indices => (
+    is => 'ro',
+    init_arg => undef,
+    default => quote_sub(q{ [] }),
+    predicate => 1,
+    lazy => 1,
+);
+
+sub add_index {
     my $self        = shift;
     my $index_class = 'SQL::Translator::Schema::Index';
     my $index;
@@ -216,13 +221,9 @@ C<SQL::Translator::Schema::Index> object.
     foreach my $ex_index ($self->get_indices) {
        return if ($ex_index->equals($index));
     }
-    push @{ $self->{'indices'} }, $index;
+    push @{ $self->_indices }, $index;
     return $index;
 }
-
-sub drop_index {
-
-=pod
 
 =head2 drop_index
 
@@ -234,6 +235,7 @@ an index name of an C<SQL::Translator::Schema::Index> object.
 
 =cut
 
+sub drop_index {
     my $self        = shift;
     my $index_class = 'SQL::Translator::Schema::Index';
     my $index_name;
@@ -245,20 +247,16 @@ an index name of an C<SQL::Translator::Schema::Index> object.
         $index_name = shift;
     }
 
-    if ( ! grep { $_->name eq  $index_name } @{ $self->{'indices'} }) {
+    if ( ! ($self->_has_indices && grep { $_->name eq  $index_name } @{ $self->_indices }) ) {
         return $self->error(qq[Can't drop index: "$index_name" doesn't exist]);
     }
 
-    my @is = @{ $self->{'indices'} };
+    my @is = @{ $self->_indices };
     my ($index_id) = grep { $is[$_]->name eq  $index_name } (0..$#is);
-    my $index = splice(@{$self->{'indices'}}, $index_id, 1);
+    my $index = splice(@{$self->_indices}, $index_id, 1);
 
     return $index;
 }
-
-sub add_field {
-
-=pod
 
 =head2 add_field
 
@@ -281,6 +279,15 @@ existing field, you will get an error and the field will not be created.
 
 =cut
 
+has _fields => (
+    is => 'ro',
+    init_arg => undef,
+    default => quote_sub(q{ +{} }),
+    predicate => 1,
+    lazy => 1
+);
+
+sub add_field {
     my $self        = shift;
     my $field_class = 'SQL::Translator::Schema::Field';
     my $field;
@@ -325,18 +332,14 @@ existing field, you will get an error and the field will not be created.
     my $field_name = $field->name;
 
     if ( $self->get_field($field_name) ) {
-        return $self->error(qq[Can't create field: "$field_name" exists]);
+        return $self->error(qq[Can't use field name "$field_name": field exists]);
     }
     else {
-        $self->{'fields'}{ $field_name } = $field;
+        $self->_fields->{ $field_name } = $field;
     }
 
     return $field;
 }
-
-sub drop_field {
-
-=pod
 
 =head2 drop_field
 
@@ -348,6 +351,7 @@ a field name or an C<SQL::Translator::Schema::Field> object.
 
 =cut
 
+sub drop_field {
     my $self        = shift;
     my $field_class = 'SQL::Translator::Schema::Field';
     my $field_name;
@@ -361,11 +365,11 @@ a field name or an C<SQL::Translator::Schema::Field> object.
     my %args = @_;
     my $cascade = $args{'cascade'};
 
-    if ( ! exists $self->{'fields'}{ $field_name } ) {
+    if ( ! ($self->_has_fields && exists $self->_fields->{ $field_name } ) ) {
         return $self->error(qq[Can't drop field: "$field_name" doesn't exists]);
     }
 
-    my $field = delete $self->{'fields'}{ $field_name };
+    my $field = delete $self->_fields->{ $field_name };
 
     if ( $cascade ) {
         # Remove this field from all indices using it
@@ -386,10 +390,6 @@ a field name or an C<SQL::Translator::Schema::Field> object.
     return $field;
 }
 
-sub comments {
-
-=pod
-
 =head2 comments
 
 Get or set the comments on a table.  May be called several times to
@@ -403,28 +403,27 @@ all the comments joined on newlines.
 
 =cut
 
+has comments => (
+    is => 'rw',
+    coerce => quote_sub(q{ ref($_[0]) eq 'ARRAY' ? $_[0] : [$_[0]] }),
+    default => quote_sub(q{ [] }),
+);
+
+around comments => sub {
+    my $orig     = shift;
     my $self     = shift;
     my @comments = ref $_[0] ? @{ $_[0] } : @_;
 
     for my $arg ( @comments ) {
         $arg = $arg->[0] if ref $arg;
-        push @{ $self->{'comments'} }, $arg if defined $arg && $arg;
+        push @{ $self->$orig }, $arg if defined $arg && $arg;
     }
 
-    if ( @{ $self->{'comments'} || [] } ) {
-        return wantarray
-            ? @{ $self->{'comments'} }
-            : join( "\n", @{ $self->{'comments'} } )
-        ;
-    }
-    else {
-        return wantarray ? () : undef;
-    }
-}
-
-sub get_constraints {
-
-=pod
+    @comments = @{$self->$orig};
+    return wantarray ? @comments
+        : @comments ? join( "\n", @comments )
+        : undef;
+};
 
 =head2 get_constraints
 
@@ -434,21 +433,18 @@ Returns all the constraint objects as an array or array reference.
 
 =cut
 
+sub get_constraints {
     my $self = shift;
 
-    if ( ref $self->{'constraints'} ) {
+    if ( $self->_has_constraints ) {
         return wantarray
-            ? @{ $self->{'constraints'} } : $self->{'constraints'};
+            ? @{ $self->_constraints } : $self->_constraints;
     }
     else {
         $self->error('No constraints');
         return wantarray ? () : undef;
     }
 }
-
-sub get_indices {
-
-=pod
 
 =head2 get_indices
 
@@ -458,22 +454,19 @@ Returns all the index objects as an array or array reference.
 
 =cut
 
+sub get_indices {
     my $self = shift;
 
-    if ( ref $self->{'indices'} ) {
+    if ( $self->_has_indices ) {
         return wantarray
-            ? @{ $self->{'indices'} }
-            : $self->{'indices'};
+            ? @{ $self->_indices }
+            : $self->_indices;
     }
     else {
         $self->error('No indices');
         return wantarray ? () : undef;
     }
 }
-
-sub get_field {
-
-=pod
 
 =head2 get_field
 
@@ -483,24 +476,23 @@ Returns a field by the name provided.
 
 =cut
 
+sub get_field {
     my $self       = shift;
     my $field_name = shift or return $self->error('No field name');
     my $case_insensitive = shift;
+    return $self->error(qq[Field "$field_name" does not exist])
+        unless $self->_has_fields;
     if ( $case_insensitive ) {
       $field_name = uc($field_name);
-      foreach my $field ( keys %{$self->{fields}} ) {
-         return $self->{fields}{$field} if $field_name eq uc($field);
+      foreach my $field ( keys %{$self->_fields} ) {
+         return $self->_fields->{$field} if $field_name eq uc($field);
       }
       return $self->error(qq[Field "$field_name" does not exist]);
     }
     return $self->error( qq[Field "$field_name" does not exist] ) unless
-        exists $self->{'fields'}{ $field_name };
-    return $self->{'fields'}{ $field_name };
+        exists $self->_fields->{ $field_name };
+    return $self->_fields->{ $field_name };
 }
-
-sub get_fields {
-
-=pod
 
 =head2 get_fields
 
@@ -510,12 +502,13 @@ Returns all the field objects as an array or array reference.
 
 =cut
 
+sub get_fields {
     my $self = shift;
     my @fields =
         map  { $_->[1] }
         sort { $a->[0] <=> $b->[0] }
         map  { [ $_->order, $_ ] }
-        values %{ $self->{'fields'} || {} };
+        values %{ $self->_has_fields ? $self->_fields : {} };
 
     if ( @fields ) {
         return wantarray ? @fields : \@fields;
@@ -526,10 +519,6 @@ Returns all the field objects as an array or array reference.
     }
 }
 
-sub is_valid {
-
-=pod
-
 =head2 is_valid
 
 Determine whether the view is valid or not.
@@ -538,6 +527,7 @@ Determine whether the view is valid or not.
 
 =cut
 
+sub is_valid {
     my $self = shift;
     return $self->error('No name')   unless $self->name;
     return $self->error('No fields') unless $self->get_fields;
@@ -551,21 +541,19 @@ Determine whether the view is valid or not.
     return 1;
 }
 
-sub is_trivial_link {
-
-=pod
-
 =head2 is_trivial_link
 
 True if table has no data (non-key) fields and only uses single key joins.
 
 =cut
 
+has is_trivial_link => ( is => 'lazy', init_arg => undef );
+
+around is_trivial_link => carp_ro('is_trivial_link');
+
+sub _build_is_trivial_link {
     my $self = shift;
     return 0 if $self->is_data;
-    return $self->{'is_trivial_link'} if defined $self->{'is_trivial_link'};
-
-    $self->{'is_trivial_link'} = 1;
 
     my %fk = ();
 
@@ -576,18 +564,12 @@ True if table has no data (non-key) fields and only uses single key joins.
 
     foreach my $referenced (keys %fk){
    if($fk{$referenced} > 1){
-     $self->{'is_trivial_link'} = 0;
-     last;
+       return 0;
    }
     }
 
-    return $self->{'is_trivial_link'};
-
+    return 1;
 }
-
-sub is_data {
-
-=pod
 
 =head2 is_data
 
@@ -595,24 +577,21 @@ Returns true if the table has some non-key fields.
 
 =cut
 
-    my $self = shift;
-    return $self->{'is_data'} if defined $self->{'is_data'};
+has is_data => ( is => 'lazy', init_arg => undef );
 
-    $self->{'is_data'} = 0;
+around is_data => carp_ro('is_data');
+
+sub _build_is_data {
+    my $self = shift;
 
     foreach my $field ( $self->get_fields ) {
         if ( !$field->is_primary_key and !$field->is_foreign_key ) {
-            $self->{'is_data'} = 1;
-            return $self->{'is_data'};
+            return 1;
         }
     }
 
-    return $self->{'is_data'};
+    return 0;
 }
-
-sub can_link {
-
-=pod
 
 =head2 can_link
 
@@ -622,15 +601,18 @@ Determine whether the table can link two arg tables via many-to-many.
 
 =cut
 
+has _can_link => ( is => 'ro', init_arg => undef, default => quote_sub(q{ +{} }) );
+
+sub can_link {
     my ( $self, $table1, $table2 ) = @_;
 
-    return $self->{'can_link'}{ $table1->name }{ $table2->name }
-      if defined $self->{'can_link'}{ $table1->name }{ $table2->name };
+    return $self->_can_link->{ $table1->name }{ $table2->name }
+      if defined $self->_can_link->{ $table1->name }{ $table2->name };
 
     if ( $self->is_data == 1 ) {
-        $self->{'can_link'}{ $table1->name }{ $table2->name } = [0];
-        $self->{'can_link'}{ $table2->name }{ $table1->name } = [0];
-        return $self->{'can_link'}{ $table1->name }{ $table2->name };
+        $self->_can_link->{ $table1->name }{ $table2->name } = [0];
+        $self->_can_link->{ $table2->name }{ $table1->name } = [0];
+        return $self->_can_link->{ $table1->name }{ $table2->name };
     }
 
     my %fk = ();
@@ -644,18 +626,18 @@ Determine whether the table can link two arg tables via many-to-many.
 
     if ( !defined( $fk{ $table1->name } ) or !defined( $fk{ $table2->name } ) )
     {
-        $self->{'can_link'}{ $table1->name }{ $table2->name } = [0];
-        $self->{'can_link'}{ $table2->name }{ $table1->name } = [0];
-        return $self->{'can_link'}{ $table1->name }{ $table2->name };
+        $self->_can_link->{ $table1->name }{ $table2->name } = [0];
+        $self->_can_link->{ $table2->name }{ $table1->name } = [0];
+        return $self->_can_link->{ $table1->name }{ $table2->name };
     }
 
     # trivial traversal, only one way to link the two tables
     if (    scalar( @{ $fk{ $table1->name } } == 1 )
         and scalar( @{ $fk{ $table2->name } } == 1 ) )
     {
-        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+        $self->_can_link->{ $table1->name }{ $table2->name } =
           [ 'one2one', $fk{ $table1->name }, $fk{ $table2->name } ];
-        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+        $self->_can_link->{ $table1->name }{ $table2->name } =
           [ 'one2one', $fk{ $table2->name }, $fk{ $table1->name } ];
 
         # non-trivial traversal.  one way to link table2,
@@ -664,9 +646,9 @@ Determine whether the table can link two arg tables via many-to-many.
     elsif ( scalar( @{ $fk{ $table1->name } } > 1 )
         and scalar( @{ $fk{ $table2->name } } == 1 ) )
     {
-        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+        $self->_can_link->{ $table1->name }{ $table2->name } =
           [ 'many2one', $fk{ $table1->name }, $fk{ $table2->name } ];
-        $self->{'can_link'}{ $table2->name }{ $table1->name } =
+        $self->_can_link->{ $table2->name }{ $table1->name } =
           [ 'one2many', $fk{ $table2->name }, $fk{ $table1->name } ];
 
         # non-trivial traversal.  one way to link table1,
@@ -675,9 +657,9 @@ Determine whether the table can link two arg tables via many-to-many.
     elsif ( scalar( @{ $fk{ $table1->name } } == 1 )
         and scalar( @{ $fk{ $table2->name } } > 1 ) )
     {
-        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+        $self->_can_link->{ $table1->name }{ $table2->name } =
           [ 'one2many', $fk{ $table1->name }, $fk{ $table2->name } ];
-        $self->{'can_link'}{ $table2->name }{ $table1->name } =
+        $self->_can_link->{ $table2->name }{ $table1->name } =
           [ 'many2one', $fk{ $table2->name }, $fk{ $table1->name } ];
 
         # non-trivial traversal.  many ways to link table1 and table2
@@ -685,25 +667,21 @@ Determine whether the table can link two arg tables via many-to-many.
     elsif ( scalar( @{ $fk{ $table1->name } } > 1 )
         and scalar( @{ $fk{ $table2->name } } > 1 ) )
     {
-        $self->{'can_link'}{ $table1->name }{ $table2->name } =
+        $self->_can_link->{ $table1->name }{ $table2->name } =
           [ 'many2many', $fk{ $table1->name }, $fk{ $table2->name } ];
-        $self->{'can_link'}{ $table2->name }{ $table1->name } =
+        $self->_can_link->{ $table2->name }{ $table1->name } =
           [ 'many2many', $fk{ $table2->name }, $fk{ $table1->name } ];
 
         # one of the tables didn't export a key
         # to this table, no linking possible
     }
     else {
-        $self->{'can_link'}{ $table1->name }{ $table2->name } = [0];
-        $self->{'can_link'}{ $table2->name }{ $table1->name } = [0];
+        $self->_can_link->{ $table1->name }{ $table2->name } = [0];
+        $self->_can_link->{ $table2->name }{ $table1->name } = [0];
     }
 
-    return $self->{'can_link'}{ $table1->name }{ $table2->name };
+    return $self->_can_link->{ $table1->name }{ $table2->name };
 }
-
-sub name {
-
-=pod
 
 =head2 name
 
@@ -719,23 +697,24 @@ that name and disallows the change if one exists (setting the error to
 
 =cut
 
+has name => (
+    is => 'rw',
+    isa => sub { throw("No table name") unless $_[0] },
+);
+
+around name => sub {
+    my $orig = shift;
     my $self = shift;
 
-    if ( @_ ) {
-        my $arg = shift || return $self->error( "No table name" );
+    if ( my ($arg) = @_ ) {
         if ( my $schema = $self->schema ) {
             return $self->error( qq[Can't use table name "$arg": table exists] )
                 if $schema->get_table( $arg );
         }
-        $self->{'name'} = $arg;
     }
 
-    return $self->{'name'} || '';
-}
-
-sub schema {
-
-=pod
+    return ex2err($orig, $self, @_);
+};
 
 =head2 schema
 
@@ -745,15 +724,9 @@ Get or set the table's schema object.
 
 =cut
 
-    my $self = shift;
-    if ( my $arg = shift ) {
-        return $self->error('Not a schema object') unless
-            UNIVERSAL::isa( $arg, 'SQL::Translator::Schema' );
-        $self->{'schema'} = $arg;
-    }
+has schema => ( is => 'rw', isa => schema_obj('Schema'), weak_ref => 1 );
 
-    return $self->{'schema'};
-}
+around schema => \&ex2err;
 
 sub primary_key {
 
@@ -820,10 +793,6 @@ These are eqivalent:
     return;
 }
 
-sub options {
-
-=pod
-
 =head2 options
 
 Get or set the table's options (e.g., table types for MySQL).  Returns
@@ -833,22 +802,7 @@ an array or array reference.
 
 =cut
 
-    my $self    = shift;
-    my $options = parse_list_arg( @_ );
-
-    push @{ $self->{'options'} }, @$options;
-
-    if ( ref $self->{'options'} ) {
-        return wantarray ? @{ $self->{'options'} || [] } : ($self->{'options'} || '');
-    }
-    else {
-        return wantarray ? () : [];
-    }
-}
-
-sub order {
-
-=pod
+with ListAttr options => ( append => 1 );
 
 =head2 order
 
@@ -858,16 +812,17 @@ Get or set the table's order.
 
 =cut
 
-    my ( $self, $arg ) = @_;
+has order => ( is => 'rw', default => quote_sub(q{ 0 }) );
+
+around order => sub {
+    my ( $orig, $self, $arg ) = @_;
 
     if ( defined $arg && $arg =~ /^\d+$/ ) {
-        $self->{'order'} = $arg;
+        return $self->$orig($arg);
     }
 
-    return $self->{'order'} || 0;
-}
-
-sub field_names {
+    return $self->$orig;
+};
 
 =head2 field_names
 
@@ -879,11 +834,11 @@ avoid the overload magic of the Field objects returned by the get_fields method.
 
 =cut
 
+sub field_names {
     my $self = shift;
     my @fields =
         map  { $_->name }
-        sort { $a->order <=> $b->order }
-        values %{ $self->{'fields'} || {} };
+        $self->get_fields;
 
     if ( @fields ) {
         return wantarray ? @fields : \@fields;
@@ -1068,13 +1023,8 @@ sub fkey_constraints {
     return wantarray ? @cons : \@cons;
 }
 
-sub DESTROY {
-    my $self = shift;
-    undef $self->{'schema'}; # destroy cyclical reference
-    undef $_ for @{ $self->{'constraints'} };
-    undef $_ for @{ $self->{'indices'} };
-    undef $_ for values %{ $self->{'fields'} };
-}
+# Must come after all 'has' declarations
+around new => \&ex2err;
 
 1;
 

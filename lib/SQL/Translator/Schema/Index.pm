@@ -25,14 +25,14 @@ Primary and unique keys are table constraints, not indices.
 
 =cut
 
-use strict;
-use warnings;
+use Moo 1.000003;
 use SQL::Translator::Schema::Constants;
-use SQL::Translator::Utils 'parse_list_arg';
+use SQL::Translator::Utils qw(ex2err throw);
+use SQL::Translator::Role::ListAttr;
+use SQL::Translator::Types qw(schema_obj enum);
+use Sub::Quote qw(quote_sub);
 
-use base 'SQL::Translator::Schema::Object';
-
-our ( $TABLE_COUNT, $VIEW_COUNT );
+extends 'SQL::Translator::Schema::Object';
 
 our $VERSION = '1.59';
 
@@ -44,23 +44,11 @@ my %VALID_INDEX_TYPE = (
   SPATIAL        => 1, # MySQL only (?)
 );
 
-__PACKAGE__->_attributes( qw/
-    name type fields table options
-/);
-
-=pod
-
 =head2 new
 
 Object constructor.
 
   my $schema = SQL::Translator::Schema::Index->new;
-
-=cut
-
-sub fields {
-
-=pod
 
 =head2 fields
 
@@ -78,22 +66,7 @@ names and keep them in order by the first occurrence of a field name.
 
 =cut
 
-    my $self   = shift;
-    my $fields = parse_list_arg( @_ );
-
-    if ( @$fields ) {
-        my ( %unique, @unique );
-        for my $f ( @$fields ) {
-            next if $unique{ $f };
-            $unique{ $f } = 1;
-            push @unique, $f;
-        }
-
-        $self->{'fields'} = \@unique;
-    }
-
-    return wantarray ? @{ $self->{'fields'} || [] } : $self->{'fields'};
-}
+with ListAttr fields => ( uniq => 1 );
 
 sub is_valid {
 
@@ -120,10 +93,6 @@ Determine whether the index is valid or not.
     return 1;
 }
 
-sub name {
-
-=pod
-
 =head2 name
 
 Get or set the index's name.
@@ -132,14 +101,11 @@ Get or set the index's name.
 
 =cut
 
-    my $self = shift;
-    $self->{'name'} = shift if @_;
-    return $self->{'name'} || '';
-}
-
-sub options {
-
-=pod
+has name => (
+    is => 'rw',
+    coerce => quote_sub(q{ defined $_[0] ? $_[0] : '' }),
+    default => quote_sub(q{ '' }),
+);
 
 =head2 options
 
@@ -150,22 +116,7 @@ an array or array reference.
 
 =cut
 
-    my $self    = shift;
-    my $options = parse_list_arg( @_ );
-
-    push @{ $self->{'options'} }, @$options;
-
-    if ( ref $self->{'options'} ) {
-        return wantarray ? @{ $self->{'options'} || [] } : $self->{'options'};
-    }
-    else {
-        return wantarray ? () : [];
-    }
-}
-
-sub table {
-
-=pod
+with ListAttr options => ();
 
 =head2 table
 
@@ -175,19 +126,9 @@ Get or set the index's table object.
 
 =cut
 
-    my $self = shift;
-    if ( my $arg = shift ) {
-        return $self->error('Not a table object') unless
-            UNIVERSAL::isa( $arg, 'SQL::Translator::Schema::Table' );
-        $self->{'table'} = $arg;
-    }
+has table => ( is => 'rw', isa => schema_obj('Table'), weak_ref => 1 );
 
-    return $self->{'table'};
-}
-
-sub type {
-
-=pod
+around table => \&ex2err;
 
 =head2 type
 
@@ -204,21 +145,16 @@ uppercase.
 
 =cut
 
-    my ( $self, $type ) = @_;
+has type => (
+    is => 'rw',
+    coerce => quote_sub(q{ uc $_[0] }),
+    default => quote_sub(q{ 'NORMAL' }),
+    isa => enum([keys %VALID_INDEX_TYPE], {
+        msg => "Invalid index type: %s", allow_false => 1,
+    }),
+);
 
-    if ( $type ) {
-        $type = uc $type;
-        return $self->error("Invalid index type: $type")
-            unless $VALID_INDEX_TYPE{ $type };
-        $self->{'type'} = $type;
-    }
-
-    return $self->{'type'} || 'NORMAL';
-}
-
-sub equals {
-
-=pod
+around type => \&ex2err;
 
 =head2 equals
 
@@ -228,12 +164,14 @@ Determines if this index is the same as another
 
 =cut
 
+around equals => sub {
+    my $orig = shift;
     my $self = shift;
     my $other = shift;
     my $case_insensitive = shift;
     my $ignore_index_names = shift;
 
-    return 0 unless $self->SUPER::equals($other);
+    return 0 unless $self->$orig($other);
 
     unless ($ignore_index_names) {
       unless ((!$self->name && ($other->name eq $other->fields->[0])) ||
@@ -261,12 +199,10 @@ Determines if this index is the same as another
     return 0 unless $self->_compare_objects(scalar $self->options, scalar $other->options);
     return 0 unless $self->_compare_objects(scalar $self->extra, scalar $other->extra);
     return 1;
-}
+};
 
-sub DESTROY {
-    my $self = shift;
-    undef $self->{'table'}; # destroy cyclical reference
-}
+# Must come after all 'has' declarations
+around new => \&ex2err;
 
 1;
 

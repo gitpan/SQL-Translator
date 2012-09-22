@@ -23,14 +23,14 @@ C<SQL::Translator::Schema::Constraint> is the constraint object.
 
 =cut
 
-use strict;
-use warnings;
+use Moo 1.000003;
 use SQL::Translator::Schema::Constants;
-use SQL::Translator::Utils 'parse_list_arg';
+use SQL::Translator::Utils qw(ex2err throw);
+use SQL::Translator::Role::ListAttr;
+use SQL::Translator::Types qw(schema_obj enum);
+use Sub::Quote qw(quote_sub);
 
-use base 'SQL::Translator::Schema::Object';
-
- our ( $TABLE_COUNT, $VIEW_COUNT );
+extends 'SQL::Translator::Schema::Object';
 
 our $VERSION = '1.59';
 
@@ -41,17 +41,6 @@ my %VALID_CONSTRAINT_TYPE = (
     FOREIGN_KEY, 1,
     NOT_NULL,    1,
 );
-
-__PACKAGE__->_attributes( qw/
-    table name type fields reference_fields reference_table
-    match_type on_delete on_update expression deferrable
-/);
-
-# Override to remove empty arrays from args.
-# t/14postgres-parser breaks without this.
-sub init {
-
-=pod
 
 =head2 new
 
@@ -71,14 +60,21 @@ Object constructor.
 
 =cut
 
+# Override to remove empty arrays from args.
+# t/14postgres-parser breaks without this.
+around BUILDARGS => sub {
+    my $orig = shift;
     my $self = shift;
-    foreach ( values %{$_[0]} ) { $_ = undef if ref($_) eq "ARRAY" && ! @$_; }
-    $self->SUPER::init(@_);
-}
+    my $args = $self->$orig(@_);
 
-sub deferrable {
-
-=pod
+    foreach my $arg (keys %{$args}) {
+        delete $args->{$arg} if ref($args->{$arg}) eq "ARRAY" && !@{$args->{$arg}};
+    }
+    if (exists $args->{fields}) {
+        $args->{field_names} = delete $args->{fields};
+    }
+    return $args;
+};
 
 =head2 deferrable
 
@@ -92,18 +88,11 @@ False, so the following are eqivalent:
 
 =cut
 
-    my ( $self, $arg ) = @_;
-
-    if ( defined $arg ) {
-        $self->{'deferrable'} = $arg ? 1 : 0;
-    }
-
-    return defined $self->{'deferrable'} ? $self->{'deferrable'} : 1;
-}
-
-sub expression {
-
-=pod
+has deferrable => (
+    is => 'rw',
+    coerce => quote_sub(q{ $_[0] ? 1 : 0 }),
+    default => quote_sub(q{ 1 }),
+);
 
 =head2 expression
 
@@ -113,15 +102,12 @@ Gets and set the expression used in a CHECK constraint.
 
 =cut
 
-    my $self = shift;
+has expression => ( is => 'rw', default => quote_sub(q{ '' }) );
 
-    if ( my $arg = shift ) {
-        # check arg here?
-        $self->{'expression'} = $arg;
-    }
-
-    return $self->{'expression'} || '';
-}
+around expression => sub {
+    my ($orig, $self, $arg) = @_;
+    $self->$orig($arg || ());
+};
 
 sub is_valid {
 
@@ -171,8 +157,8 @@ Determine whether the constraint is valid or not.
         for my $ref_field ( @ref_fields ) {
             next if $ref_table->get_field( $ref_field );
             return $self->error(
-                "Constraint from field(s) ",
-                join(', ', map {qq['$table_name.$_']} @fields),
+                "Constraint from field(s) ".
+                join(', ', map {qq['$table_name.$_']} @fields).
                 " to non-existent field '$ref_table_name.$ref_field'"
             );
         }
@@ -184,10 +170,6 @@ Determine whether the constraint is valid or not.
 
     return 1;
 }
-
-sub fields {
-
-=pod
 
 =head2 fields
 
@@ -211,33 +193,14 @@ Returns undef or an empty list if the constraint has no fields set.
 
 =cut
 
-    my $self   = shift;
-    my $fields = parse_list_arg( @_ );
-
-    if ( @$fields ) {
-        my ( %unique, @unique );
-        for my $f ( @$fields ) {
-            next if $unique{ $f };
-            $unique{ $f } = 1;
-            push @unique, $f;
-        }
-
-        $self->{'fields'} = \@unique;
-    }
-
-    if ( @{ $self->{'fields'} || [] } ) {
-        # We have to return fields that don't exist on the table as names in
-        # case those fields havn't been created yet.
-        my @ret = map {
-            $self->table->get_field($_) || $_ } @{ $self->{'fields'} };
-        return wantarray ? @ret : \@ret;
-    }
-    else {
-        return wantarray ? () : undef;
-    }
+sub fields {
+    my $self = shift;
+    my $table = $self->table;
+    my @tables = map { $table->get_field($_) || $_ } @{$self->field_names(@_) || []};
+    return wantarray ? @tables
+        : @tables ? \@tables
+        : undef;
 }
-
-sub field_names {
 
 =head2 field_names
 
@@ -249,13 +212,7 @@ avoid the overload magic of the Field objects returned by the fields method.
 
 =cut
 
-    my $self = shift;
-    return wantarray ? @{ $self->{'fields'} || [] } : ($self->{'fields'} || '');
-}
-
-sub match_type {
-
-=pod
+with ListAttr field_names => ( uniq => 1, undef_if_empty => 1 );
 
 =head2 match_type
 
@@ -266,21 +223,16 @@ Get or set the constraint's match_type.  Only valid values are "full"
 
 =cut
 
-    my ( $self, $arg ) = @_;
+has match_type => (
+    is => 'rw',
+    default => quote_sub(q{ '' }),
+    coerce => quote_sub(q{ lc $_[0] }),
+    isa => enum([qw(full partial simple)], {
+        msg => "Invalid match type: %s", allow_false => 1,
+    }),
+);
 
-    if ( $arg ) {
-        $arg = lc $arg;
-        return $self->error("Invalid match type: $arg")
-            unless $arg eq 'full' || $arg eq 'partial' || $arg eq 'simple';
-        $self->{'match_type'} = $arg;
-    }
-
-    return $self->{'match_type'} || '';
-}
-
-sub name {
-
-=pod
+around match_type => \&ex2err;
 
 =head2 name
 
@@ -290,15 +242,12 @@ Get or set the constraint's name.
 
 =cut
 
-    my $self = shift;
-    my $arg  = shift || '';
-    $self->{'name'} = $arg if $arg;
-    return $self->{'name'} || '';
-}
+has name => ( is => 'rw', default => quote_sub(q{ '' }) );
 
-sub options {
-
-=pod
+around name => sub {
+    my ($orig, $self, $arg) = @_;
+    $self->$orig($arg || ());
+};
 
 =head2 options
 
@@ -310,22 +259,7 @@ Returns an array or array reference.
 
 =cut
 
-    my $self    = shift;
-    my $options = parse_list_arg( @_ );
-
-    push @{ $self->{'options'} }, @$options;
-
-    if ( ref $self->{'options'} ) {
-        return wantarray ? @{ $self->{'options'} || [] } : $self->{'options'};
-    }
-    else {
-        return wantarray ? () : [];
-    }
-}
-
-sub on_delete {
-
-=pod
+with ListAttr options => ();
 
 =head2 on_delete
 
@@ -335,19 +269,12 @@ Get or set the constraint's "on delete" action.
 
 =cut
 
-    my $self = shift;
+has on_delete => ( is => 'rw', default => quote_sub(q{ '' }) );
 
-    if ( my $arg = shift ) {
-        # validate $arg?
-        $self->{'on_delete'} = $arg;
-    }
-
-    return $self->{'on_delete'} || '';
-}
-
-sub on_update {
-
-=pod
+around on_delete => sub {
+    my ($orig, $self, $arg) = @_;
+    $self->$orig($arg || ());
+};
 
 =head2 on_update
 
@@ -357,19 +284,12 @@ Get or set the constraint's "on update" action.
 
 =cut
 
-    my $self = shift;
+has on_update => ( is => 'rw', default => quote_sub(q{ '' }) );
 
-    if ( my $arg = shift ) {
-        # validate $arg?
-        $self->{'on_update'} = $arg;
-    }
-
-    return $self->{'on_update'} || '';
-}
-
-sub reference_fields {
-
-=pod
+around on_update => sub {
+    my ($orig, $self, $arg) = @_;
+    $self->$orig($arg || ());
+};
 
 =head2 reference_fields
 
@@ -386,48 +306,32 @@ arrayref; returns an array or array reference.
 
 =cut
 
-    my $self   = shift;
-    my $fields = parse_list_arg( @_ );
+with ListAttr reference_fields => (
+    may_throw => 1,
+    builder => 1,
+    lazy => 1,
+);
 
-    if ( @$fields ) {
-        $self->{'reference_fields'} = $fields;
-    }
+sub _build_reference_fields {
+    my ($self) = @_;
 
-    # Nothing set so try and derive it from the other constraint data
-    unless ( ref $self->{'reference_fields'} ) {
-        my $table   = $self->table   or return $self->error('No table');
-        my $schema  = $table->schema or return $self->error('No schema');
-        if ( my $ref_table_name = $self->reference_table ) {
-            my $ref_table  = $schema->get_table( $ref_table_name ) or
-                return $self->error("Can't find table '$ref_table_name'");
+    my $table   = $self->table   or throw('No table');
+    my $schema  = $table->schema or throw('No schema');
+    if ( my $ref_table_name = $self->reference_table ) {
+        my $ref_table  = $schema->get_table( $ref_table_name ) or
+            throw("Can't find table '$ref_table_name'");
 
-            if ( my $constraint = $ref_table->primary_key ) {
-                $self->{'reference_fields'} = [ $constraint->fields ];
-            }
-            else {
-                $self->error(
-                 'No reference fields defined and cannot find primary key in ',
-                 "reference table '$ref_table_name'"
-                );
-            }
+        if ( my $constraint = $ref_table->primary_key ) {
+            return [ $constraint->fields ];
         }
-        # No ref table so we are not that sort of constraint, hence no ref
-        # fields. So we let the return below return an empty list.
-    }
-
-    if ( ref $self->{'reference_fields'} ) {
-        return wantarray
-            ?  @{ $self->{'reference_fields'} }
-            :     $self->{'reference_fields'};
-    }
-    else {
-        return wantarray ? () : [];
+        else {
+            throw(
+                'No reference fields defined and cannot find primary key in ',
+                "reference table '$ref_table_name'"
+            );
+        }
     }
 }
-
-sub reference_table {
-
-=pod
 
 =head2 reference_table
 
@@ -437,14 +341,7 @@ Get or set the table referred to by the constraint.
 
 =cut
 
-    my $self = shift;
-    $self->{'reference_table'} = shift if @_;
-    return $self->{'reference_table'} || '';
-}
-
-sub table {
-
-=pod
+has reference_table => ( is => 'rw', default => quote_sub(q{ '' }) );
 
 =head2 table
 
@@ -454,19 +351,9 @@ Get or set the constraint's table object.
 
 =cut
 
-    my $self = shift;
-    if ( my $arg = shift ) {
-        return $self->error('Not a table object') unless
-            UNIVERSAL::isa( $arg, 'SQL::Translator::Schema::Table' );
-        $self->{'table'} = $arg;
-    }
+has table => ( is => 'rw', isa => schema_obj('Table'), weak_ref => 1 );
 
-    return $self->{'table'};
-}
-
-sub type {
-
-=pod
+around table => \&ex2err;
 
 =head2 type
 
@@ -476,22 +363,16 @@ Get or set the constraint's type.
 
 =cut
 
-    my ( $self, $type ) = @_;
+has type => (
+    is => 'rw',
+    default => quote_sub(q{ '' }),
+    coerce => quote_sub(q{ (my $t = $_[0]) =~ s/_/ /g; uc $t }),
+    isa => enum([keys %VALID_CONSTRAINT_TYPE], {
+        msg => "Invalid constraint type: %s", allow_false => 1,
+    }),
+);
 
-    if ( $type ) {
-        $type = uc $type;
-        $type =~ s/_/ /g;
-        return $self->error("Invalid constraint type: $type")
-            unless $VALID_CONSTRAINT_TYPE{ $type };
-        $self->{'type'} = $type;
-    }
-
-    return $self->{'type'} || '';
-}
-
-sub equals {
-
-=pod
+around type => \&ex2err;
 
 =head2 equals
 
@@ -501,12 +382,14 @@ Determines if this constraint is the same as another
 
 =cut
 
+around equals => sub {
+    my $orig = shift;
     my $self = shift;
     my $other = shift;
     my $case_insensitive = shift;
     my $ignore_constraint_names = shift;
 
-    return 0 unless $self->SUPER::equals($other);
+    return 0 unless $self->$orig($other);
     return 0 unless $self->type eq $other->type;
     unless ($ignore_constraint_names) {
         return 0 unless $case_insensitive ? uc($self->name) eq uc($other->name) : $self->name eq $other->name;
@@ -552,12 +435,10 @@ Determines if this constraint is the same as another
     return 0 unless $self->_compare_objects(scalar $self->options, scalar $other->options);
     return 0 unless $self->_compare_objects(scalar $self->extra, scalar $other->extra);
     return 1;
-}
+};
 
-sub DESTROY {
-    my $self = shift;
-    undef $self->{'table'}; # destroy cyclical reference
-}
+# Must come after all 'has' declarations
+around new => \&ex2err;
 
 1;
 

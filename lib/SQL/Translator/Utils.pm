@@ -4,6 +4,9 @@ use strict;
 use warnings;
 use Digest::SHA qw( sha1_hex );
 use File::Spec;
+use Scalar::Util qw(blessed);
+use Try::Tiny;
+use Carp qw(carp);
 
 our $VERSION = '1.59';
 our $DEFAULT_COMMENT = '-- ';
@@ -13,6 +16,7 @@ our @EXPORT_OK = qw(
     debug normalize_name header_comment parse_list_arg truncate_id_uniquely
     $DEFAULT_COMMENT parse_mysql_version parse_dbms_version
     ddl_parser_instance
+    throw ex2err carp_ro
 );
 use constant COLLISION_TAG_LENGTH => 8;
 
@@ -304,6 +308,42 @@ sub _find_co_root {
     ;
 }
 
+{
+    package SQL::Translator::Utils::Error;
+
+    use overload
+        '""' => sub { ${$_[0]} },
+        fallback => 1;
+
+    sub new {
+        my ($class, $msg) = @_;
+        bless \$msg, $class;
+    }
+}
+
+sub throw {
+    die SQL::Translator::Utils::Error->new($_[0]);
+}
+
+sub ex2err {
+    my ($orig, $self, @args) = @_;
+    return try {
+        $self->$orig(@args);
+    } catch {
+        die $_ unless blessed($_) && $_->isa("SQL::Translator::Utils::Error");
+        $self->error("$_");
+    };
+}
+
+sub carp_ro {
+    my ($name) = @_;
+    return sub {
+        my ($orig, $self) = (shift, shift);
+        carp "'$name' is a read-only accessor" if @_;
+        return $self->$orig;
+    };
+}
+
 1;
 
 =pod
@@ -451,6 +491,33 @@ version specifications:
 Takes a version string (X.Y.Z) or perl style (XX.YYYZZZ) and a target ('perl'
 or 'native') transforms the string to the given target style.
 to
+
+=head2 throw
+
+Throws the provided string as an object that will stringify back to the
+original string.  This stops it from being mangled by L<Moo>'s C<isa>
+code.
+
+=head2 ex2err
+
+Wraps an attribute accessor to catch any exception raised using
+L</throw> and store them in C<< $self->error() >>, finally returning
+undef.  A reference to this function can be passed directly to
+L<Moo/around>.
+
+    around foo => \&ex2err;
+
+    around bar => sub {
+        my ($orig, $self) = (shift, shift);
+        return ex2err($orig, $self, @_) if @_;
+        ...
+    };
+
+=head2 carp_ro
+
+Takes a field name and returns a reference to a function can be used
+L<around|Moo/around> a read-only accessor to make it L<carp|Carp/carp>
+instead of die when passed an argument.
 
 =head1 AUTHORS
 

@@ -71,6 +71,10 @@ lib/SQL/Translator/Producer/TTSchema.pm
 lib/SQL/Translator/Producer/XML.pm
 lib/SQL/Translator/Producer/XML/SQLFairy.pm
 lib/SQL/Translator/Producer/YAML.pm
+lib/SQL/Translator/Role/BuildArgs.pm
+lib/SQL/Translator/Role/Debug.pm
+lib/SQL/Translator/Role/Error.pm
+lib/SQL/Translator/Role/ListAttr.pm
 lib/SQL/Translator/Schema.pm
 lib/SQL/Translator/Schema/Constants.pm
 lib/SQL/Translator/Schema/Constraint.pm
@@ -84,9 +88,12 @@ lib/SQL/Translator/Schema/Graph/Port.pm
 lib/SQL/Translator/Schema/Index.pm
 lib/SQL/Translator/Schema/Object.pm
 lib/SQL/Translator/Schema/Procedure.pm
+lib/SQL/Translator/Schema/Role/Compare.pm
+lib/SQL/Translator/Schema/Role/Extra.pm
 lib/SQL/Translator/Schema/Table.pm
 lib/SQL/Translator/Schema/Trigger.pm
 lib/SQL/Translator/Schema/View.pm
+lib/SQL/Translator/Types.pm
 lib/SQL/Translator/Utils.pm
 lib/Test/SQL/Translator.pm
 Makefile.PL

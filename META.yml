@@ -45,8 +45,11 @@ requires:
   File::ShareDir: 1.0
   File::Spec: 0
   IO::Scalar: 2.110
-  Moo: 0.009007
+  Moo: 1.000003
+  Package::Variant: 1.001001
   Parse::RecDescent: 1.967009
+  Sub::Quote: 0
+  Try::Tiny: 0.04
   XML::Writer: 0.500
   perl: 5.8.1
 resources:
@@ -54,5 +57,5 @@ resources:
   bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator
   license: http://opensource.org/licenses/gpl-license.php
   repository: git://git.shadowcat.co.uk/dbsrgits/SQL-Translator.git
-version: 0.11013
+version: 0.11013_01
 x_authority: cpan:JROBINSON

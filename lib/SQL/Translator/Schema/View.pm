@@ -23,33 +23,21 @@ C<SQL::Translator::Schema::View> is the view object.
 
 =cut
 
-use strict;
-use warnings;
-use SQL::Translator::Utils 'parse_list_arg';
+use Moo 1.000003;
+use SQL::Translator::Utils qw(ex2err);
+use SQL::Translator::Types qw(schema_obj);
+use SQL::Translator::Role::ListAttr;
+use Sub::Quote qw(quote_sub);
 
-use base 'SQL::Translator::Schema::Object';
-
-our ( $TABLE_COUNT, $VIEW_COUNT );
+extends 'SQL::Translator::Schema::Object';
 
 our $VERSION = '1.59';
-
-__PACKAGE__->_attributes( qw/
-    name sql fields schema order tables options
-/);
-
-=pod
 
 =head2 new
 
 Object constructor.
 
   my $view = SQL::Translator::Schema::View->new;
-
-=cut
-
-sub fields {
-
-=pod
 
 =head2 fields
 
@@ -67,27 +55,7 @@ names and keep them in order by the first occurrence of a field name.
 
 =cut
 
-    my $self   = shift;
-    my $fields = parse_list_arg( @_ );
-
-    if ( @$fields ) {
-        my ( %unique, @unique );
-        for my $f ( @$fields ) {
-            next if $unique{ $f }++;
-            push @unique, $f;
-        }
-
-        $self->{'fields'} = \@unique;
-    }
-
-    my @flds = @{ $self->{'fields'} || [] };
-
-    return wantarray ? @flds : \@flds;
-}
-
-sub tables {
-
-=pod
+with ListAttr fields => ( uniq => 1 );
 
 =head2 tables
 
@@ -105,27 +73,7 @@ names and keep them in order by the first occurrence of a field name.
 
 =cut
 
-    my $self   = shift;
-    my $tables = parse_list_arg( @_ );
-
-    if ( @$tables ) {
-        my ( %unique, @unique );
-        for my $t ( @$tables ) {
-            next if $unique{ $t }++;
-            push @unique, $t;
-        }
-
-        $self->{'tables'} = \@unique;
-    }
-
-    my @tbls = @{ $self->{'tables'} || [] };
-
-    return wantarray ? @tbls : \@tbls;
-}
-
-sub options {
-
-=pod
+with ListAttr tables => ( uniq => 1 );
 
 =head2 options
 
@@ -137,23 +85,7 @@ Gets and sets a list of options on the view.
 
 =cut
 
-    my $self    = shift;
-    my $options = parse_list_arg( @_ );
-
-    if ( @$options ) {
-        my ( %unique, @unique );
-        for my $o ( @$options, @{ $self->{'options'} || [] } ) {
-            next if $unique{ $o }++;
-            push @unique, $o;
-        }
-
-        $self->{'options'} = \@unique;
-    }
-
-    my @opts = @{ $self->{'options'} || [] };
-
-    return wantarray ? @opts : \@opts;
-}
+with ListAttr options => ( uniq => 1, append => 1 );
 
 sub is_valid {
 
@@ -175,10 +107,6 @@ Determine whether the view is valid or not.
     return 1;
 }
 
-sub name {
-
-=pod
-
 =head2 name
 
 Get or set the view's name.
@@ -187,14 +115,7 @@ Get or set the view's name.
 
 =cut
 
-    my $self        = shift;
-    $self->{'name'} = shift if @_;
-    return $self->{'name'} || '';
-}
-
-sub order {
-
-=pod
+has name => ( is => 'rw', default => quote_sub(q{ '' }) );
 
 =head2 order
 
@@ -204,18 +125,17 @@ Get or set the view's order.
 
 =cut
 
-    my ( $self, $arg ) = @_;
+has order => ( is => 'rw', default => quote_sub(q{ 0 }) );
+
+around order => sub {
+    my ( $orig, $self, $arg ) = @_;
 
     if ( defined $arg && $arg =~ /^\d+$/ ) {
-        $self->{'order'} = $arg;
+        return $self->$orig($arg);
     }
 
-    return $self->{'order'} || 0;
-}
-
-sub sql {
-
-=pod
+    return $self->$orig;
+};
 
 =head2 sql
 
@@ -225,14 +145,7 @@ Get or set the view's SQL.
 
 =cut
 
-    my $self       = shift;
-    $self->{'sql'} = shift if @_;
-    return $self->{'sql'} || '';
-}
-
-sub schema {
-
-=pod
+has sql => ( is => 'rw', default => quote_sub(q{ '' }) );
 
 =head2 schema
 
@@ -243,19 +156,9 @@ Get or set the view's schema object.
 
 =cut
 
-    my $self = shift;
-    if ( my $arg = shift ) {
-        return $self->error('Not a schema object') unless
-            UNIVERSAL::isa( $arg, 'SQL::Translator::Schema' );
-        $self->{'schema'} = $arg;
-    }
+has schema => ( is => 'rw', isa => schema_obj('Schema'), weak_ref => 1 );
 
-    return $self->{'schema'};
-}
-
-sub equals {
-
-=pod
+around schema => \&ex2err;
 
 =head2 equals
 
@@ -265,12 +168,14 @@ Determines if this view is the same as another
 
 =cut
 
+around equals => sub {
+    my $orig = shift;
     my $self = shift;
     my $other = shift;
     my $case_insensitive = shift;
     my $ignore_sql = shift;
 
-    return 0 unless $self->SUPER::equals($other);
+    return 0 unless $self->$orig($other);
     return 0 unless $case_insensitive ? uc($self->name) eq uc($other->name) : $self->name eq $other->name;
     #return 0 unless $self->is_valid eq $other->is_valid;
 
@@ -291,12 +196,10 @@ Determines if this view is the same as another
     return 0 unless $case_insensitive ? uc($selfFields) eq uc($otherFields) : $selfFields eq $otherFields;
     return 0 unless $self->_compare_objects(scalar $self->extra, scalar $other->extra);
     return 1;
-}
+};
 
-sub DESTROY {
-    my $self = shift;
-    undef $self->{'schema'}; # destroy cyclical reference
-}
+# Must come after all 'has' declarations
+around new => \&ex2err;
 
 1;
 
