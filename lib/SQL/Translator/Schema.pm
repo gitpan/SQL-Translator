@@ -26,7 +26,7 @@ returns the database structure.
 
 =cut
 
-use Moo 1.000003;
+use Moo;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Schema::Procedure;
 use SQL::Translator::Schema::Table;
@@ -49,22 +49,6 @@ has _order => (is => 'ro', default => quote_sub(q{ +{ map { $_ => 0 } qw/
     proc
   /} }),
 );
-
-# FIXME - to be removed, together with the SQL::Translator::Schema::Graph* stuff
-# looks like a remnant of the Turnkey project integration back in 2003-4
-# Appears to be quite dead
-sub as_graph {
-
-    eval { require Class::MakeMethods }
-      or croak 'You need to install the CPAN dependency Class::MakeMethods to use as_graph()';
-
-    require  SQL::Translator::Schema::Graph;
-
-    my $self = shift;
-
-    return SQL::Translator::Schema::Graph->new(
-        translator => $self->translator );
-}
 
 sub as_graph_pm {
 

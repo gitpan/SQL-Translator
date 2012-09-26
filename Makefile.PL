@@ -9,16 +9,11 @@ perl_version '5.008001';
 
 my $deps = {
   requires => {
-    'Class::Base'              => '0',
-    'Class::Data::Inheritable' => '0.02',
     'Digest::SHA'              => '0',
     'Carp::Clan'               => '0',
-    'IO::Scalar'               => '2.110',
     'Parse::RecDescent'        => '1.967009',
     'DBI'                      => '0',
     'File::ShareDir'           => '1.0',
-    'File::Spec'               => '0',
-    'XML::Writer'              => '0.500',
     'Moo'                      => '1.000003',
     'Package::Variant'         => '1.001001',
     'Sub::Quote'               => '0',
@@ -31,12 +26,12 @@ my $deps = {
     'GraphViz'                 => '0',
     'Graph::Directed'          => '0',
     'Spreadsheet::ParseExcel'  => '0.41',
-    'Text::ParseWords'         => '0',
     'Text::RecordParser'       => '0.02',
     'XML::LibXML'              => '1.69',
   },
   test_requires => {
     'YAML'                     => '0.66',
+    'XML::Writer'              => '0.500',
     'Test::More'               => '0.88',
     'Test::Differences'        => '0',
     'Test::Exception'          => '0.31',
@@ -64,13 +59,6 @@ for my $type (qw/requires recommends test_requires/) {
     $f->($mod, $deps->{$type}{$mod});
   }
 }
-
-no_index directory => $_ for (qw|
-  lib/SQL/Translator/Schema/Graph
-|);
-no_index package => $_ for (qw|
-  SQL::Translator::Schema::Graph
-|);
 
 install_script (qw|
   script/sqlt-diagram
