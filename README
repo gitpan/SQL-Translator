@@ -1,143 +1,366 @@
-                      SQL::Translator README
+NAME
+    SQL::Translator - manipulate structured data definitions (SQL and more)
 
-SQL::Translator is a group of Perl modules that manipulate structure
-data definitions (mostly database schemas) in interesting ways, such
-as converting among different dialects of CREATE syntax (e.g.,
-MySQL-to-Oracle), visualizations of schemas (pseudo-ER diagrams
-GraphViz or GD), automatic code generation (using Class::DBI),
-converting non-RDBMS files to SQL schemas (xSV text files, Excel
-spreadsheets), serializing parsed schemas (via Storable, YAML and
-XML), creating documentation (HTML and POD), and more.  We also
-have the ability to talk directly to a database through DBI to
-query for the structures of several databases.
+SYNOPSIS
+      use SQL::Translator;
 
-Through the separation of the code into parsers and producers with an
-object model in between, it's possible to combine any parser with any
-producer, to plug in custom parsers or producers, or to manipulate the
-parsed data via the built-in object model.  Presently only the
-definition parts of SQL are handled (CREATE, ALTER), not the
-manipulation of data (INSERT, UPDATE, DELETE).
+      my $translator          = SQL::Translator->new(
+          # Print debug info
+          debug               => 1,
+          # Print Parse::RecDescent trace
+          trace               => 0,
+          # Don't include comments in output
+          no_comments         => 0,
+          # Print name mutations, conflicts
+          show_warnings       => 0,
+          # Add "drop table" statements
+          add_drop_table      => 1,
+          # to quote or not to quote, thats the question
+          quote_identifiers     => 1,
+          # Validate schema object
+          validate            => 1,
+          # Make all table names CAPS in producers which support this option
+          format_table_name   => sub {my $tablename = shift; return uc($tablename)},
+          # Null-op formatting, only here for documentation's sake
+          format_package_name => sub {return shift},
+          format_fk_name      => sub {return shift},
+          format_pk_name      => sub {return shift},
+      );
 
-As of version 0.06, parsers exist for the following:
+      my $output     = $translator->translate(
+          from       => 'MySQL',
+          to         => 'Oracle',
+          # Or an arrayref of filenames, i.e. [ $file1, $file2, $file3 ]
+          filename   => $file,
+      ) or die $translator->error;
 
-    Databases:
-        MySQL
-        Oracle
-        PostgreSQL
-        SQLite
-        Sybase
+      print $output;
 
-        DBI-MySQL
-        DBI-PostgreSQL
-        DBI-SQLite
-        DBI-Sybase
+DESCRIPTION
+    This documentation covers the API for SQL::Translator. For a more
+    general discussion of how to use the modules and scripts, please see
+    SQL::Translator::Manual.
 
-    Other:
-        xSV          : arbitrarily delimited text files
-        Excel        : Microsoft Excel spreadsheets
-        XML-SQLFairy : SQLFairy's XML format
-        YAML/Storable: Serialized schema objects
+    SQL::Translator is a group of Perl modules that converts vendor-specific
+    SQL table definitions into other formats, such as other vendor-specific
+    SQL, ER diagrams, documentation (POD and HTML), XML, and Class::DBI
+    classes. The main focus of SQL::Translator is SQL, but parsers exist for
+    other structured data formats, including Excel spreadsheets and
+    arbitrarily delimited text files. Through the separation of the code
+    into parsers and producers with an object model in between, it's
+    possible to combine any parser with any producer, to plug in custom
+    parsers or producers, or to manipulate the parsed data via the built-in
+    object model. Presently only the definition parts of SQL are handled
+    (CREATE, ALTER), not the manipulation of data (INSERT, UPDATE, DELETE).
 
-And the following producers exist:
+CONSTRUCTOR
+    The constructor is called "new", and accepts a optional hash of options.
+    Valid options are:
 
-    Databases:
-        MySQL
-        Oracle
-        PostgreSQL
-        SQLite
-        Sybase
-    
-    Code Generators:
-        ClassDBI     : Class::DBI classes
+    *   parser / from
 
-    Documentation:
-        Diagram      : quasi-ER diagrams using libgd
-        GraphViz     : ER diagrams using GraphViz
-        HTML         : HTML documentation of schema
-        POD          : Plain Old Documenation of schema
+    *   parser_args
 
-    Serialization:
-        Storable     : using Perl's Storable module
-        YAML         : YAML format
-        XML-SQLFairy : structure of the schema described in SQLFairy's XML
+    *   producer / to
 
-    Other:
-        TTSchema     : to any text format via Template Toolkit
+    *   producer_args
 
-Included in this distribution are a few scripts designed to be user
-interfaces for the actual SQL::Translator modules.  In the "bin"
-directory, you will find:
+    *   filters
 
-*   sqlt-diagram: interface to Diagram producer
-*   sqlt-diff   : diff two schemas to generate schema mutation file 
-*   sqlt-graph  : interface to GraphViz producer
-*   sqlt-dumper : create a data dumper script from a schema
-*   sqlt        : command-line interface for text-to-text translations
-*   sqlt.cgi    : CGI interface for all SQLFairy functions
+    *   filename / file
 
-All scripts not ending in ".cgi" are meant to be run from the command
-line with various switches to control the input and output of the
-scripts, while the ".cgi" script is a web-form frontend.  The script
-you'll probably find most useful is "sqlt" which is meant to be the
-main interface for translating from text-to-text.  The graphic
-producers, however, have many extra switches, so there are scripts
-specific for each of the the GraphViz and ER-diagram producers.  All
-scripts start with "sqlt" so it will be easier to identify them on
-your system.  All the non-CGI scripts will be installed in a system
-path when you "make install," but you'll have to manually place the
-CGI script into your web CGI directory to use it.
+    *   data
 
-If you're more interested in using the SQL::Translator modules
-directly, then you might be more interested to examine some of the
-test scripts in the "t" directory.  The test suite is relatively
-thorough and should give you an idea of how to parse a file and
-manipulate the SQL::Translator::Schema objects.
+    *   debug
 
-INSTALLATION
+    *   add_drop_table
 
-    $ perl Build.PL
-    $ ./Build
-    $ ./Build test
-    $ su
-    # ./Build install
+    *   quote_identifiers
 
-MANUAL
+    *   quote_table_names (DEPRECATED)
 
-To read the manual:
+    *   quote_field_names (DEPRECATED)
 
-    $ perldoc SQL::Translator::Manual
+    *   no_comments
 
-COPYRIGHT
+    *   trace
 
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; version 2.
+    *   validate
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-Public License for more details.
+    All options are, well, optional; these attributes can be set via
+    instance methods. Internally, they are; no (non-syntactical) advantage
+    is gained by passing options to the constructor.
 
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+METHODS
+  add_drop_table
+    Toggles whether or not to add "DROP TABLE" statements just before the
+    create definitions.
 
-BUGS
+  quote_identifiers
+    Toggles whether or not to quote identifiers (table, column, constraint,
+    etc.) with a quoting mechanism suitable for the chosen Producer. The
+    default (true) is to quote them.
 
-Please use http://rt.cpan.org/ for reporting bugs.
+  quote_table_names
+    DEPRECATED - A legacy proxy to "quote_identifiers"
 
-PRAISE
+  quote_field_names
+    DEPRECATED - A legacy proxy to "quote_identifiers"
 
-If you find this module useful, please use 
-"http://cpanratings.perl.org/rate/?distribution=SQL-Translator" to rate it.
+  no_comments
+    Toggles whether to print comments in the output. Accepts a true or false
+    value, returns the current value.
 
-SEE ALSO
+  producer
+    The "producer" method is an accessor/mutator, used to retrieve or define
+    what subroutine is called to produce the output. A subroutine defined as
+    a producer will be invoked as a function (*not a method*) and passed its
+    container "SQL::Translator" instance, which it should call the "schema"
+    method on, to get the "SQL::Translator::Schema" generated by the parser.
+    It is expected that the function transform the schema structure to a
+    string. The "SQL::Translator" instance is also useful for informational
+    purposes; for example, the type of the parser can be retrieved using the
+    "parser_type" method, and the "error" and "debug" methods can be called
+    when needed.
 
-Check out the SQLFairy homepage at Sourceforge for more information,
-mailing lists, etc.:
+    When defining a producer, one of several things can be passed in: A
+    module name (e.g., "My::Groovy::Producer"), a module name relative to
+    the "SQL::Translator::Producer" namespace (e.g., "MySQL"), a module name
+    and function combination ("My::Groovy::Producer::transmogrify"), or a
+    reference to an anonymous subroutine. If a full module name is passed in
+    (for the purposes of this method, a string containing "::" is considered
+    to be a module name), it is treated as a package, and a function called
+    "produce" will be invoked: $modulename::produce. If $modulename cannot
+    be loaded, the final portion is stripped off and treated as a function.
+    In other words, if there is no file named
+    My/Groovy/Producer/transmogrify.pm, "SQL::Translator" will attempt to
+    load My/Groovy/Producer.pm and use "transmogrify" as the name of the
+    function, instead of the default "produce".
 
-    http://sqlfairy.sourceforge.net/
+      my $tr = SQL::Translator->new;
+
+      # This will invoke My::Groovy::Producer::produce($tr, $data)
+      $tr->producer("My::Groovy::Producer");
+
+      # This will invoke SQL::Translator::Producer::Sybase::produce($tr, $data)
+      $tr->producer("Sybase");
+
+      # This will invoke My::Groovy::Producer::transmogrify($tr, $data),
+      # assuming that My::Groovy::Producer::transmogrify is not a module
+      # on disk.
+      $tr->producer("My::Groovy::Producer::transmogrify");
+
+      # This will invoke the referenced subroutine directly, as
+      # $subref->($tr, $data);
+      $tr->producer(\&my_producer);
+
+    There is also a method named "producer_type", which is a string
+    containing the classname to which the above "produce" function belongs.
+    In the case of anonymous subroutines, this method returns the string
+    "CODE".
+
+    Finally, there is a method named "producer_args", which is both an
+    accessor and a mutator. Arbitrary data may be stored in name => value
+    pairs for the producer subroutine to access:
+
+      sub My::Random::producer {
+          my ($tr, $data) = @_;
+          my $pr_args = $tr->producer_args();
+
+          # $pr_args is a hashref.
+
+    Extra data passed to the "producer" method is passed to "producer_args":
+
+      $tr->producer("xSV", delimiter => ',\s*');
+
+      # In SQL::Translator::Producer::xSV:
+      my $args = $tr->producer_args;
+      my $delimiter = $args->{'delimiter'}; # value is ,\s*
+
+  parser
+    The "parser" method defines or retrieves a subroutine that will be
+    called to perform the parsing. The basic idea is the same as that of
+    "producer" (see above), except the default subroutine name is "parse",
+    and will be invoked as "$module_name::parse($tr, $data)". Also, the
+    parser subroutine will be passed a string containing the entirety of the
+    data to be parsed.
+
+      # Invokes SQL::Translator::Parser::MySQL::parse()
+      $tr->parser("MySQL");
+
+      # Invokes My::Groovy::Parser::parse()
+      $tr->parser("My::Groovy::Parser");
+
+      # Invoke an anonymous subroutine directly
+      $tr->parser(sub {
+        my $dumper = Data::Dumper->new([ $_[1] ], [ "SQL" ]);
+        $dumper->Purity(1)->Terse(1)->Deepcopy(1);
+        return $dumper->Dump;
+      });
+
+    There is also "parser_type" and "parser_args", which perform analogously
+    to "producer_type" and "producer_args"
+
+  filters
+    Set or retreive the filters to run over the schema during the
+    translation, before the producer creates its output. Filters are sub
+    routines called, in order, with the schema object to filter as the 1st
+    arg and a hash of options (passed as a list) for the rest of the args.
+    They are free to do whatever they want to the schema object, which will
+    be handed to any following filters, then used by the producer.
+
+    Filters are set as an array, which gives the order they run in. Like
+    parsers and producers, they can be defined by a module name, a module
+    name relative to the SQL::Translator::Filter namespace, a module name
+    and function name together or a reference to an anonymous subroutine.
+    When using a module name a function called "filter" will be invoked in
+    that package to do the work.
+
+    To pass args to the filter set it as an array ref with the 1st value
+    giving the filter (name or sub) and the rest its args. e.g.
+
+     $tr->filters(
+         sub {
+            my $schema = shift;
+            # Do stuff to schema here!
+         },
+         DropFKeys,
+         [ "Names", table => 'lc' ],
+         [ "Foo",   foo => "bar", hello => "world" ],
+         [ "Filter5" ],
+     );
+
+    Although you normally set them in the constructor, which calls through
+    to filters. i.e.
+
+      my $translator  = SQL::Translator->new(
+          ...
+          filters => [
+              sub { ... },
+              [ "Names", table => 'lc' ],
+          ],
+          ...
+      );
+
+    See t/36-filters.t for more examples.
+
+    Multiple set calls to filters are cumulative with new filters added to
+    the end of the current list.
+
+    Returns the filters as a list of array refs, the 1st value being a
+    reference to the filter sub and the rest its args.
+
+  show_warnings
+    Toggles whether to print warnings of name conflicts, identifier
+    mutations, etc. Probably only generated by producers to let the user
+    know when something won't translate very smoothly (e.g., MySQL "enum"
+    fields into Oracle). Accepts a true or false value, returns the current
+    value.
+
+  translate
+    The "translate" method calls the subroutine referenced by the "parser"
+    data member, then calls any "filters" and finally calls the "producer"
+    sub routine (these members are described above). It accepts as arguments
+    a number of things, in key => value format, including (potentially) a
+    parser and a producer (they are passed directly to the "parser" and
+    "producer" methods).
+
+    Here is how the parameter list to "translate" is parsed:
+
+    *   1 argument means it's the data to be parsed; which could be a string
+        (filename) or a reference to a scalar (a string stored in memory),
+        or a reference to a hash, which is parsed as being more than one
+        argument (see next section).
+
+          # Parse the file /path/to/datafile
+          my $output = $tr->translate("/path/to/datafile");
+
+          # Parse the data contained in the string $data
+          my $output = $tr->translate(\$data);
+
+    *   More than 1 argument means its a hash of things, and it might be
+        setting a parser, producer, or datasource (this key is named
+        "filename" or "file" if it's a file, or "data" for a SCALAR
+        reference.
+
+          # As above, parse /path/to/datafile, but with different producers
+          for my $prod ("MySQL", "XML", "Sybase") {
+              print $tr->translate(
+                        producer => $prod,
+                        filename => "/path/to/datafile",
+                    );
+          }
+
+          # The filename hash key could also be:
+              datasource => \$data,
+
+        You get the idea.
+
+  filename, data
+    Using the "filename" method, the filename of the data to be parsed can
+    be set. This method can be used in conjunction with the "data" method,
+    below. If both the "filename" and "data" methods are invoked as
+    mutators, the data set in the "data" method is used.
+
+        $tr->filename("/my/data/files/create.sql");
+
+    or:
+
+        my $create_script = do {
+            local $/;
+            open CREATE, "/my/data/files/create.sql" or die $!;
+            <CREATE>;
+        };
+        $tr->data(\$create_script);
+
+    "filename" takes a string, which is interpreted as a filename. "data"
+    takes a reference to a string, which is used as the data to be parsed.
+    If a filename is set, then that file is opened and read when the
+    "translate" method is called, as long as the data instance variable is
+    not set.
+
+  schema
+    Returns the SQL::Translator::Schema object.
+
+  trace
+    Turns on/off the tracing option of Parse::RecDescent.
+
+  validate
+    Whether or not to validate the schema object after parsing and before
+    producing.
+
+  version
+    Returns the version of the SQL::Translator release.
 
 AUTHORS
+    See the included AUTHORS file:
+    <http://search.cpan.org/dist/SQL-Translator/AUTHORS>
 
-See the included AUTHORS file.
+    If you would like to contribute to the project, you can send patches to
+    the developers mailing list:
+
+        sqlfairy-developers@lists.sourceforge.net
+
+    Or send us a message (with your Sourceforge username) asking to be added
+    to the project and what you'd like to contribute.
+
+COPYRIGHT
+    Copyright 2012 the SQL::Translator authors, as listed in "AUTHORS".
+
+LICENSE
+    This library is free software and may be distributed under the same
+    terms as Perl 5 itself.
+
+BUGS
+    Please use <http://rt.cpan.org/> for reporting bugs.
+
+PRAISE
+    If you find this module useful, please use
+    <http://cpanratings.perl.org/rate/?distribution=SQL-Translator> to rate
+    it.
+
+SEE ALSO
+    perl, SQL::Translator::Parser, SQL::Translator::Producer,
+    Parse::RecDescent, GD, GraphViz, Text::RecordParser, Class::DBI,
+    XML::Writer.
+
