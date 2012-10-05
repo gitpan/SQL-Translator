@@ -50,5 +50,5 @@ resources:
   bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator
   license: http://dev.perl.org/licenses/
   repository: git://git.shadowcat.co.uk/dbsrgits/SQL-Translator.git
-version: 0.11014
+version: 0.11015
 x_authority: cpan:JROBINSON
