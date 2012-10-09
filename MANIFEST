@@ -178,6 +178,7 @@ t/70sqlt-diff_script_old.t
 t/71-generator-sql_server.t
 t/72-sqlite-add-drop-fields.t
 t/73-sqlite-respects-quote.t
+t/74-filename-arrayref.t
 t/data/access/gdpdm.ddl
 t/data/diff/create1.yml
 t/data/diff/create2.yml
