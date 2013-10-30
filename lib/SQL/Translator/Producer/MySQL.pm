@@ -69,11 +69,11 @@ compatibility.
 
 =item B<table.mysql_charset>, B<table.mysql_collate>
 
-Set the tables default charater set and collation order.
+Set the tables default character set and collation order.
 
 =item B<field.mysql_charset>, B<field.mysql_collate>
 
-Set the fields charater set and collation order.
+Set the fields character set and collation order.
 
 =back
 
@@ -129,7 +129,7 @@ my %translate  = (
 );
 
 #
-# Column types that do not support lenth attribute
+# Column types that do not support length attribute
 #
 my @no_length_attr = qw/
   date time timestamp datetime year
@@ -156,9 +156,7 @@ sub preprocess_schema {
       # TYPE is a synonym, but ENGINE is the preferred option name.
       #
 
-      # We have to use the hash directly here since otherwise there is no way
-      # to remove options.
-      my $options = ( $table->{options} ||= []);
+      my $options = $table->options;
 
       # If multiple option names, normalize to the first one
       if (ref $opt_name) {
@@ -215,7 +213,7 @@ sub preprocess_schema {
 
             # Normalize constraint names here.
             my $c_name = $c->name;
-            # Give the constraint a name if it doesn't have one, so it doens't feel
+            # Give the constraint a name if it doesn't have one, so it doesn't feel
             # left out
             $c_name   = $table->name . '_fk' unless length $c_name;
 
@@ -733,7 +731,7 @@ sub create_constraint
 
     my $reference_table_name = quote_table_name($c->reference_table, $qt);
 
-    my @fields = $c->fields or next;
+    my @fields = $c->fields or return;
 
     if ( $c->type eq PRIMARY_KEY ) {
         return 'PRIMARY KEY (' . $qf . join("$qf, $qf", @fields). $qf . ')';
@@ -878,7 +876,7 @@ sub batch_alter_table {
   my ($table, $diff_hash, $options) = @_;
 
   # InnoDB has an issue with dropping and re-adding a FK constraint under the
-  # name in a single alter statment, see: http://bugs.mysql.com/bug.php?id=13741
+  # name in a single alter statement, see: http://bugs.mysql.com/bug.php?id=13741
   #
   # We have to work round this.
 

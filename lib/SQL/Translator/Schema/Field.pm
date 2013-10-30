@@ -43,13 +43,14 @@ use overload
 
 use DBI qw(:sql_types);
 
-# Mapping from string to sql contstant
+# Mapping from string to sql constant
 our %type_mapping = (
   integer => SQL_INTEGER,
   int     => SQL_INTEGER,
 
+  tinyint => SQL_TINYINT,
   smallint => SQL_SMALLINT,
-  bigint => 9999, # DBI doesn't export a constatn for this. Le suck
+  bigint => SQL_BIGINT,
 
   double => SQL_DOUBLE,
 
@@ -152,16 +153,6 @@ assume an error like other methods.
 
 has default_value => ( is => 'rw' );
 
-=head2 extra
-
-Get or set the field's "extra" attibutes (e.g., "ZEROFILL" for MySQL).
-Accepts a hash(ref) of name/value pairs to store;  returns a hash.
-
-  $field->extra( qualifier => 'ZEROFILL' );
-  my %extra = $field->extra;
-
-=cut
-
 =head2 foreign_key_reference
 
 Get or set the field's foreign key reference;
@@ -258,7 +249,7 @@ sub _build_is_foreign_key {
 
 Get or set whether the field can be null.  If not defined, then
 returns "1" (assumes the field can be null).  The argument is evaluated
-by Perl for True or False, so the following are eqivalent:
+by Perl for True or False, so the following are equivalent:
 
   $is_nullable = $field->is_nullable(0);
   $is_nullable = $field->is_nullable('');
@@ -496,7 +487,7 @@ has table => ( is => 'rw', isa => schema_obj('Table'), weak_ref => 1 );
 
 around table => \&ex2err;
 
-=head2
+=head2 parsed_field
 
 Returns the field exactly as the parser found it
 

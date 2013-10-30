@@ -11,13 +11,13 @@ SQL::Translator::Types - Type checking functions
     use SQL::Translator::Types qw(schema_obj enum);
 
     has foo => ( is => 'rw', isa => schema_obj('Trigger') );
-    has bar => ( is => 'rw', isa => enum([q(baz quux quuz)], {
+    has bar => ( is => 'rw', isa => enum([qw(baz quux quuz)], {
         msg => "Invalid value for bar: '%s'", icase => 1,
     });
 
 =head1 DESCRIPTIONS
 
-This module exports fuctions that return coderefs suitable for L<Moo>
+This module exports functions that return coderefs suitable for L<Moo>
 C<isa> type checks.
 Errors are reported using L<SQL::Translator::Utils/throw>.
 

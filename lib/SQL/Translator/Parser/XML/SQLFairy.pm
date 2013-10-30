@@ -21,8 +21,8 @@ SQL::Translator::Parser::XML::SQLFairy - parser for SQL::Translator's XML.
 =head1 DESCRIPTION
 
 This parser handles the flavor of XML used natively by the SQLFairy
-project (L<SQL::Translator>).  The XML must be in the namespace
-"http://sqlfairy.sourceforge.net/sqlfairy.xml."
+project (L<SQL::Translator>).  The XML must be in the XML namespace
+C<http://sqlfairy.sourceforge.net/sqlfairy.xml>.
 See L<SQL::Translator::Producer::XML::SQLFairy> for details of this format.
 
 You do not need to specify every attribute of the Schema objects as any missing
@@ -44,7 +44,7 @@ tags then the order the tags appear in the XML will be used.
 =head2 default_value
 
 Leave the attribute out all together to use the default in L<Schema::Field>.
-Use empty quotes or 'EMPTY_STRING' for a zero lenth string. 'NULL' for an
+Use empty quotes or 'EMPTY_STRING' for a zero length string. 'NULL' for an
 explicit null (currently sets default_value to undef in the
 Schema::Field obj).
 
@@ -58,14 +58,14 @@ Doesn't take any extra parser args at the moment.
 
 =head1 LEGACY FORMAT
 
-The previous version of the SQLFairy XML allowed the attributes of the the
+The previous version of the SQLFairy XML allowed the attributes of the
 schema objects to be written as either xml attributes or as data elements, in
 any combination. While this allows for lots of flexibility in writing the XML
 the result is a great many possible XML formats, not so good for DTD writing,
 XPathing etc! So we have moved to a fixed version described in
 L<SQL::Translator::Producer::XML::SQLFairy>.
 
-This version of the parser will still parse the old formats and emmit warnings
+This version of the parser will still parse the old formats and emit warnings
 when it sees them being used but they should be considered B<heavily
 depreciated>.
 

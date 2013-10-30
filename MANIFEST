@@ -38,6 +38,7 @@ lib/SQL/Translator/Parser/DBI/SQLite.pm
 lib/SQL/Translator/Parser/DBI/SQLServer.pm
 lib/SQL/Translator/Parser/DBI/Sybase.pm
 lib/SQL/Translator/Parser/Excel.pm
+lib/SQL/Translator/Parser/JSON.pm
 lib/SQL/Translator/Parser/MySQL.pm
 lib/SQL/Translator/Parser/Oracle.pm
 lib/SQL/Translator/Parser/PostgreSQL.pm
@@ -57,6 +58,7 @@ lib/SQL/Translator/Producer/DiaUml.pm
 lib/SQL/Translator/Producer/Dumper.pm
 lib/SQL/Translator/Producer/GraphViz.pm
 lib/SQL/Translator/Producer/HTML.pm
+lib/SQL/Translator/Producer/JSON.pm
 lib/SQL/Translator/Producer/Latex.pm
 lib/SQL/Translator/Producer/MySQL.pm
 lib/SQL/Translator/Producer/Oracle.pm
@@ -130,6 +132,7 @@ t/17sqlfxml-producer.t
 t/18ttschema-producer.t
 t/19sybase-parser.t
 t/20format_X_name.t
+t/23json.t
 t/24yaml.t
 t/25storable.t
 t/26sybase.t

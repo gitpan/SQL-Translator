@@ -358,8 +358,8 @@ sub create_table
 
     my $temporary = "";
 
-    if(exists $table->{extra}{temporary}) {
-        $temporary = $table->{extra}{temporary} ? "TEMPORARY " : "";
+    if(exists $table->extra->{temporary}) {
+        $temporary = $table->extra->{temporary} ? "TEMPORARY " : "";
     }
 
     my $create_statement;
@@ -528,20 +528,20 @@ sub create_geometry_constraints{
    my @constraints;
    push @constraints, SQL::Translator::Schema::Constraint->new(
                      name       => "enforce_dims_".$field->name,
-                     expression => "(ST_NDims($field) = ".$field->{extra}{dimensions}.")",
+                     expression => "(ST_NDims($field) = ".$field->extra->{dimensions}.")",
                      table       => $field->table,
                      type       => CHECK_C,
                   );
 
    push @constraints, SQL::Translator::Schema::Constraint->new(
                      name       => "enforce_srid_".$field->name,
-                     expression => "(ST_SRID($field) = ".$field->{extra}{srid}.")",
+                     expression => "(ST_SRID($field) = ".$field->extra->{srid}.")",
                      table       => $field->table,
                      type       => CHECK_C,
                   );
    push @constraints, SQL::Translator::Schema::Constraint->new(
                      name       => "enforce_geotype_".$field->name,
-                     expression => "(GeometryType($field) = '".$field->{extra}{geometry_type}."'::text OR $field IS NULL)",
+                     expression => "(GeometryType($field) = '".$field->extra->{geometry_type}."'::text OR $field IS NULL)",
                      table       => $field->table,
                      type       => CHECK_C,
                   );
@@ -755,7 +755,7 @@ sub convert_datatype
     # Geography
     #
     if($data_type eq 'geography'){
-        $data_type .= '('.$field->{extra}{geography_type}.','. $field->{extra}{srid} .')'
+        $data_type .= '('.$field->extra->{geography_type}.','. $field->extra->{srid} .')'
     }
 
     return $data_type;
@@ -831,7 +831,7 @@ sub alter_field
                        $to_field->name)
         if ( !defined $new_default && defined $old_default );
 
-    # add geometry column and contraints
+    # add geometry column and constraints
     push @out, add_geometry_column($to_field) if is_geometry($to_field);
     push @out, add_geometry_constraints($to_field) if is_geometry($to_field);
 
@@ -876,9 +876,9 @@ sub add_geometry_column{
                   $field->table->schema->name,
                   $options->{table} ? $options->{table} : $field->table->name,
                   $field->name,
-                  $field->{extra}{dimensions},
-                  $field->{extra}{srid},
-                  $field->{extra}{geometry_type});
+                  $field->extra->{dimensions},
+                  $field->extra->{srid},
+                  $field->extra->{geometry_type});
     return $out;
 }
 
@@ -968,17 +968,25 @@ sub alter_drop_constraint {
     my $qc = $options->{quote_field_names} || '';
     $generator->quote_chars([$qt]);
 
+    # attention: Postgres  has a very special naming structure for naming
+    # foreign keys and primary keys.  It names them using the name of the
+    # table as prefix and fkey or pkey as suffix, concatenated by an underscore
+    my $c_name;
+    if( $c->name ) {
+        # Already has a name, just quote it
+        $c_name = $qc . $c->name . $qc;
+    } elsif ( $c->type eq FOREIGN_KEY ) {
+        # Doesn't have a name, and is foreign key, append '_fkey'
+        $c_name = $qc . $c->table->name . '_' .
+                    ($c->fields)[0] . '_fkey' . $qc;
+    } elsif ( $c->type eq PRIMARY_KEY ) {
+        # Doesn't have a name, and is primary key, append '_pkey'
+        $c_name = $qc . $c->table->name . '_pkey' . $qc;
+    }
+
     return sprintf(
         'ALTER TABLE %s DROP CONSTRAINT %s',
-        $generator->quote($c->table->name),
-        # attention: Postgres  has a very special naming structure
-        # for naming foreign keys, it names them uses the name of
-        # the table as prefix and fkey as suffix, concatenated by a underscore
-        $c->type eq FOREIGN_KEY
-            ? $c->name
-                ? $qc . $c->name . $qc
-                : $qc . $c->table->name . '_' . ($c->fields)[0] . '_fkey' . $qc
-            : $qc . $c->name . $qc
+        $qt . $c->table->name . $qt, $c_name
     );
 }
 

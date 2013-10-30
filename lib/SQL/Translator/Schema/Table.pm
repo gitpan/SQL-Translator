@@ -442,7 +442,7 @@ sub get_constraints {
     }
     else {
         $self->error('No constraints');
-        return wantarray ? () : undef;
+        return;
     }
 }
 
@@ -464,7 +464,7 @@ sub get_indices {
     }
     else {
         $self->error('No indices');
-        return wantarray ? () : undef;
+        return;
     }
 }
 
@@ -515,7 +515,7 @@ sub get_fields {
     }
     else {
         $self->error('No fields');
-        return wantarray ? () : undef;
+        return;
     }
 }
 
@@ -741,7 +741,7 @@ add to the fields of an existing PK (and will unique the field names).
 Returns the C<SQL::Translator::Schema::Constraint> object representing
 the primary key.
 
-These are eqivalent:
+These are equivalent:
 
   $table->primary_key('id');
   $table->primary_key(['name']);
@@ -795,8 +795,8 @@ These are eqivalent:
 
 =head2 options
 
-Get or set the table's options (e.g., table types for MySQL).  Returns
-an array or array reference.
+Get or append to the table's options (e.g., table types for MySQL).
+Returns an array or array reference.
 
   my @options = $table->options;
 
@@ -845,7 +845,7 @@ sub field_names {
     }
     else {
         $self->error('No fields');
-        return wantarray ? () : undef;
+        return;
     }
 }
 

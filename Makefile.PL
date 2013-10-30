@@ -12,7 +12,7 @@ my $deps = {
     'Digest::SHA'              => '0',
     'Carp::Clan'               => '0',
     'Parse::RecDescent'        => '1.967009',
-    'DBI'                      => '0',
+    'DBI'                      => '1.54',
     'File::ShareDir'           => '1.0',
     'Moo'                      => '1.000003',
     'Package::Variant'         => '1.001001',
@@ -30,6 +30,7 @@ my $deps = {
     'XML::LibXML'              => '1.69',
   },
   test_requires => {
+    'JSON'                     => '2.0',
     'YAML'                     => '0.66',
     'XML::Writer'              => '0.500',
     'Test::More'               => '0.88',
