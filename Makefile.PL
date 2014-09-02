@@ -19,6 +19,7 @@ my $deps = {
     'Sub::Quote'               => '0',
     'Try::Tiny'                => '0.04',
     'List::MoreUtils'          => '0.09',
+    'Scalar::Util'             => '0',
   },
   recommends => {
     'Template'                 => '2.20',
@@ -36,6 +37,7 @@ my $deps = {
     'Test::More'               => '0.88',
     'Test::Differences'        => '0',
     'Test::Exception'          => '0.31',
+    'Text::ParseWords'         => '0',
   },
 };
 
@@ -190,21 +192,19 @@ sub _recreate_rt_source {
   };
 
   if ($@) {
-    warn <<EOE;
+    die <<EOE;
 
 =========================================================================
 ===============              WARNING !!!                =================
 =========================================================================
 
 Unable to update the roundtrip schema (attempt triggered by AUTHOR mode).
-We will still generate a Makefile, but be aware that if you build a dist
-this way, it *WILL* be broken.
+Aborting Makefile generation, please fix the errors indicated below
+(typically by installing the missing modules).
 
 -------------------------------------------------------------------------
 $@
 
-Press Enter to continue.
 EOE
-  <>;
   }
 }

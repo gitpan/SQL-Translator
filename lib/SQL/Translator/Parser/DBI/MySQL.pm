@@ -37,13 +37,13 @@ sub parse {
 
     $dbh->{'FetchHashKeyName'} = 'NAME_lc';
 
-    my $create;
+    my $create = q{};
     for my $table_name ( @table_names ) {
         next if (grep /^$table_name$/, @skip_tables);
         my $sth = $dbh->prepare("show create table $table_name");
         $sth->execute;
         my $table = $sth->fetchrow_hashref;
-        $create .= $table->{'create table'} . ";\n\n";
+        $create .= ($table->{'create table'} || $table->{'create view'}) . ";\n\n";
     }
 
     SQL::Translator::Parser::MySQL::parse( $tr, $create );

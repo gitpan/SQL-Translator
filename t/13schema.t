@@ -4,7 +4,8 @@
 $| = 1;
 
 use strict;
-use Test::More tests => 245;
+use warnings;
+use Test::More;
 use Test::Exception;
 use SQL::Translator::Schema::Constants;
 
@@ -168,6 +169,8 @@ require_ok( 'SQL::Translator::Schema' );
     is( join(",",$person_table->field_names), 'foo,f2',
         'field_names is "foo,f2"' );
 
+    my $ci_field = $person_table->get_field('FOO', 'case_insensitive');
+    is( $ci_field->name, 'foo', 'Got field case-insensitively' );
     #
     # $table-> drop_field
     #
@@ -744,3 +747,80 @@ require_ok( 'SQL::Translator::Schema' );
     throws_ok { $f1 = $t2->add_field( name => 'location' ) }
         qr/field order incomplete/;
 }
+
+#
+# Test link tables
+#
+
+{
+    my $s = SQL::Translator::Schema->new;
+    my $t1 = $s->add_table( name => 'person' );
+    $t1->add_field( name => 'id' );
+    $t1->primary_key( 'id' );
+    $t1->add_field( name => 'name' );
+
+    ok( $t1->is_data, 'Person table has data' );
+    ok( !$t1->is_trivial_link, 'Person table is not trivial' );
+
+    my $t2 = $s->add_table( name => 'pet' );
+    $t2->add_field( name => 'id' );
+    $t2->primary_key( 'id' );
+    $t2->add_field( name => 'name' );
+
+    ok( $t2->is_data, 'Pet table has data' );
+    ok( !$t1->is_trivial_link, 'Pet table is trivial' );
+
+    my $t3 = $s->add_table( name => 'person_pet' );
+    $t3->add_field( name => 'id' );
+    my $f1 = $t3->add_field( name => 'person_id' );
+    my $f2 = $t3->add_field( name => 'pet_id' );
+    $t3->primary_key( 'id' );
+
+    $t3->add_constraint(
+        type => FOREIGN_KEY,
+        fields => 'person_id',
+        reference_table => $t1,
+    );
+
+    $t3->add_constraint(
+        type => FOREIGN_KEY,
+        fields => 'pet_id',
+        reference_table => $t2,
+    );
+
+    ok( $f1->is_foreign_key, "person_id is foreign key" );
+    ok( $f2->is_foreign_key, "pet_id is foreign key" );
+
+    ok( !$t3->is_data, 'Link table has no data' );
+    ok( $t3->is_trivial_link, 'Link table is trivial' );
+    is( $t3->can_link($t1, $t2)->[0], 'one2one', 'Link table can link' );
+
+    my $t4 = $s->add_table( name => 'fans' );
+    my $f3 = $t4->add_field( name => 'fan_id' );
+    my $f4 = $t4->add_field( name => 'idol_id' );
+    $t4->primary_key( 'fan_id', 'idol_id' );
+
+    $t4->add_constraint(
+        type => FOREIGN_KEY,
+        name => 'fan_fan_fk',
+        fields => 'fan_id',
+        reference_table => $t1,
+    );
+
+    $t4->add_constraint(
+        type => FOREIGN_KEY,
+        name => 'fan_idol_fk',
+        fields => 'idol_id',
+        reference_table => $t1,
+    );
+
+    ok( $f3->is_foreign_key, "fan_id is foreign key" );
+    ok( $f4->is_foreign_key, "idol_id is foreign key" );
+
+    ok( !$t4->is_data, 'Self-link table has no data' );
+    ok( !$t4->is_trivial_link, 'Self-link table is not trivial' );
+    is( $t4->can_link($t1, $t1)->[0], 'many2many', 'Self-link table can link' );
+    ok( !$t4->can_link($t1, $t2)->[0], 'Self-link table can\'t link other' );
+}
+
+done_testing;

@@ -219,6 +219,8 @@ t/data/xml/samefield.xml
 t/data/xml/schema.xml
 t/lib/Producer/BaseTest.pm
 t/mysql-sqlite-translate.t
+t/postgresql-rename-table-and-field.t
+t/sqlite-rename-field.t
 xt/eol.t
 xt/notabs.t
 xt/pod.t

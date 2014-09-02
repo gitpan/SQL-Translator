@@ -1,5 +1,17 @@
 Changes for SQL::Translator
 
+0.11019 2014-09-02
+
+ * Add Json and hstore types to Pg Parser (cloudinstustrie)
+ * Fix DROP TABLE in SQL Server Producer
+ * Fix Pg DBI parser test (Dagfinn Ilmari Mannsåker)
+ * Remove spurious warnings (Matt Phillips, Wallace Reis)
+ * Fix MySQL producer for columns with scalar ref in 'ON UPDATE' (Wallace Reis)
+ * Fix handling of views in MySQL DBI parser
+ * Fix handling of renamed fields in SQLite diff (Peter Mottram)
+ * Check numeric equality of default values in numeric-type fields (Wallace Reis)
+ * Fix handling of renamed fields in renamed tables in Pg diff (Peter Mottram)
+
 0.11018 2013-10-31 🎃
 
  * Revert "Fix AUTOINCREMENT in SQLite"
