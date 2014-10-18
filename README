@@ -54,6 +54,7 @@ DESCRIPTION
     (CREATE, ALTER), not the manipulation of data (INSERT, UPDATE, DELETE).
 
 CONSTRUCTOR
+  new
     The constructor is called "new", and accepts a optional hash of options.
     Valid options are:
 
@@ -336,13 +337,44 @@ AUTHORS
     See the included AUTHORS file:
     <http://search.cpan.org/dist/SQL-Translator/AUTHORS>
 
-    If you would like to contribute to the project, you can send patches to
-    the developers mailing list:
+GETTING HELP/SUPPORT
+    If you are stuck with a problem or have doubts about a particular
+    approach do not hesitate to contact us via any of the following options
+    (the list is sorted by "fastest response time"):
 
-        sqlfairy-developers@lists.sourceforge.net
+    *   IRC: irc.perl.org#sql-translator
 
-    Or send us a message (with your Sourceforge username) asking to be added
-    to the project and what you'd like to contribute.
+    *   Mailing list: <http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
+
+    *   RT Bug Tracker:
+        <https://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator>
+
+HOW TO CONTRIBUTE
+    Contributions are always welcome, in all usable forms (we especially
+    welcome documentation improvements). The delivery methods include git-
+    or unified-diff formatted patches, GitHub pull requests, or plain bug
+    reports either via RT or the Mailing list. Contributors are generally
+    granted access to the official repository after their first several
+    patches pass successful review. Don't hesitate to contact us with any
+    further questions you may have.
+
+    This project is maintained in a git repository. The code and related
+    tools are accessible at the following locations:
+
+    *   Official repo:
+        <git://git.shadowcat.co.uk/dbsrgits/SQL-Translator.git>
+
+    *   Official gitweb:
+        <http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/SQL-Transla
+        tor.git>
+
+    *   GitHub mirror: <https://github.com/dbsrgits/SQL-Translator>
+
+    *   Authorized committers:
+        <ssh://dbsrgits@git.shadowcat.co.uk/sql-translator.git>
+
+    *   Travis-CI log:
+        <https://travis-ci.org/dbsrgits/sql-translator/builds>
 
 COPYRIGHT
     Copyright 2012 the SQL::Translator authors, as listed in "AUTHORS".
@@ -350,9 +382,6 @@ COPYRIGHT
 LICENSE
     This library is free software and may be distributed under the same
     terms as Perl 5 itself.
-
-BUGS
-    Please use <http://rt.cpan.org/> for reporting bugs.
 
 PRAISE
     If you find this module useful, please use

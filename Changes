@@ -1,5 +1,17 @@
 Changes for SQL::Translator
 
+0.11020_01 2014-10-18
+
+ * Fix Oracle producer generating an unnecessary / at the end in case there
+   are no triggers
+ * Skip HTML tests if CGI is not installed (RT#98027)
+ * Fix JSON and YAML tests if the defaults have been tweaked (RT#98824)
+ * Fixes for parsing and producing identifiers and values that need
+   quoting and escaping for SQLite, MySQL, PostgreSQL, SQLServer and
+   Oracle (RT#90700, RT#31034)
+ * Add support for ALTER TABLE ... ADD CONSTRAINT to Oracle parser
+ * Add trigger support to Oracle parser (RT#62927)
+
 0.11020 2014-09-02
 
  * Fix test failure if Test::PostgreSQL is installed but not working

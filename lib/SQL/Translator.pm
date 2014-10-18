@@ -3,7 +3,7 @@ package SQL::Translator;
 use Moo;
 our ( $DEFAULT_SUB, $DEBUG, $ERROR );
 
-our $VERSION  = '0.11020';
+our $VERSION  = '0.11020_01';
 $DEBUG    = 0 unless defined $DEBUG;
 $ERROR    = "";
 
@@ -17,7 +17,7 @@ use IO::Dir;
 use Sub::Quote qw(quote_sub);
 use SQL::Translator::Producer;
 use SQL::Translator::Schema;
-use SQL::Translator::Utils qw(throw ex2err carp_ro);
+use SQL::Translator::Utils qw(throw ex2err carp_ro normalize_quote_options);
 
 $DEFAULT_SUB = sub { $_[0]->schema } unless defined $DEFAULT_SUB;
 
@@ -40,40 +40,7 @@ around BUILDARGS => sub {
 
     $config->{filename} ||= $config->{file} if defined $config->{file};
 
-    my $quote;
-    if (defined $config->{quote_identifiers}) {
-      $quote = $config->{quote_identifiers};
-
-      for (qw/quote_table_names quote_field_names/) {
-        carp "Ignoring deprecated parameter '$_', since 'quote_identifiers' is supplied"
-          if defined $config->{$_}
-      }
-    }
-    # Legacy one set the other is not
-    elsif (
-      defined $config->{'quote_table_names'}
-        xor
-      defined $config->{'quote_field_names'}
-    ) {
-      if (defined $config->{'quote_table_names'}) {
-        carp "Explicitly disabling the deprecated 'quote_table_names' implies disabling 'quote_identifiers' which in turn implies disabling 'quote_field_names'"
-          unless $config->{'quote_table_names'};
-        $quote = $config->{'quote_table_names'} ? 1 : 0;
-      }
-      else {
-        carp "Explicitly disabling the deprecated 'quote_field_names' implies disabling 'quote_identifiers' which in turn implies disabling 'quote_table_names'"
-          unless $config->{'quote_field_names'};
-        $quote = $config->{'quote_field_names'} ? 1 : 0;
-      }
-    }
-    # Legacy both are set
-    elsif(defined $config->{'quote_table_names'}) {
-      croak 'Setting quote_table_names and quote_field_names to conflicting values is no longer supported'
-        if ($config->{'quote_table_names'} xor $config->{'quote_field_names'});
-
-      $quote = $config->{'quote_table_names'} ? 1 : 0;
-    }
-
+    my $quote = normalize_quote_options($config);
     $config->{quote_identifiers} = $quote if defined $quote;
 
     return $config;
@@ -767,6 +734,8 @@ UPDATE, DELETE).
 
 =head1 CONSTRUCTOR
 
+=head2 new
+
 The constructor is called C<new>, and accepts a optional hash of options.
 Valid options are:
 
@@ -1108,14 +1077,55 @@ Returns the version of the SQL::Translator release.
 See the included AUTHORS file:
 L<http://search.cpan.org/dist/SQL-Translator/AUTHORS>
 
-If you would like to contribute to the project, you can send patches
-to the developers mailing list:
+=head1 GETTING HELP/SUPPORT
 
-    sqlfairy-developers@lists.sourceforge.net
+If you are stuck with a problem or have doubts about a particular
+approach do not hesitate to contact us via any of the following
+options (the list is sorted by "fastest response time"):
 
-Or send us a message (with your Sourceforge username) asking to be
-added to the project and what you'd like to contribute.
+=over
 
+=item * IRC: irc.perl.org#sql-translator
+
+=for html
+<a href="https://chat.mibbit.com/#sql-translator@irc.perl.org">(click for instant chatroom login)</a>
+
+=item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
+
+=item * RT Bug Tracker: L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Translator>
+
+=back
+
+=head1 HOW TO CONTRIBUTE
+
+Contributions are always welcome, in all usable forms (we especially
+welcome documentation improvements). The delivery methods include git-
+or unified-diff formatted patches, GitHub pull requests, or plain bug
+reports either via RT or the Mailing list. Contributors are generally
+granted access to the official repository after their first several
+patches pass successful review. Don't hesitate to
+L<contact|/GETTING HELP/SUPPORT> us with any further questions you may
+have.
+
+This project is maintained in a git repository. The code and related tools are
+accessible at the following locations:
+
+=over
+
+=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/SQL-Translator.git>
+
+=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/SQL-Translator.git>
+
+=item * GitHub mirror: L<https://github.com/dbsrgits/SQL-Translator>
+
+=item * Authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/sql-translator.git>
+
+=item * Travis-CI log: L<https://travis-ci.org/dbsrgits/sql-translator/builds>
+
+=for html
+&#x21AA; Stable branch CI status: <img src="https://secure.travis-ci.org/dbsrgits/sql-translator.png?branch=master"></img>
+
+=back
 
 =head1 COPYRIGHT
 
@@ -1125,10 +1135,6 @@ Copyright 2012 the SQL::Translator authors, as listed in L</AUTHORS>.
 
 This library is free software and may be distributed under the same terms as
 Perl 5 itself.
-
-=head1 BUGS
-
-Please use L<http://rt.cpan.org/> for reporting bugs.
 
 =head1 PRAISE
 

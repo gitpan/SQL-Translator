@@ -19,6 +19,7 @@ lib/SQL/Translator/Diff.pm
 lib/SQL/Translator/Filter/DefaultExtra.pm
 lib/SQL/Translator/Filter/Globals.pm
 lib/SQL/Translator/Filter/Names.pm
+lib/SQL/Translator/Generator/DDL/MySQL.pm
 lib/SQL/Translator/Generator/DDL/PostgreSQL.pm
 lib/SQL/Translator/Generator/DDL/SQLite.pm
 lib/SQL/Translator/Generator/DDL/SQLServer.pm

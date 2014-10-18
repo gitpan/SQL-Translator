@@ -62,7 +62,7 @@ my $plan = [
     engine => 'Oracle',
     producer_args => {},
     parser_args => {},
-    todo => 'Needs volunteers',
+    todo_cmp => "auto-increment triggers aren't detected",
   },
   {
     engine => 'Sybase',
@@ -92,7 +92,7 @@ my $base_file = "$Bin/data/roundtrip_autogen.yaml";
 open (my $base_fh, '<', $base_file) or die "$base_file: $!";
 
 my $base_t = SQL::Translator->new;
-$base_t->$_ (1) for qw/add_drop_table no_comments/;
+$base_t->$_ (1) for qw/add_drop_table no_comments quote_identifiers/;
 
 my $base_schema = $base_t->translate (
   parser => 'YAML',
@@ -140,7 +140,7 @@ for my $args (@$plan) {
       local $::RD_HINT = 0 if $args->{todo};
 
       lives_ok (
-        sub { check_roundtrip ($args, $base_schema) },
+        sub { check_roundtrip ($args, $base_schema, $args->{todo_cmp}) },
         "Round trip for $args->{name} did not throw an exception",
       );
     }
@@ -149,7 +149,7 @@ for my $args (@$plan) {
 
 
 sub check_roundtrip {
-  my ($args, $base_schema) = @_;
+  my ($args, $base_schema, $todo_cmp) = @_;
   my $base_t = $base_schema->translator;
 
 # create some output from the submitted schema
@@ -170,7 +170,7 @@ sub check_roundtrip {
 
 # parse the sql back
   my $parser_t = SQL::Translator->new;
-  $parser_t->$_ (1) for qw/add_drop_table no_comments/;
+  $parser_t->$_ (1) for qw/add_drop_table no_comments quote_identifiers/;
   my $mid_schema = $parser_t->translate (
     data => $base_out,
     parser => $args->{engine},
@@ -194,7 +194,7 @@ sub check_roundtrip {
     _get_table_info ($mid_schema->get_tables),
     _get_table_info ($base_schema->get_tables),
     "Schema tables generally match afer $args->{name} parser trip",
-  ) or return;
+  ) or (diag(explain _get_table_info($mid_schema->get_tables)), return);
 
 # and produce sql once again
 
@@ -224,6 +224,7 @@ sub check_roundtrip {
     return;
   };
 
+  local $TODO = $todo_cmp;
 # the two sql strings should be identical
   my $msg = "$args->{name} SQL roundtrip successful - SQL statements match";
   $ENV{SQLTTEST_RT_DEBUG}

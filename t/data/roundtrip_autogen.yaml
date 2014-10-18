@@ -145,9 +145,9 @@ schema:
           size:
             - 500
         emptytagdef:
-          comments: Hello emptytagdef
+          comments: Hello 'emptytagdef'
           data_type: varchar
-          default_value: ''
+          default_value: backslash \ single-quote '
           is_nullable: 1
           is_primary_key: 0
           is_unique: 0
@@ -190,7 +190,7 @@ schema:
             - 10
         numeric:
           data_type: numeric
-          default_value: ~
+          default_value: 42.69
           is_nullable: 1
           is_primary_key: 0
           is_unique: 0
@@ -232,6 +232,36 @@ schema:
       name: Basic
       options: []
       order: 1
+    '`table` [with] "quotes"':
+      constraints:
+        - deferrable: 1
+          expression: ''
+          fields:
+            - '`field` [with] "quotes"'
+          match_type: ''
+          name: ''
+          on_delete: ''
+          on_update: ''
+          options: []
+          reference_fields: []
+          reference_table: ''
+          type: PRIMARY KEY
+      fields:
+        '`field` [with] "quotes"':
+          data_type: int
+          default_value: ~
+          is_auto_increment: 1
+          is_nullable: 0
+          is_primary_key: 1
+          is_unique: 0
+          name: '`field` [with] "quotes"'
+          order: 1
+          size:
+            - 10
+      indices: []
+      name: '`table` [with] "quotes"'
+      options: []
+      order: 3
   triggers:
     bar_trigger:
       action: update modified2=timestamp();
@@ -279,4 +309,4 @@ translator:
   producer_type: SQL::Translator::Producer::YAML
   show_warnings: 0
   trace: 0
-  version: 0.11020
+  version: 0.11020_01

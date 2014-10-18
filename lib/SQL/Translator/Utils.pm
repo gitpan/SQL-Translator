@@ -6,7 +6,7 @@ use Digest::SHA qw( sha1_hex );
 use File::Spec;
 use Scalar::Util qw(blessed);
 use Try::Tiny;
-use Carp qw(carp);
+use Carp qw(carp croak);
 
 our $VERSION = '1.59';
 our $DEFAULT_COMMENT = '-- ';
@@ -17,6 +17,7 @@ our @EXPORT_OK = qw(
     $DEFAULT_COMMENT parse_mysql_version parse_dbms_version
     ddl_parser_instance batch_alter_table_statements
     throw ex2err carp_ro
+    normalize_quote_options
 );
 use constant COLLISION_TAG_LENGTH => 8;
 
@@ -58,6 +59,46 @@ sub normalize_name {
     $name =~ s/_$//;
 
     return $name;
+}
+
+sub normalize_quote_options {
+    my $config = shift;
+
+    my $quote;
+    if (defined $config->{quote_identifiers}) {
+      $quote = $config->{quote_identifiers};
+
+      for (qw/quote_table_names quote_field_names/) {
+        carp "Ignoring deprecated parameter '$_', since 'quote_identifiers' is supplied"
+          if defined $config->{$_}
+      }
+    }
+    # Legacy one set the other is not
+    elsif (
+      defined $config->{'quote_table_names'}
+        xor
+      defined $config->{'quote_field_names'}
+    ) {
+      if (defined $config->{'quote_table_names'}) {
+        carp "Explicitly disabling the deprecated 'quote_table_names' implies disabling 'quote_identifiers' which in turn implies disabling 'quote_field_names'"
+          unless $config->{'quote_table_names'};
+        $quote = $config->{'quote_table_names'} ? 1 : 0;
+      }
+      else {
+        carp "Explicitly disabling the deprecated 'quote_field_names' implies disabling 'quote_identifiers' which in turn implies disabling 'quote_table_names'"
+          unless $config->{'quote_field_names'};
+        $quote = $config->{'quote_field_names'} ? 1 : 0;
+      }
+    }
+    # Legacy both are set
+    elsif(defined $config->{'quote_table_names'}) {
+      croak 'Setting quote_table_names and quote_field_names to conflicting values is no longer supported'
+        if ($config->{'quote_table_names'} xor $config->{'quote_field_names'});
+
+      $quote = $config->{'quote_table_names'} ? 1 : 0;
+    }
+
+    return $quote;
 }
 
 sub header_comment {
@@ -545,13 +586,13 @@ L<Moo/around>.
 =head2 carp_ro
 
 Takes a field name and returns a reference to a function can be used
-L<around|Moo/around> a read-only accessor to make it L<carp|Carp/carp>
+L<around|Moo/around> a read-only accessor to make it L<carp|Carp>
 instead of die when passed an argument.
 
 =head2 batch_alter_table_statements
 
 Takes diff and argument hashes as passed to
-L<batch_alter_table|SQL::Translator::Diff/batch_alter_table($table, $hash) (optional)>
+L<batch_alter_table|SQL::Translator::Diff/batch_alter_table($table, $hash, $args) (optional)>
 and an optional list of producer functions to call on the calling package.
 Returns the list of statements returned by the producer functions.
 

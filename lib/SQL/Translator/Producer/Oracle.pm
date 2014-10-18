@@ -93,6 +93,7 @@ our ( $DEBUG, $WARN );
 our $VERSION = '1.59';
 $DEBUG   = 0 unless defined $DEBUG;
 
+use base 'SQL::Translator::Producer';
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(header_comment);
 
@@ -248,10 +249,9 @@ sub produce {
         $create .= ";\n\n";
         # If wantarray is not set we have to add "/" in this statement
         # DBI->do() needs them omitted
-        # triggers may NOT end with a semicolon
-        $create .= join "/\n\n", @trigger_defs;
-        # for last trigger
-        $create .= "/\n\n";
+        # triggers may NOT end with a semicolon but a "/" instead
+        $create .= "$_/\n\n"
+            for @trigger_defs;
         return $create;
     }
 }
@@ -462,10 +462,9 @@ sub create_table {
         if ( my @table_comments = $table->comments ) {
             for my $comment ( @table_comments ) {
                 next unless $comment;
-                $comment =~ s/'/''/g;
-                push @field_comments, "COMMENT ON TABLE $table_name_q is\n '".
-                $comment . "'" unless $options->{no_comments}
-                ;
+                $comment = __PACKAGE__->_quote_string($comment);
+                push @field_comments, "COMMENT ON TABLE $table_name_q is\n $comment"
+                    unless $options->{no_comments};
             }
         }
 
@@ -551,8 +550,7 @@ sub create_field {
     my @size      = $field->size;
     my %extra     = $field->extra;
     my $list      = $extra{'list'} || [];
-    # \todo deal with embedded quotes
-    my $commalist = join( ', ', map { qq['$_'] } @$list );
+    my $commalist = join( ', ', map { __PACKAGE__->_quote_string($_) } @$list );
 
     if ( $data_type eq 'enum' ) {
         $check = "CHECK ($field_name_q IN ($commalist))";
@@ -661,7 +659,7 @@ sub create_field {
                 ) {
             $default = 'SYSDATE';
         } else {
-            $default = $default =~ m/null/i ? 'NULL' : "'$default'"
+            $default = $default =~ m/null/i ? 'NULL' : __PACKAGE__->_quote_string($default);
         }
 
         $field_def .= " DEFAULT $default",
@@ -719,10 +717,10 @@ sub create_field {
     push @field_defs, $field_def;
 
     if ( my $comment = $field->comments ) {
-        $comment =~ s/'/''/g;
+        $comment =~ __PACKAGE__->_quote_string($comment);
         push @field_comments,
-          "COMMENT ON COLUMN $table_name_q.$field_name_q is\n '" .
-            $comment . "';" unless $options->{no_comments};
+          "COMMENT ON COLUMN $table_name_q.$field_name_q is\n $comment;"
+              unless $options->{no_comments};
     }
 
     return \@create, \@field_defs, \@trigger_defs, \@field_comments;
@@ -788,7 +786,9 @@ sub mk_name {
 
 sub quote {
   my ($name, $q) = @_;
-  $q && $name ? "$quote_char$name$quote_char" : $name;
+  return $name unless $q && $name;
+  $name =~ s/\Q$quote_char/$quote_char$quote_char/g;
+  return "$quote_char$name$quote_char";
 }
 
 
