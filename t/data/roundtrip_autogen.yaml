@@ -263,6 +263,15 @@ schema:
       options: []
       order: 3
   triggers:
+    '`trigger` [with] "quotes"':
+      action: select timestamp();
+      database_events:
+        - insert
+      fields: ~
+      name: '`trigger` [with] "quotes"'
+      on_table: '`table` [with] "quotes"'
+      order: 3
+      perform_action_when: before
     bar_trigger:
       action: update modified2=timestamp();
       database_events:
@@ -309,4 +318,4 @@ translator:
   producer_type: SQL::Translator::Producer::YAML
   show_warnings: 0
   trace: 0
-  version: 0.11020_01
+  version: 0.11020_02
